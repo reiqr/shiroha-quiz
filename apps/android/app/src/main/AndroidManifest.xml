@@ -12,9 +12,9 @@
         android:theme="@style/Theme.ShirohaQuiz"
         android:usesCleartextTraffic="false">
         <activity
-            android:name=".MainActivity"
+            android:name=".WebShellActivity"
             android:exported="true"
-            android:launchMode="singleTask"
+            android:label="Shiroha Quiz Web Shell"
             android:theme="@style/Theme.ShirohaQuiz.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -23,9 +23,9 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".WebShellActivity"
+            android:name=".MainActivity"
             android:exported="false"
-            android:label="Shiroha Quiz Web Shell"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.ShirohaQuiz" />
     </application>
 

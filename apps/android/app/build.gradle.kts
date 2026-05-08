@@ -11,8 +11,8 @@ android {
         applicationId = "com.codex.shirohaquiz"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -49,6 +49,18 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+val exportNamedDebugApk by tasks.registering(Copy::class) {
+    from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
+    into(layout.buildDirectory.dir("outputs/shiroha-quiz"))
+    rename { "Shiroha-Quiz-v0.1.1-debug.apk" }
+}
+
+afterEvaluate {
+    tasks.named("assembleDebug") {
+        finalizedBy(exportNamedDebugApk)
     }
 }
 
