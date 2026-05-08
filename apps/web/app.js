@@ -477,7 +477,7 @@ function parseImport(){
     importSelected.clear();
     renderImportPreview(importCache);
     $('#confirm-import-btn').disabled=!importCache.length;
-    const warnings=collectImportWarnings(importCache);
+    const warnings=collectSoftRiskWarnings(importCache, importDiagnostics?.profile||{});
     if(importCache.length)showNotice('识别完成',summarizeImportResult(importCache,warnings),warnings.length?'warn':'ok');
     else showNotice('识别失败','没有识别到有效题目。请检查题号、选项或答案格式，也可以先粘贴纯文本后再试。','danger');
   }catch(e){toast('识别失败：'+e.message,'danger','识别失败')}
@@ -536,7 +536,7 @@ function parseDualImport(){
     importSelected.clear();
     renderImportPreview(importCache);
     $('#confirm-import-btn').disabled=!importCache.length;
-    const warnings=collectImportWarnings(importCache).concat(importWarnings||[]);
+    const warnings=[...new Set(collectSoftRiskWarnings(importCache, importDiagnostics?.profile||{}).concat(importWarnings||[]))];
     if(importCache.length)showNotice('双文件合并完成',`题目文件识别 ${questions.length} 道，答案文件识别 ${answerEntries.length} 条；答案策略：${resolved.answerSourceName||'答案表提取'}；合并后 ${importCache.length} 道。${warnings.length?`存在 ${warnings.length} 条提示，请在预览中确认。`:'未发现明显异常。'}`,warnings.length?'warn':'ok');
     else showNotice('双文件合并失败','没有得到可导入题目，请检查题目文件和答案文件的对应方式。','danger');
   }catch(e){toast('双文件识别失败：'+e.message,'danger','双文件识别失败')}
@@ -739,7 +739,6 @@ function localRepairRiskStatus(q,profile){
   if(question.length>260)return'题干过长';
   if(['single','multiple'].includes(q.type)){
     if(/[（(]\s*[）)]\s*A\s*(?:[、.．:：]|\s+|(?=[\u4e00-\u9fa5]))/.test(question)||/[。？！?]\s*A\s*(?:[、.．:：]|\s+)(?!级|PI\b|P\b)/i.test(question))return'题干疑似混入A选项';
-    if(options.length>=2&&options[0]&&String(options[0].text||'').trim().length<=1)return'A选项疑似过短';
     if(q.type==='single'&&options.length===2&&!isJudgeBlock(options,q.answer||[]))return'单选题选项数量偏少';
     if(q.type==='multiple'&&options.length<3)return'多选题选项数量偏少';
   }
@@ -2533,7 +2532,7 @@ function renderRecords(){const list=$('#records-list');let rows=[...state.record
 function exportRecords(){const text=JSON.stringify(state.records||[],null,2);$('#export-output')&&($('#export-output').value=text);download('刷题记录.json',text)}
 function fmt(s){return new Date(s).toLocaleString('zh-CN',{hour12:false})}
 function exportCurrentBank(){const text=JSON.stringify(activeBank(),null,2);$('#export-output').value=text;download(activeBank().name+'.json',text)}
-function exportAll(){const text=JSON.stringify(state,null,2);$('#export-output').value=text;download('通用刷题器全部数据.json',text)}
+function exportAll(){const text=JSON.stringify(state,null,2);$('#export-output').value=text;download('shiroha_quiz_all_data.json',text)}
 function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json;charset=utf-8'}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
 function resetData(){if(confirm('确定清除全部本地数据？默认题库也会重新初始化。')){localStorage.removeItem(KEY);location.reload()}}
 })();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>通用刷题器网页版 - v22.6 2014分区答案回填修复版</title>
+  <title>Shiroha Quiz - v22.8 UI 命名更新版</title>
   <link rel="icon" type="image/png" href="./app-icon.png" />
   <link rel="apple-touch-icon" href="./app-icon.png" />
   <link rel="stylesheet" href="./styles.css" />
@@ -13,7 +13,7 @@
     <aside class="side">
       <div class="brand">
         <img src="./app-icon.png" alt="图标" onerror="this.style.display='none'" />
-        <div><b>通用刷题器</b><span>题库导入 · 练习 · 考试</span></div>
+        <div><b>Shiroha Quiz</b><span>自导入题库 · 练习 · 考试</span></div>
       </div>
       <button class="nav active" data-view="dashboard">首页</button>
       <button class="nav" data-view="import">导入题库</button>
@@ -28,7 +28,7 @@
     <main class="main">
       <header class="topbar">
         <div>
-          <p class="kicker">Universal Quiz Web</p>
+          <p class="kicker">Shiroha Quiz Web</p>
           <h1 id="page-title">首页</h1>
         </div>
         <div class="top-actions">
@@ -41,8 +41,8 @@
         <div class="hero-card">
           <div>
             <p class="kicker">当前版本</p>
-            <h2>v22.6：2014分区答案回填修复版。</h2>
-            <p>本版在 v22.5 基础上修复“每个分区先出题、分区末尾给答案”的回填逻辑：保留原分区标题用于题号重复匹配，并按合并后的答案命中率选择最稳题目解析候选。标准题库仍保持标准优先。</p>
+            <h2>v22.8：Shiroha Quiz 命名更新版。</h2>
+            <p>本版将项目界面命名统一为 Shiroha Quiz，并保留前序导入修复逻辑：标准题库优先稳定解析；检测到答案解析区时，按分区、题号和答案命中率进行回填。</p>
           </div>
           <div class="hero-stats">
             <div><b id="stat-total">0</b><span>当前题库题数</span></div>
@@ -61,7 +61,7 @@
         <div class="card">
           <div class="section-head"><div><p class="kicker">Import</p><h2>单文件智能导入</h2></div><button id="load-sample-btn" class="ghost">填入示例</button></div>
           <div class="form-grid">
-            <label>题库名称<input id="import-bank-name" placeholder="例如：HSE培训题库" /></label>
+            <label>题库名称<input id="import-bank-name" placeholder="例如：安全培训题库" /></label>
             <label>识别模式<select id="import-mode"><option value="auto">自动识别</option><option value="wenjuanxing">问卷星/考试星</option><option value="normal">普通题库</option><option value="json">JSON</option></select></label>
             <label>解析策略<select id="import-strategy"><option value="auto" selected>自动推荐</option><option value="standard">标准逐行解析</option><option value="volume">分卷分区解析</option><option value="compact">紧凑格式解析</option></select></label>
             <label>上传文件<input id="import-file" type="file" accept=".txt,.json,.csv,.docx,.doc,.pdf" /></label>
@@ -198,7 +198,7 @@ o(2)正确选项
       <div class="form-grid">
         <label>题型<select id="edit-type"><option value="single">单选题</option><option value="multiple">多选题</option><option value="judge">判断题</option><option value="blank">填空题</option><option value="short">简答题</option></select></label>
         <label>答案<input id="edit-answer" placeholder="选择题填 D 或 ACD；判断题可填 A/B/正确/错误；填空/简答可填参考答案，多个等价答案用 || 分隔" /></label>
-        <label>分类<input id="edit-category" placeholder="例如：HSE / 作业许可" /></label>
+        <label>分类<input id="edit-category" placeholder="例如：基础知识 / 安全规范" /></label>
         <label>分值<input id="edit-score" type="number" min="0" step="0.5" placeholder="可空，考试时按题型默认分值" /></label>
       </div>
       <label>题干<textarea id="edit-question" class="small-area" placeholder="题干"></textarea></label>
