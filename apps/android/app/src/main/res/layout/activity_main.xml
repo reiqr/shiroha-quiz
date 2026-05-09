@@ -10,5 +10,92 @@
         android:layout_height="match_parent"
         android:background="@color/surface" />
 
-</FrameLayout>
+    <FrameLayout
+        android:id="@+id/launch_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/launch_overlay_bg"
+        android:clickable="true"
+        android:focusable="true">
 
+        <View
+            android:id="@+id/launch_glow"
+            android:layout_width="360dp"
+            android:layout_height="360dp"
+            android:layout_gravity="center"
+            android:background="@drawable/launch_glow_bg" />
+
+        <LinearLayout
+            android:id="@+id/launch_card"
+            android:layout_width="288dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:elevation="10dp"
+            android:paddingLeft="24dp"
+            android:paddingTop="24dp"
+            android:paddingRight="24dp"
+            android:paddingBottom="22dp"
+            android:background="@drawable/launch_card_bg">
+
+            <ImageView
+                android:id="@+id/launch_mascot"
+                android:layout_width="136dp"
+                android:layout_height="136dp"
+                android:contentDescription="Shiroha Quiz"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_launcher_foreground_image" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Shiroha Quiz"
+                android:textColor="#10233F"
+                android:textSize="23sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="轻量刷题 · 题库导入 · 错题复习"
+                android:textColor="#637792"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/dot_1"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginHorizontal="6dp"
+                    android:alpha="0.35"
+                    android:background="@drawable/launch_dot" />
+
+                <View
+                    android:id="@+id/dot_2"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginHorizontal="6dp"
+                    android:alpha="0.35"
+                    android:background="@drawable/launch_dot" />
+
+                <View
+                    android:id="@+id/dot_3"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginHorizontal="6dp"
+                    android:alpha="0.35"
+                    android:background="@drawable/launch_dot" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

@@ -55,7 +55,7 @@ android {
 val exportNamedDebugApk by tasks.registering(Copy::class) {
     from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
     into(layout.buildDirectory.dir("outputs/shiroha-quiz"))
-    rename { "Shiroha-Quiz-v0.3.2-alpha-debug.apk" }
+    rename { "Shiroha-Quiz-v0.3.3-alpha-debug.apk" }
 }
 
 afterEvaluate {
