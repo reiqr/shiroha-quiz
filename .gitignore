@@ -35,5 +35,9 @@ apps/web/shiroha_quiz_v23_data_tools_patch/
 releases/
 apps/shiroha-quiz-*.zip
 
+# Local temporary zip archives
+shiroha_quiz_*.zip
+apps/android/app/src/main.zip
+
 # Local images / chat exports
 微信图片_*.jpg
