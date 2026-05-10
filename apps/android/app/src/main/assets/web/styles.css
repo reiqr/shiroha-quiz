@@ -4793,3 +4793,173 @@ button{
   }
 }
 /* SHIROHA_APP_V28_9_USER_FACING_IMPORT_REVIEW_END */
+
+/* SHIROHA_APP_V28_9_HEADER_ART_AND_TITLE_ACTION_ALIGN_START
+   App 专属：顶部行走素材移入 Shiroha Quiz 标题白色区域右侧并放大；页面标题右侧按钮/状态与主标题同高对齐。 */
+@media(max-width:720px){
+  .topbar{
+    position:relative !important;
+    overflow:visible !important;
+  }
+  .topbar-title-group{
+    position:relative !important;
+    min-height:58px !important;
+    padding-right:min(43vw,194px) !important;
+  }
+  .topbar-title-group .kicker{
+    margin-bottom:4px !important;
+  }
+  .topbar .app-mobile-top-art{
+    display:block !important;
+    position:absolute !important;
+    top:18px !important;
+    right:28px !important;
+    z-index:3 !important;
+    width:min(42vw,192px) !important;
+    height:58px !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    object-fit:contain !important;
+    object-position:center center !important;
+    pointer-events:none !important;
+    user-select:none !important;
+    opacity:.98 !important;
+  }
+  .topbar .top-actions{
+    position:relative !important;
+    z-index:2 !important;
+    margin-top:2px !important;
+  }
+
+  #banks .section-head > button,
+  #import .section-head > button,
+  #practice .section-head > .pill,
+  #exam .section-head > .pill,
+  #wrongbook .section-head > button,
+  #records .section-head > .actions{
+    margin-top:16px !important;
+    align-self:flex-start !important;
+  }
+  #import .section-head > button,
+  #exam .section-head > .pill{
+    margin-top:15px !important;
+  }
+}
+@media(max-width:380px){
+  .topbar-title-group{
+    min-height:52px !important;
+    padding-right:142px !important;
+  }
+  .topbar .app-mobile-top-art{
+    top:18px !important;
+    right:22px !important;
+    width:136px !important;
+    height:50px !important;
+  }
+  #banks .section-head > button,
+  #import .section-head > button,
+  #practice .section-head > .pill,
+  #exam .section-head > .pill,
+  #wrongbook .section-head > button,
+  #records .section-head > .actions{
+    margin-top:14px !important;
+  }
+}
+/* SHIROHA_APP_V28_9_HEADER_ART_AND_TITLE_ACTION_ALIGN_END */
+
+/* SHIROHA_APP_V29_HEADER_ART_RECORDS_ACTION_ALIGN_START
+   App-only: 基于 v28 继续叠加。
+   1) 顶部行走素材固定到最上方 Shiroha Quiz 标题右侧，脱离题库选择/保存按钮区域；
+   2) 补齐刷题记录页标题右侧按钮对齐；
+   3) 保留 v27：Web 开屏层不显示静态图标。 */
+@media(max-width:720px){
+  /* 顶部装饰素材：放在 Shiroha Quiz 顶部白色标题区右侧，不再贴着题库选择卡片。 */
+  .topbar .app-mobile-top-art,
+  .app-mobile-top-art{
+    display:block !important;
+    position:fixed !important;
+    top:86px !important;
+    right:26px !important;
+    z-index:999 !important;
+    width:min(42vw,220px) !important;
+    height:72px !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    object-fit:contain !important;
+    object-position:center center !important;
+    pointer-events:none !important;
+    user-select:none !important;
+    opacity:.98 !important;
+  }
+
+  /* 顶部题库选择卡片保持独立，不再为装饰素材预留下方错位空间。 */
+  .topbar{
+    overflow:visible !important;
+  }
+  .topbar-title-group{
+    min-height:0 !important;
+    padding-right:0 !important;
+  }
+
+  /* 标题右侧操作统一贴近主标题高度。 */
+  #banks .section-head > button,
+  #import .section-head > button,
+  #practice .section-head > .pill,
+  #exam .section-head > .pill,
+  #wrongbook .section-head > button,
+  #records .section-head > .actions{
+    align-self:flex-start !important;
+    margin-top:15px !important;
+  }
+
+  /* 刷题记录页是两个按钮的 actions 容器，单独压缩高度并保持和标题同一视觉高度。 */
+  #records .section-head > .actions{
+    display:flex !important;
+    justify-content:flex-end !important;
+    align-items:center !important;
+    gap:8px !important;
+    margin-top:14px !important;
+    max-width:48% !important;
+  }
+  #records .section-head > .actions button{
+    min-height:42px !important;
+    height:42px !important;
+    border-radius:16px !important;
+    padding:0 10px !important;
+    font-size:12px !important;
+    line-height:1 !important;
+    white-space:nowrap !important;
+  }
+
+  /* 明确保持开屏阶段不显示静态图标，只保留原有开屏过渡/动画。 */
+  .app-splash-logo{
+    display:none !important;
+  }
+}
+@media(max-width:380px){
+  .topbar .app-mobile-top-art,
+  .app-mobile-top-art{
+    top:84px !important;
+    right:22px !important;
+    width:168px !important;
+    height:60px !important;
+  }
+  #records .section-head > .actions{
+    max-width:50% !important;
+    gap:6px !important;
+    margin-top:13px !important;
+  }
+  #records .section-head > .actions button{
+    min-height:38px !important;
+    height:38px !important;
+    padding:0 8px !important;
+    font-size:11px !important;
+  }
+}
+/* SHIROHA_APP_V29_HEADER_ART_RECORDS_ACTION_ALIGN_END */

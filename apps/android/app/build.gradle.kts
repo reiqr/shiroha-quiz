@@ -10,9 +10,6 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.3.6-alpha"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -22,10 +19,14 @@ android {
         create("web") {
             dimension = "variant"
             applicationId = "com.yiqiu.shirohaquiz"
+            versionCode = 6
+            versionName = "0.3.6-alpha"
         }
         create("native") {
             dimension = "variant"
             applicationId = "com.reqir.shirohaquiz"
+            versionCode = 2
+            versionName = "0.1.0"
         }
     }
 
