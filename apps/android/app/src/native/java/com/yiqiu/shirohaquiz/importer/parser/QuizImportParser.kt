@@ -18,10 +18,12 @@ object QuizImportParser {
         val standardCandidate = buildCandidate("标准优先解析", standardQuestions)
         candidates += standardCandidate
 
+        var fullPaperCandidate: Candidate? = null
         if (FullPaperFallbackStrategy.shouldTry(normalized, standardCandidate.questions)) {
             val fullPaperQuestions = FullPaperFallbackStrategy.parse(normalized)
             if (fullPaperQuestions.isNotEmpty()) {
-                candidates += buildCandidate("整卷真题复杂兜底解析", fullPaperQuestions)
+                fullPaperCandidate = buildCandidate("整卷真题复杂兜底解析", fullPaperQuestions)
+                candidates += fullPaperCandidate
             }
         }
 
@@ -60,7 +62,11 @@ object QuizImportParser {
             }
         }
 
-        val best = candidates.maxByOrNull { it.score } ?: Candidate(
+        val best = chooseBestCandidate(
+            normalized = normalized,
+            candidates = candidates,
+            fullPaperCandidate = fullPaperCandidate
+        ) ?: Candidate(
             name = "标准优先解析",
             questions = emptyList(),
             warnings = listOf(ImportWarning(WarningLevel.ERROR, null, "未识别到任何题目")),
@@ -134,6 +140,33 @@ object QuizImportParser {
             candidates = mergedCandidates,
             best = best
         )
+    }
+
+
+    private fun chooseBestCandidate(
+        normalized: String,
+        candidates: List<Candidate>,
+        fullPaperCandidate: Candidate?
+    ): Candidate? {
+        val scoredBest = candidates.maxByOrNull { it.score } ?: return null
+        val fullPaper = fullPaperCandidate ?: return scoredBest
+        if (!FullPaperFallbackStrategy.looksLikeFullPaper(normalized)) return scoredBest
+
+        val fullCount = fullPaper.questions.size
+        val bestCount = scoredBest.questions.size
+        if (fullCount < 45 || scoredBest == fullPaper) return scoredBest
+
+        val bestSubjectiveCount = scoredBest.questions.count {
+            it.type == QuestionType.SHORT || it.type == QuestionType.BLANK
+        }
+        val shortStemCount = scoredBest.questions.count { it.question.length <= 3 && it.options.isEmpty() }
+        val tableLikeStemCount = scoredBest.questions.count { question ->
+            Regex("""^\d+(?:\.\d+)?$|^(?:第一|第二|第三|固定资产|社会消费|地方财政|实际利用|进出口|指标|占全国|增长速度)""")
+                .containsMatchIn(question.question.trim())
+        }
+        val overSplit = bestCount > (fullCount * 1.35).toInt()
+        val noisyBest = bestSubjectiveCount > bestCount / 4 || shortStemCount >= 5 || tableLikeStemCount >= 5
+        return if (overSplit && noisyBest) fullPaper else scoredBest
     }
 
     private fun buildCandidate(

@@ -56,6 +56,7 @@ object FullPaperFallbackStrategy {
     private val tableRowLikeRegex = Regex(
         """^\s*\d+(?:\.\d+)?\s+(?:\d+(?:\.\d+)?\s+){1,}|^\s*\d+(?:\.\d+)?\s*(?:第一|第二|第三|固定资产|社会消费|地方财政|实际利用|进出口|指标|占全国|增长速度|产业产值)"""
     )
+    private val imageMarkerRegex = Regex("""\[\[SHIROHA_IMAGE:img_\d{4}]]""")
 
     fun shouldTry(text: String, standardQuestions: List<Question>): Boolean {
         if (!looksLikeFullPaper(text)) return false
@@ -123,7 +124,7 @@ object FullPaperFallbackStrategy {
             if (shouldMergeGlobally) {
                 globalAnswers += answers
             } else {
-                val mergedSegment = DualFileMerger.mergeAuto(targetQuestions, answers).questions
+                val mergedSegment = mergeFullPaperSegmentAnswers(targetQuestions, answers)
                 mergedQuestions = replaceSegmentQuestions(mergedQuestions, targetQuestions, mergedSegment)
             }
         }
@@ -205,13 +206,31 @@ object FullPaperFallbackStrategy {
                 val trimmed = line.trim()
                 paperFrontMatterRegex.containsMatchIn(trimmed) || answerHeadingRegex.matches(trimmed)
             }
+            .flatMap { line -> repairDenseQuestionLine(line).lineSequence() }
             .joinToString("\n")
+    }
+
+    private fun repairDenseQuestionLine(raw: String): String {
+        var line = raw
+        if (line.length >= 80) {
+            line = line.replace(
+                Regex("""(?<!^)(?<![\d.])(\d{1,3}\s*[.、．:：]\s*(?=[\u4e00-\u9fa5]))"""),
+                "\n$1"
+            )
+        }
+        if (line.length >= 40) {
+            line = line
+                .replace(Regex("""([^\n\s])([A-Ga-g]\s*[.、．:：)）]\s*)"""), "$1\n$2")
+                .replace(Regex("""\s+([A-Ga-g]\s*[.、．:：)）]\s*)"""), "\n$1")
+        }
+        return line
     }
 
     private fun isValidPaperQuestion(question: Question): Boolean {
         val stem = question.question.trim()
         if (stem.isBlank()) return false
         if (paperFrontMatterRegex.containsMatchIn(stem)) return false
+        if (imageMarkerRegex.containsMatchIn(stem)) return true
         if (tableRowLikeRegex.containsMatchIn(stem)) return false
         if (Regex("""^\d+\s*表\d*""").containsMatchIn(stem)) return false
         if (stem.contains("表") && stem.contains("指标")) return false
@@ -220,6 +239,24 @@ object FullPaperFallbackStrategy {
         if (answerLikeLineRegex.containsMatchIn(stem) && question.options.isEmpty()) return false
         if (question.options.isEmpty() && !questionLikeRegex.containsMatchIn(stem)) return false
         return true
+    }
+
+
+    private fun mergeFullPaperSegmentAnswers(
+        targetQuestions: List<Question>,
+        answers: List<ParsedAnswerEntry>
+    ): List<Question> {
+        if (targetQuestions.isEmpty() || answers.isEmpty()) return targetQuestions
+        val byNumber = DualFileMerger.mergeByNumber(targetQuestions, answers).questions
+        val beforeAnswered = targetQuestions.count { it.answer.isNotEmpty() }
+        val byNumberGain = byNumber.count { it.answer.isNotEmpty() } - beforeAnswered
+        val numberHitCount = targetQuestions.count { question ->
+            answers.any { it.number == question.number }
+        }
+        if (byNumberGain > 0 || numberHitCount >= (targetQuestions.size / 2).coerceAtLeast(3)) {
+            return byNumber
+        }
+        return DualFileMerger.mergeBySequence(targetQuestions, answers).questions
     }
 
     private fun replaceSegmentQuestions(

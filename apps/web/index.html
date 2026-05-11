@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#F6F7FB" />
-  <title>Shiroha Quiz - v28.2 双端布局精修版</title>
+  <title>Shiroha Quiz - v28.8 基本完成版</title>
   <link rel="icon" type="image/png" href="./app-icon.png" />
   <link rel="apple-touch-icon" href="./app-icon.png" />
   <link rel="preload" as="image" href="./media/peeking.webp" />
@@ -34,7 +34,7 @@
       <button class="nav" data-view="practice">刷题练习</button>
       <button class="nav" data-view="exam">考试模式</button>
       <button class="nav" data-view="wrongbook">错题本</button>
-      <button class="nav" data-view="records">刷题记录</button>
+      <button class="nav" data-view="records">记录</button>
       <button class="nav" data-view="settings">设置/导出</button>
     </aside>
 
@@ -54,8 +54,8 @@
         <div class="hero-card dashboard-home-hero">
           <div class="dashboard-home-main">
             <p class="kicker">当前版本</p>
-            <h2>v28.2：双端布局精修版。</h2>
-            <p class="dashboard-home-desc">首页重新整理为 Web 仪表盘布局：减少空白，保留题库状态、快捷入口和学习数据，常用操作可以从这里直接进入。</p>
+            <h2>v28.8：基本完成版。</h2>
+            <p class="dashboard-home-desc">Web 端主体功能与布局已基本定型，常用入口、题库状态和学习数据都可以从首页快速查看。</p>
             <div class="dashboard-action-grid" aria-label="首页快捷入口">
               <button type="button" class="dashboard-action-card blue" onclick="var n=document.querySelector('.nav[data-view=&quot;practice&quot;]');if(n)n.click();">
                 <span>开始刷题</span><small>顺序练习</small>
@@ -94,11 +94,23 @@
           </div>
           <div class="card dashboard-panel">
             <div class="section-head compact"><div><p class="kicker">Stat</p><h3>学习统计</h3></div></div>
-            <div class="dashboard-stats-row">
-              <div class="dashboard-stat-item"><b id="stat-today-count">0</b><span>今日练习</span></div>
-              <div class="dashboard-stat-item"><b id="stat-today-rate">—</b><span>正确率</span></div>
-              <div class="dashboard-stat-item"><b id="stat-review-due">0</b><span>待复习错题</span></div>
-              <div class="dashboard-stat-item"><b id="stat-total-practice">0</b><span>总练习次数</span></div>
+            <div class="dashboard-stats-row learning-stats-v42" aria-label="学习统计">
+              <div class="learning-stat-tile-v42">
+                <span>今日练习</span>
+                <b id="stat-today-count">0</b>
+              </div>
+              <div class="learning-stat-tile-v42">
+                <span>正确率</span>
+                <b id="stat-today-rate">—</b>
+              </div>
+              <div class="learning-stat-tile-v42">
+                <span>待复习错题</span>
+                <b id="stat-review-due">0</b>
+              </div>
+              <div class="learning-stat-tile-v42">
+                <span>总练习次数</span>
+                <b id="stat-total-practice">0</b>
+              </div>
             </div>
           </div>
           <div class="card dashboard-panel">

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -106,31 +107,53 @@ fun PracticeScreen() {
             }
 
             Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 ActionPillButton(
                     Icons.AutoMirrored.Rounded.ArrowBack,
                     "上一题",
                     primary = false,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    fillWidthContent = true,
                     onClick = { QuizRepository.previousQuestion() }
                 )
                 ActionPillButton(
                     Icons.AutoMirrored.Rounded.ArrowForward,
                     "下一题",
                     primary = false,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    fillWidthContent = true,
                     onClick = { QuizRepository.nextQuestion() }
                 )
             }
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 ActionPillButton(
                     Icons.Rounded.CheckCircle,
                     "提交答案",
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    fillWidthContent = true,
                     onClick = { QuizRepository.submitPracticeQuestion() }
                 )
                 ActionPillButton(
                     Icons.AutoMirrored.Rounded.TextSnippet,
                     "查看解析",
                     primary = false,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    fillWidthContent = true,
                     onClick = {
                         if (QuizRepository.practiceLastResult == null) {
                             QuizRepository.submitPracticeQuestion()

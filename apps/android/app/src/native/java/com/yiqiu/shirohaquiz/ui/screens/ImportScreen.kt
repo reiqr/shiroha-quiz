@@ -72,7 +72,6 @@ import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
-import com.yiqiu.shirohaquiz.ui.components.UploadPanel
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
@@ -153,6 +152,30 @@ fun ImportScreen(
             statusText = "已读取答案文件：$selectedAnswerFileName。"
             isStatusWarn = false
         }
+    }
+
+    fun startParse() {
+        if (rawText.isBlank() || (useDualImport && answerText.isBlank())) {
+            statusText = if (useDualImport) {
+                "请同时提供题目文本和答案文本，再开始双文件解析。"
+            } else {
+                "请先提供题库文本，再开始原生解析。"
+            }
+            isStatusWarn = true
+            return
+        }
+
+        val parsedResult = if (useDualImport) {
+            QuizImportParser.parseDualText(rawText, answerText)
+        } else {
+            QuizImportParser.parseStandardText(rawText)
+        }
+        val finalResult = if (!useDualImport && importedImages.isNotEmpty()) {
+            QuestionImageBinder.attach(parsedResult, importedImages)
+        } else {
+            parsedResult
+        }
+        applyParsedResult(finalResult)
     }
 
     if (reviewMode && importResult != null) {
@@ -237,32 +260,67 @@ fun ImportScreen(
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(Modifier.height(14.dp))
-            UploadPanel(
-                title = "选择题库文件",
-                desc = "当前建议导入 txt / csv / json / docx 等文本型文件。复杂整卷真题建议解析后进入沉浸核对。",
-                icon = Icons.Rounded.FileOpen
-            )
-            Spacer(Modifier.height(14.dp))
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = Color.White.copy(alpha = 0.62f),
+                border = BorderStroke(1.dp, ShirohaColors.LineSoft)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.FileOpen,
+                        contentDescription = "选择题库文件",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "选择题库文件",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "支持 txt / csv / json / docx 等文本型题库。",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
             Text(
                 text = "当前文件：$selectedFileName",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(14.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ActionPillButton(
                     icon = Icons.Rounded.FileOpen,
                     text = "选择文件",
                     primary = true,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    fillWidthContent = true,
                     onClick = { filePicker.launch(arrayOf("*/*")) }
                 )
                 ActionPillButton(
                     icon = Icons.Rounded.Refresh,
                     text = "填入示例",
                     primary = false,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
+                    fillWidthContent = true,
                     onClick = {
                         useDualImport = false
                         selectedFileName = "示例题库"
@@ -274,15 +332,18 @@ fun ImportScreen(
                     }
                 )
             }
-            Spacer(Modifier.height(12.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ImportModeChip(
                     icon = Icons.Rounded.Description,
                     text = "标准导入",
                     selected = !useDualImport,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
                     onClick = {
                         useDualImport = false
                         clearParsedResult()
@@ -293,6 +354,9 @@ fun ImportScreen(
                     icon = Icons.Rounded.AutoAwesome,
                     text = "双文件导入",
                     selected = useDualImport,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
                     onClick = {
                         useDualImport = true
                         clearParsedResult()
@@ -303,11 +367,23 @@ fun ImportScreen(
         }
 
         GlassCard {
-            Text(
-                text = if (useDualImport) "题目文本" else "原始文本",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = if (useDualImport) "题目文本" else "原始文本",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                ActionPillButton(
+                    icon = Icons.Rounded.PlayArrow,
+                    text = "开始解析",
+                    primary = true,
+                    onClick = { startParse() }
+                )
+            }
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = rawText,
@@ -359,34 +435,6 @@ fun ImportScreen(
                 )
             }
 
-            Spacer(Modifier.height(14.dp))
-            ActionPillButton(
-                icon = Icons.Rounded.PlayArrow,
-                text = if (useDualImport) "开始双文件解析" else "开始原生解析",
-                primary = true,
-                onClick = {
-                    if (rawText.isBlank() || (useDualImport && answerText.isBlank())) {
-                        statusText = if (useDualImport) {
-                            "请同时提供题目文本和答案文本，再开始双文件解析。"
-                        } else {
-                            "请先提供题库文本，再开始原生解析。"
-                        }
-                        isStatusWarn = true
-                    } else {
-                        val parsedResult = if (useDualImport) {
-                            QuizImportParser.parseDualText(rawText, answerText)
-                        } else {
-                            QuizImportParser.parseStandardText(rawText)
-                        }
-                        val finalResult = if (!useDualImport && importedImages.isNotEmpty()) {
-                            QuestionImageBinder.attach(parsedResult, importedImages)
-                        } else {
-                            parsedResult
-                        }
-                        applyParsedResult(finalResult)
-                    }
-                }
-            )
         }
 
         importResult?.let { result ->
@@ -463,7 +511,7 @@ fun ImportScreen(
         }
 
         if (importResult == null && rawText.isNotBlank()) {
-            LoadingIllustration("准备好以后，点击“开始原生解析”，这里会切成结构化预览。")
+            LoadingIllustration("准备好以后，点击标题右侧“开始解析”，这里会切成结构化预览。")
         }
     }
 }
@@ -473,10 +521,11 @@ private fun ImportModeChip(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(ShirohaRadius.Pill),
         color = if (selected) ShirohaColors.BrandPrimarySoft else Color.White.copy(alpha = 0.84f),
         border = BorderStroke(
@@ -485,9 +534,11 @@ private fun ImportModeChip(
         )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp)
+            horizontalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
@@ -495,6 +546,7 @@ private fun ImportModeChip(
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
+            Spacer(Modifier.width(7.dp))
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelLarge,

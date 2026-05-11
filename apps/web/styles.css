@@ -5157,3 +5157,1676 @@ body.exam-focus #exam-card{
 
 /* SHIROHA_WEB_V29_8_IMPORT_REVIEW_ANALYSIS_AND_LONG_STEM_FIX
    逻辑改动在 app.js；这里保留版本标记，便于确认样式包版本。 */
+
+/* SHIROHA_WEB_V30_PRACTICE_EXAM_CARDS_START
+   练习沉浸统计卡 + 考试沉浸答题卡。保持轻量蓝白卡片，避免移动端重阴影/重动画。 */
+.practice-stat-card-v30,
+.exam-answer-card-v30{
+  margin:0 0 16px;
+  padding:14px;
+  border:1px solid rgba(47,111,237,.14);
+  border-radius:18px;
+  background:linear-gradient(180deg,#ffffff,#f7fbff);
+  box-shadow:0 8px 24px rgba(15,23,42,.06);
+}
+.practice-stat-head-v30,
+.exam-answer-card-head-v30{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.practice-stat-head-v30 b,
+.exam-answer-card-head-v30 b{
+  display:block;
+  font-size:16px;
+  color:#10233f;
+}
+.practice-stat-head-v30 span,
+.exam-answer-card-head-v30 span{
+  display:block;
+  margin-top:2px;
+  font-size:12px;
+  color:#5f7290;
+  font-weight:700;
+}
+.practice-stat-grid-v30{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.practice-stat-grid-v30 div,
+.exam-answer-mini-stats-v30{
+  padding:10px;
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:14px;
+  background:#fff;
+}
+.practice-stat-grid-v30 span,
+.exam-answer-mini-stats-v30 span{
+  display:block;
+  font-size:12px;
+  color:#64748b;
+}
+.practice-stat-grid-v30 b,
+.exam-answer-mini-stats-v30 b{
+  display:block;
+  margin-top:4px;
+  font-size:20px;
+  line-height:1.1;
+  color:#1d4ed8;
+}
+.practice-stat-card-v30 p{
+  margin:10px 2px 0;
+  color:#64748b;
+  font-size:13px;
+}
+.exam-answer-mini-stats-v30{
+  min-width:76px;
+  text-align:center;
+}
+.exam-nav-grid-v30{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(40px,1fr));
+  gap:8px;
+}
+.exam-nav-grid-v30 button{
+  min-height:38px;
+  border-radius:12px;
+  border:1px solid rgba(148,163,184,.34);
+  background:#fff;
+  color:#334155;
+  font-weight:800;
+  cursor:pointer;
+}
+.exam-nav-grid-v30 button.answered{
+  border-color:rgba(47,111,237,.38);
+  background:#eaf3ff;
+  color:#1d4ed8;
+}
+body.exam-focus .exam-q{
+  scroll-margin-top:92px;
+}
+.exam-q-pulse-v30{
+  outline:2px solid rgba(47,111,237,.38);
+  outline-offset:3px;
+}
+@media(max-width:720px){
+  .practice-stat-card-v30,
+  .exam-answer-card-v30{
+    margin-bottom:12px;
+    padding:12px;
+    border-radius:16px;
+    box-shadow:none;
+  }
+  .practice-stat-head-v30,
+  .exam-answer-card-head-v30{
+    align-items:flex-start;
+  }
+  .practice-stat-grid-v30{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .practice-stat-grid-v30 div,
+  .exam-answer-mini-stats-v30{
+    padding:9px;
+  }
+  .exam-nav-grid-v30{
+    grid-template-columns:repeat(auto-fill,minmax(38px,1fr));
+    gap:7px;
+  }
+  .exam-nav-grid-v30 button{
+    min-height:38px;
+    padding:0;
+  }
+}
+/* SHIROHA_WEB_V30_PRACTICE_EXAM_CARDS_END */
+
+/* SHIROHA_WEB_V31_IMMERSIVE_RIGHT_RAIL_START
+   沉浸答题布局重构：正文留在左侧，统计/答题卡固定在右侧轻量侧栏。 */
+body.practice-focus #practice-card,
+body.exam-focus #exam-card{
+  width:min(1180px, calc(100vw - 48px)) !important;
+  max-width:1180px !important;
+  padding:18px !important;
+  margin:0 auto !important;
+}
+.practice-focus-layout-v31,
+.exam-focus-layout-v31{
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) 236px !important;
+  gap:18px !important;
+  align-items:start !important;
+}
+.exam-focus-layout-v31{
+  grid-template-columns:minmax(0,1fr) 260px !important;
+}
+.practice-focus-main-v31,
+.exam-focus-main-v31{
+  min-width:0 !important;
+}
+.practice-side-v31,
+.exam-side-v31{
+  position:sticky !important;
+  top:18px !important;
+  align-self:start !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:12px !important;
+  max-height:calc(100vh - 36px) !important;
+  overflow:auto !important;
+  scrollbar-width:thin !important;
+}
+.practice-side-v31 .practice-stat-card-v30,
+.exam-side-v31 .exam-answer-card-v30{
+  margin:0 !important;
+  padding:12px !important;
+  border-radius:18px !important;
+  box-shadow:0 8px 22px rgba(37,99,235,.06) !important;
+}
+.practice-side-v31 .practice-nav-v26{
+  margin:0 !important;
+  padding:12px !important;
+  border:1px solid rgba(47,111,237,.14) !important;
+  border-radius:18px !important;
+  background:linear-gradient(180deg,#ffffff,#f7fbff) !important;
+  box-shadow:0 8px 22px rgba(37,99,235,.05) !important;
+}
+.practice-side-v31 .practice-nav-v26 > b{
+  display:block !important;
+  margin-bottom:8px !important;
+  color:#10233f !important;
+  font-size:14px !important;
+}
+.practice-stat-head-v30,
+.exam-answer-card-head-v30{
+  margin-bottom:10px !important;
+}
+.practice-stat-head-v30 b,
+.exam-answer-card-head-v30 b{
+  font-size:14px !important;
+}
+.practice-stat-head-v30 span,
+.exam-answer-card-head-v30 span{
+  font-size:11px !important;
+}
+.practice-stat-list-v31{
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:8px !important;
+}
+.practice-stat-list-v31 div{
+  padding:9px 8px !important;
+  border:1px solid rgba(148,163,184,.18) !important;
+  border-radius:14px !important;
+  background:#fff !important;
+}
+.practice-stat-list-v31 span{
+  display:block !important;
+  color:#64748b !important;
+  font-size:11px !important;
+  line-height:1.15 !important;
+}
+.practice-stat-list-v31 b{
+  display:block !important;
+  margin-top:3px !important;
+  color:#1d4ed8 !important;
+  font-size:18px !important;
+  line-height:1.1 !important;
+}
+.practice-side-v31 .practice-stat-card-v30 p{
+  margin:8px 2px 0 !important;
+  font-size:12px !important;
+  color:#64748b !important;
+}
+.practice-side-v31 .practice-nav-grid-v26,
+.exam-side-v31 .exam-nav-grid-v30{
+  grid-template-columns:repeat(auto-fill,minmax(34px,1fr)) !important;
+  gap:7px !important;
+}
+.practice-side-v31 .practice-nav-grid-v26 button,
+.exam-side-v31 .exam-nav-grid-v30 button{
+  min-height:34px !important;
+  padding:0 !important;
+  border-radius:11px !important;
+  font-size:12px !important;
+}
+.exam-side-v31 .exam-answer-card-head-v30{
+  align-items:stretch !important;
+}
+.exam-side-v31 .exam-answer-card-head-v30 > div:first-child{
+  min-width:0 !important;
+}
+.exam-side-v31 .exam-answer-card-head-v30 span{
+  line-height:1.35 !important;
+}
+.exam-side-v31 .exam-answer-mini-stats-v30{
+  min-width:66px !important;
+  padding:8px !important;
+  border-radius:13px !important;
+}
+.exam-side-v31 .exam-answer-mini-stats-v30 b{
+  font-size:18px !important;
+}
+body.practice-focus .practice-focus-head,
+body.exam-focus .exam-focus-head{
+  position:sticky !important;
+  top:0 !important;
+  z-index:6 !important;
+}
+body.exam-focus .exam-q{
+  scroll-margin-top:86px !important;
+}
+@media(max-width:980px){
+  body.practice-focus #practice-card,
+  body.exam-focus #exam-card{
+    width:calc(100vw - 20px) !important;
+    max-width:none !important;
+    padding:14px !important;
+  }
+  .practice-focus-layout-v31,
+  .exam-focus-layout-v31{
+    grid-template-columns:minmax(0,1fr) !important;
+  }
+  .practice-side-v31,
+  .exam-side-v31{
+    position:sticky !important;
+    top:0 !important;
+    z-index:7 !important;
+    max-height:none !important;
+    overflow:visible !important;
+    order:-1 !important;
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) !important;
+  }
+  .practice-side-v31 .practice-stat-card-v30,
+  .practice-side-v31 .practice-nav-v26,
+  .exam-side-v31 .exam-answer-card-v30{
+    box-shadow:none !important;
+  }
+  .practice-side-v31 .practice-nav-grid-v26,
+  .exam-side-v31 .exam-nav-grid-v30{
+    display:flex !important;
+    gap:7px !important;
+    overflow-x:auto !important;
+    padding-bottom:2px !important;
+  }
+  .practice-side-v31 .practice-nav-grid-v26 button,
+  .exam-side-v31 .exam-nav-grid-v30 button{
+    flex:0 0 36px !important;
+  }
+}
+@media(max-width:720px){
+  body.practice-focus #practice-card,
+  body.exam-focus #exam-card{
+    width:100% !important;
+    min-height:calc(100vh - 16px) !important;
+    padding:12px !important;
+  }
+  .practice-focus-layout-v31,
+  .exam-focus-layout-v31{
+    gap:12px !important;
+  }
+  .practice-side-v31,
+  .exam-side-v31{
+    top:0 !important;
+  }
+  .practice-side-v31 .practice-stat-card-v30{
+    padding:10px !important;
+  }
+  .practice-stat-list-v31{
+    grid-template-columns:repeat(4,minmax(64px,1fr)) !important;
+    overflow-x:auto !important;
+  }
+  .practice-stat-list-v31 div{
+    min-width:64px !important;
+  }
+  .practice-side-v31 .practice-nav-v26{
+    padding:10px !important;
+  }
+  .exam-side-v31 .exam-answer-card-v30{
+    padding:10px !important;
+  }
+  .exam-side-v31 .exam-answer-card-head-v30{
+    display:grid !important;
+    grid-template-columns:1fr auto !important;
+    gap:8px !important;
+  }
+}
+@media(min-width:981px){
+  .practice-side-v31 .practice-nav-grid-v26,
+  .exam-side-v31 .exam-nav-grid-v30{
+    max-height:calc(100vh - 244px) !important;
+    overflow:auto !important;
+  }
+}
+/* SHIROHA_WEB_V31_IMMERSIVE_RIGHT_RAIL_END */
+
+/* SHIROHA_WEB_V32_RIGHT_EDGE_AND_BANK_DELETE_FIX_START
+   练习：右侧只保留轻量统计卡，答题卡回到题目下方；考试答题卡贴右侧边缘；题库管理增加显式删除。 */
+.bank-delete-quick-v32{
+  flex:0 0 auto !important;
+  align-self:center !important;
+  min-height:34px !important;
+  padding:0 10px !important;
+  border-radius:12px !important;
+  font-size:12px !important;
+}
+.bank-item-compact-v28{
+  align-items:center !important;
+}
+.bank-toolbar-actions-v28 .danger:disabled,
+.bank-delete-quick-v32:disabled{
+  opacity:.45 !important;
+  cursor:not-allowed !important;
+}
+
+.practice-focus-main-v31 > .practice-nav-v26{
+  margin-top:16px !important;
+  padding:14px !important;
+  border:1px solid rgba(47,111,237,.14) !important;
+  border-radius:18px !important;
+  background:linear-gradient(180deg,#ffffff,#f7fbff) !important;
+  box-shadow:0 8px 22px rgba(37,99,235,.05) !important;
+}
+.practice-focus-main-v31 > .practice-nav-v26 > b{
+  display:block !important;
+  margin-bottom:8px !important;
+  color:#10233f !important;
+  font-size:14px !important;
+}
+.practice-focus-main-v31 > .practice-nav-v26 .practice-nav-grid-v26{
+  grid-template-columns:repeat(auto-fill,minmax(42px,1fr)) !important;
+  gap:8px !important;
+  max-height:none !important;
+  overflow:visible !important;
+}
+.practice-focus-main-v31 > .practice-nav-v26 .practice-nav-grid-v26 button{
+  min-height:38px !important;
+  border-radius:12px !important;
+  font-size:13px !important;
+}
+
+@media(min-width:981px){
+  body.practice-focus #practice.view,
+  body.exam-focus #exam.view{
+    padding:18px 0 18px 18px !important;
+  }
+  body.practice-focus #practice-card,
+  body.exam-focus #exam-card{
+    width:100vw !important;
+    max-width:none !important;
+    margin:0 !important;
+    padding:18px 0 18px 18px !important;
+    border-radius:24px 0 0 24px !important;
+    box-sizing:border-box !important;
+  }
+  .practice-focus-layout-v31{
+    grid-template-columns:minmax(0,860px) 236px !important;
+    justify-content:end !important;
+    gap:18px !important;
+  }
+  .exam-focus-layout-v31{
+    grid-template-columns:minmax(0,880px) 260px !important;
+    justify-content:end !important;
+    gap:18px !important;
+  }
+  .practice-side-v31,
+  .exam-side-v31{
+    right:0 !important;
+    margin-right:0 !important;
+    padding-right:0 !important;
+  }
+  .practice-side-v31 .practice-stat-card-v30,
+  .exam-side-v31 .exam-answer-card-v30{
+    border-right:0 !important;
+    border-radius:18px 0 0 18px !important;
+  }
+  .exam-side-v31 .exam-nav-grid-v30{
+    max-height:calc(100vh - 170px) !important;
+    overflow:auto !important;
+  }
+}
+
+@media(max-width:980px){
+  .practice-side-v31 .practice-stat-card-v30{
+    box-shadow:none !important;
+  }
+  .practice-focus-main-v31 > .practice-nav-v26 .practice-nav-grid-v26,
+  .exam-side-v31 .exam-nav-grid-v30{
+    display:flex !important;
+    gap:7px !important;
+    overflow-x:auto !important;
+    padding-bottom:2px !important;
+  }
+  .practice-focus-main-v31 > .practice-nav-v26 .practice-nav-grid-v26 button,
+  .exam-side-v31 .exam-nav-grid-v30 button{
+    flex:0 0 36px !important;
+  }
+}
+
+@media(max-width:720px){
+  .bank-delete-quick-v32{
+    min-height:32px !important;
+    padding:0 8px !important;
+  }
+  .practice-focus-main-v31 > .practice-nav-v26{
+    padding:10px !important;
+    box-shadow:none !important;
+  }
+}
+/* SHIROHA_WEB_V32_RIGHT_EDGE_AND_BANK_DELETE_FIX_END */
+
+/* SHIROHA_WEB_V33_RESTORE_FOCUS_AND_EDGE_CARDS_START
+   恢复沉浸练习/考试主体的居中答题纸；右侧辅助卡片独立贴边，不再重排正文。 */
+.bank-card-actions-v33{
+  justify-self:end !important;
+  align-self:start !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:8px !important;
+  min-width:max-content !important;
+}
+.bank-card-actions-v33 .bank-more-menu-v28{
+  justify-self:auto !important;
+  align-self:auto !important;
+}
+.bank-card-actions-v33 .bank-more-menu-v28 summary,
+.bank-card-actions-v33 .bank-delete-quick-v32{
+  width:56px !important;
+  min-width:56px !important;
+  height:36px !important;
+  min-height:36px !important;
+  padding:0 !important;
+  border-radius:13px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  font-size:12px !important;
+  line-height:1 !important;
+  box-sizing:border-box !important;
+}
+.bank-card-actions-v33 .bank-more-panel-v28{
+  right:0 !important;
+}
+.compact-built-in-v33[hidden]{
+  display:none !important;
+}
+.compact-built-in-v33{
+  margin:0 0 12px !important;
+  padding:12px 14px !important;
+  border-radius:16px !important;
+  box-shadow:none !important;
+}
+.compact-built-in-v33 .section-head{
+  align-items:center !important;
+}
+.compact-built-in-v33 h3{
+  margin-bottom:4px !important;
+}
+.compact-built-in-v33 p{
+  margin:0 !important;
+}
+
+body.practice-focus #practice.view{
+  padding:18px !important;
+}
+body.practice-focus #practice-card{
+  width:min(920px, calc(100vw - 36px)) !important;
+  max-width:920px !important;
+  min-height:calc(100vh - 36px) !important;
+  margin:0 auto !important;
+  padding:28px !important;
+  border-radius:24px !important;
+  box-sizing:border-box !important;
+}
+body.practice-focus #practice-card > .practice-nav-v26{
+  margin-top:16px !important;
+  padding:14px !important;
+  border:1px solid rgba(47,111,237,.14) !important;
+  border-radius:18px !important;
+  background:linear-gradient(180deg,#ffffff,#f7fbff) !important;
+  box-shadow:0 8px 22px rgba(37,99,235,.05) !important;
+}
+body.practice-focus #practice-card > .practice-nav-v26 > b{
+  display:block !important;
+  margin-bottom:8px !important;
+  color:#10233f !important;
+  font-size:14px !important;
+}
+body.practice-focus #practice-card > .practice-nav-v26 .practice-nav-grid-v26{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fill,minmax(42px,1fr)) !important;
+  gap:8px !important;
+  max-height:none !important;
+  overflow:visible !important;
+}
+body.practice-focus #practice-card > .practice-nav-v26 .practice-nav-grid-v26 button{
+  min-height:38px !important;
+  border-radius:12px !important;
+  font-size:13px !important;
+}
+body.practice-focus #practice-card > .practice-side-v31{
+  position:fixed !important;
+  right:0 !important;
+  top:132px !important;
+  z-index:8 !important;
+  width:236px !important;
+  max-height:calc(100vh - 152px) !important;
+  overflow:auto !important;
+  display:block !important;
+  padding:0 !important;
+  margin:0 !important;
+  pointer-events:auto !important;
+}
+body.practice-focus #practice-card > .practice-side-v31 .practice-stat-card-v30{
+  margin:0 !important;
+  padding:12px !important;
+  border-right:0 !important;
+  border-radius:18px 0 0 18px !important;
+  background:linear-gradient(180deg,#ffffff,#f7fbff) !important;
+  box-shadow:0 8px 22px rgba(37,99,235,.06) !important;
+}
+
+body.exam-focus #exam.view{
+  padding:18px !important;
+}
+body.exam-focus #exam-card{
+  width:min(920px, calc(100vw - 36px)) !important;
+  max-width:920px !important;
+  min-height:calc(100vh - 36px) !important;
+  margin:0 auto !important;
+  padding:26px !important;
+  border-radius:24px !important;
+  box-sizing:border-box !important;
+}
+body.exam-focus #exam-card > .exam-side-v31{
+  position:fixed !important;
+  right:0 !important;
+  top:104px !important;
+  z-index:8 !important;
+  width:280px !important;
+  max-height:calc(100vh - 124px) !important;
+  overflow:auto !important;
+  display:block !important;
+  padding:0 !important;
+  margin:0 !important;
+  pointer-events:auto !important;
+}
+body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-v30{
+  margin:0 !important;
+  padding:12px !important;
+  border-right:0 !important;
+  border-radius:18px 0 0 18px !important;
+  background:linear-gradient(180deg,#ffffff,#f7fbff) !important;
+  box-shadow:0 8px 22px rgba(37,99,235,.06) !important;
+}
+body.exam-focus #exam-card > .exam-side-v31 .exam-nav-grid-v30{
+  grid-template-columns:repeat(auto-fill,minmax(34px,1fr)) !important;
+  gap:7px !important;
+  max-height:calc(100vh - 214px) !important;
+  overflow:auto !important;
+}
+body.exam-focus #exam-card > .exam-side-v31 .exam-nav-grid-v30 button{
+  min-height:34px !important;
+  padding:0 !important;
+  border-radius:11px !important;
+  font-size:12px !important;
+}
+
+@media(max-width:1279px){
+  body.practice-focus #practice-card > .practice-side-v31{
+    position:static !important;
+    width:100% !important;
+    max-height:none !important;
+    margin-top:12px !important;
+    overflow:visible !important;
+  }
+  body.practice-focus #practice-card > .practice-side-v31 .practice-stat-card-v30{
+    border-right:1px solid rgba(47,111,237,.14) !important;
+    border-radius:18px !important;
+    box-shadow:none !important;
+  }
+  body.exam-focus #exam-card{
+    display:flex !important;
+    flex-direction:column !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31{
+    order:-1 !important;
+    position:sticky !important;
+    top:0 !important;
+    z-index:9 !important;
+    width:100% !important;
+    max-height:none !important;
+    margin:0 0 12px !important;
+    overflow:visible !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-v30{
+    border-right:1px solid rgba(47,111,237,.14) !important;
+    border-radius:18px !important;
+    box-shadow:none !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-nav-grid-v30{
+    display:flex !important;
+    overflow-x:auto !important;
+    max-height:none !important;
+    padding-bottom:2px !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-nav-grid-v30 button{
+    flex:0 0 36px !important;
+  }
+}
+@media(max-width:720px){
+  .bank-item-compact-v28{
+    grid-template-columns:auto minmax(0,1fr) auto !important;
+  }
+  .bank-card-actions-v33{
+    flex-direction:column !important;
+    gap:6px !important;
+  }
+  .bank-card-actions-v33 .bank-more-menu-v28 summary,
+  .bank-card-actions-v33 .bank-delete-quick-v32{
+    width:52px !important;
+    min-width:52px !important;
+    height:32px !important;
+    min-height:32px !important;
+  }
+  body.practice-focus #practice.view,
+  body.exam-focus #exam.view{
+    padding:8px !important;
+  }
+  body.practice-focus #practice-card,
+  body.exam-focus #exam-card{
+    width:100% !important;
+    min-height:calc(100vh - 16px) !important;
+    padding:18px !important;
+    border-radius:18px !important;
+  }
+  body.practice-focus #practice-card > .practice-nav-v26{
+    padding:10px !important;
+    box-shadow:none !important;
+  }
+  body.practice-focus #practice-card > .practice-nav-v26 .practice-nav-grid-v26{
+    display:flex !important;
+    overflow-x:auto !important;
+    gap:7px !important;
+    padding-bottom:2px !important;
+  }
+  body.practice-focus #practice-card > .practice-nav-v26 .practice-nav-grid-v26 button{
+    flex:0 0 36px !important;
+  }
+}
+/* SHIROHA_WEB_V33_RESTORE_FOCUS_AND_EDGE_CARDS_END */
+
+/* SHIROHA_WEB_V34_PANEL_ALIGNMENT_AND_HIDE_START
+   右侧辅助面板与沉浸答题纸顶部对齐；面板可低调隐藏；题库卡片右侧操作保持并排。 */
+.bank-card-actions-v33{
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:10px !important;
+  align-self:center !important;
+}
+.bank-card-actions-v33 .bank-more-menu-v28,
+.bank-card-actions-v33 .bank-delete-quick-v32{
+  flex:0 0 auto !important;
+}
+.bank-card-actions-v33 .bank-more-menu-v28 summary,
+.bank-card-actions-v33 .bank-delete-quick-v32{
+  width:58px !important;
+  min-width:58px !important;
+  height:38px !important;
+  min-height:38px !important;
+  padding:0 !important;
+  border-radius:14px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  box-sizing:border-box !important;
+  font-size:12px !important;
+  line-height:1 !important;
+}
+.bank-card-actions-v33 .bank-more-panel-v28{
+  right:0 !important;
+  left:auto !important;
+}
+
+@media(min-width:1280px){
+  body.practice-focus #practice-card > .practice-side-v31,
+  body.exam-focus #exam-card > .exam-side-v31{
+    top:18px !important;
+    right:0 !important;
+    align-self:start !important;
+    max-height:calc(100vh - 36px) !important;
+  }
+  body.practice-focus #practice-card > .practice-side-v31{
+    width:236px !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31{
+    width:280px !important;
+  }
+  body.practice-focus #practice-card > .practice-side-v31 .practice-stat-card-v30,
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-v30{
+    border-right:0 !important;
+    border-radius:18px 0 0 18px !important;
+  }
+}
+
+.practice-stat-card-v30,
+.exam-answer-card-v30{
+  position:relative !important;
+}
+.practice-stat-head-v30,
+.exam-answer-card-head-v30{
+  align-items:flex-start !important;
+}
+.rail-hide-btn-v34,
+.rail-show-btn-v34{
+  border:1px solid rgba(148,163,184,.24) !important;
+  background:rgba(255,255,255,.72) !important;
+  color:#7890b0 !important;
+  font-weight:800 !important;
+  cursor:pointer !important;
+  box-shadow:none !important;
+}
+.rail-hide-btn-v34{
+  flex:0 0 auto !important;
+  min-width:42px !important;
+  height:24px !important;
+  padding:0 8px !important;
+  border-radius:999px !important;
+  font-size:11px !important;
+  line-height:1 !important;
+}
+.rail-hide-btn-v34:hover,
+.rail-show-btn-v34:hover{
+  color:#2f6fed !important;
+  border-color:rgba(47,111,237,.28) !important;
+  background:#f7fbff !important;
+}
+.rail-show-btn-v34{
+  display:none !important;
+}
+body.practice-rail-collapsed-v34 #practice-card > .practice-side-v31,
+body.exam-rail-collapsed-v34 #exam-card > .exam-side-v31{
+  width:42px !important;
+  overflow:visible !important;
+}
+body.practice-rail-collapsed-v34 #practice-stat-card-v30,
+body.exam-rail-collapsed-v34 #exam-answer-card-v30{
+  width:42px !important;
+  min-height:92px !important;
+  padding:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  overflow:visible !important;
+}
+body.practice-rail-collapsed-v34 #practice-stat-card-v30 > :not(.rail-show-btn-v34),
+body.exam-rail-collapsed-v34 #exam-answer-card-v30 > :not(.rail-show-btn-v34){
+  display:none !important;
+}
+body.practice-rail-collapsed-v34 #practice-stat-card-v30 .rail-show-btn-v34,
+body.exam-rail-collapsed-v34 #exam-answer-card-v30 .rail-show-btn-v34{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:40px !important;
+  min-height:88px !important;
+  padding:8px 0 !important;
+  border-radius:16px 0 0 16px !important;
+  writing-mode:vertical-rl !important;
+  letter-spacing:2px !important;
+  font-size:12px !important;
+  background:rgba(255,255,255,.84) !important;
+}
+@media(max-width:1279px){
+  body.practice-focus #practice-card > .practice-side-v31,
+  body.exam-focus #exam-card > .exam-side-v31{
+    width:100% !important;
+  }
+  body.practice-rail-collapsed-v34 #practice-card > .practice-side-v31,
+  body.exam-rail-collapsed-v34 #exam-card > .exam-side-v31{
+    width:100% !important;
+  }
+  body.practice-rail-collapsed-v34 #practice-stat-card-v30,
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30{
+    width:100% !important;
+    min-height:42px !important;
+    border-radius:16px !important;
+  }
+  body.practice-rail-collapsed-v34 #practice-stat-card-v30 .rail-show-btn-v34,
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30 .rail-show-btn-v34{
+    width:100% !important;
+    min-height:38px !important;
+    border-radius:14px !important;
+    writing-mode:horizontal-tb !important;
+    letter-spacing:0 !important;
+  }
+}
+@media(max-width:720px){
+  .bank-card-actions-v33{
+    flex-direction:row !important;
+    gap:8px !important;
+  }
+  .bank-card-actions-v33 .bank-more-menu-v28 summary,
+  .bank-card-actions-v33 .bank-delete-quick-v32{
+    width:54px !important;
+    min-width:54px !important;
+    height:34px !important;
+    min-height:34px !important;
+  }
+}
+/* SHIROHA_WEB_V34_PANEL_ALIGNMENT_AND_HIDE_END */
+
+
+/* SHIROHA_WEB_V35_PANEL_MINI_AND_ALIGNMENT_FIX_START
+   只修正三处：隐藏态小按钮尺寸、练习/考试右侧面板对齐、题库卡片右侧操作并排。 */
+.bank-item-compact-v28{
+  grid-template-columns:auto minmax(0,1fr) max-content !important;
+  align-items:center !important;
+}
+.bank-card-actions-v33{
+  grid-column:3 !important;
+  grid-row:1 !important;
+  display:flex !important;
+  flex-direction:row !important;
+  flex-wrap:nowrap !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  justify-self:end !important;
+  align-self:center !important;
+  gap:10px !important;
+  width:max-content !important;
+  min-width:max-content !important;
+}
+.bank-card-actions-v33 .bank-more-menu-v28{
+  position:relative !important;
+  margin:0 !important;
+  padding:0 !important;
+  display:block !important;
+}
+.bank-card-actions-v33 .bank-more-menu-v28 summary::-webkit-details-marker{
+  display:none !important;
+}
+.bank-card-actions-v33 .bank-more-menu-v28 summary,
+.bank-card-actions-v33 .bank-delete-quick-v32{
+  width:62px !important;
+  min-width:62px !important;
+  max-width:62px !important;
+  height:40px !important;
+  min-height:40px !important;
+  max-height:40px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border-radius:14px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  box-sizing:border-box !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+}
+.bank-card-actions-v33 .bank-more-panel-v28{
+  right:0 !important;
+  left:auto !important;
+  top:calc(100% + 8px) !important;
+}
+
+@media(min-width:1280px){
+  body.practice-focus #practice-card > .practice-side-v31,
+  body.exam-focus #exam-card > .exam-side-v31{
+    position:fixed !important;
+    right:0 !important;
+    z-index:8 !important;
+    padding:0 !important;
+    margin:0 !important;
+    overflow:visible !important;
+  }
+  body.practice-focus #practice-card > .practice-side-v31{
+    width:236px !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31{
+    width:280px !important;
+  }
+  body.practice-focus #practice-card > .practice-side-v31 .practice-stat-card-v30,
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-v30{
+    margin:0 !important;
+    border-right:0 !important;
+    border-radius:18px 0 0 18px !important;
+  }
+}
+
+body.practice-rail-collapsed-v34 #practice-card > .practice-side-v31,
+body.exam-rail-collapsed-v34 #exam-card > .exam-side-v31{
+  width:64px !important;
+  max-height:44px !important;
+  overflow:visible !important;
+}
+body.practice-rail-collapsed-v34 #practice-stat-card-v30,
+body.exam-rail-collapsed-v34 #exam-answer-card-v30{
+  width:64px !important;
+  min-width:64px !important;
+  max-width:64px !important;
+  height:40px !important;
+  min-height:40px !important;
+  max-height:40px !important;
+  padding:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  overflow:visible !important;
+  border-radius:14px 0 0 14px !important;
+  box-shadow:0 6px 18px rgba(37,99,235,.06) !important;
+}
+body.practice-rail-collapsed-v34 #practice-stat-card-v30 > :not(.rail-show-btn-v34),
+body.exam-rail-collapsed-v34 #exam-answer-card-v30 > :not(.rail-show-btn-v34){
+  display:none !important;
+}
+body.practice-rail-collapsed-v34 #practice-stat-card-v30 .rail-show-btn-v34,
+body.exam-rail-collapsed-v34 #exam-answer-card-v30 .rail-show-btn-v34{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:62px !important;
+  min-width:62px !important;
+  max-width:62px !important;
+  height:38px !important;
+  min-height:38px !important;
+  max-height:38px !important;
+  padding:0 !important;
+  border-radius:13px 0 0 13px !important;
+  writing-mode:horizontal-tb !important;
+  letter-spacing:0 !important;
+  font-size:12px !important;
+  background:rgba(255,255,255,.86) !important;
+  color:#7d93b2 !important;
+}
+body.practice-rail-collapsed-v34 #practice-stat-card-v30 .rail-show-btn-v34:hover,
+body.exam-rail-collapsed-v34 #exam-answer-card-v30 .rail-show-btn-v34:hover{
+  color:#2f6fed !important;
+  background:#f7fbff !important;
+}
+@media(max-width:1279px){
+  body.practice-rail-collapsed-v34 #practice-card > .practice-side-v31,
+  body.exam-rail-collapsed-v34 #exam-card > .exam-side-v31{
+    width:auto !important;
+    max-height:none !important;
+  }
+  body.practice-rail-collapsed-v34 #practice-stat-card-v30,
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30{
+    width:100% !important;
+    max-width:none !important;
+    height:38px !important;
+    min-height:38px !important;
+    border-radius:14px !important;
+  }
+  body.practice-rail-collapsed-v34 #practice-stat-card-v30 .rail-show-btn-v34,
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30 .rail-show-btn-v34{
+    width:100% !important;
+    max-width:none !important;
+    height:36px !important;
+    min-height:36px !important;
+    border-radius:13px !important;
+  }
+}
+@media(max-width:720px){
+  .bank-item-compact-v28{
+    grid-template-columns:auto minmax(0,1fr) max-content !important;
+  }
+  .bank-card-actions-v33{
+    gap:8px !important;
+  }
+  .bank-card-actions-v33 .bank-more-menu-v28 summary,
+  .bank-card-actions-v33 .bank-delete-quick-v32{
+    width:56px !important;
+    min-width:56px !important;
+    max-width:56px !important;
+    height:34px !important;
+    min-height:34px !important;
+    max-height:34px !important;
+  }
+}
+/* SHIROHA_WEB_V35_PANEL_MINI_AND_ALIGNMENT_FIX_END */
+
+/* SHIROHA_WEB_V36_HOME_STATS_AND_PRACTICE_RAIL_FIX_START
+   首页学习统计改为卡片式；右侧统计/答题卡 top 由 JS 用实际主卡片位置校准。 */
+#dashboard .dashboard-stats-row{
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:12px !important;
+  margin-top:14px !important;
+  align-items:stretch !important;
+}
+#dashboard .dashboard-stat-item{
+  position:relative !important;
+  min-height:96px !important;
+  padding:16px 15px !important;
+  border:1px solid rgba(47,111,237,.13) !important;
+  border-radius:18px !important;
+  background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(247,251,255,.88)) !important;
+  box-shadow:0 10px 24px rgba(37,99,235,.055) !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+  gap:7px !important;
+  overflow:hidden !important;
+}
+#dashboard .dashboard-stat-item::before{
+  content:"" !important;
+  position:absolute !important;
+  left:14px !important;
+  top:12px !important;
+  width:28px !important;
+  height:4px !important;
+  border-radius:999px !important;
+  background:linear-gradient(90deg,#3b82f6,rgba(96,165,250,.28)) !important;
+  opacity:.72 !important;
+}
+#dashboard .dashboard-stat-item b{
+  margin-top:10px !important;
+  color:#1155d9 !important;
+  font-size:28px !important;
+  line-height:1 !important;
+  font-weight:900 !important;
+  letter-spacing:-.03em !important;
+}
+#dashboard .dashboard-stat-item span{
+  color:#526b93 !important;
+  font-size:13px !important;
+  font-weight:800 !important;
+  line-height:1.25 !important;
+}
+#dashboard .dashboard-panel:has(.dashboard-stats-row){
+  min-height:260px !important;
+}
+@media(max-width:720px){
+  #dashboard .dashboard-stats-row{
+    grid-template-columns:1fr 1fr !important;
+    gap:9px !important;
+  }
+  #dashboard .dashboard-stat-item{
+    min-height:82px !important;
+    padding:13px 12px !important;
+    border-radius:16px !important;
+  }
+  #dashboard .dashboard-stat-item b{
+    font-size:23px !important;
+  }
+  #dashboard .dashboard-stat-item span{
+    font-size:12px !important;
+  }
+}
+@media(min-width:1280px){
+  body.practice-focus #practice-card > .practice-side-v31,
+  body.exam-focus #exam-card > .exam-side-v31{
+    top:var(--unused-focus-rail-top-v36,18px) !important;
+  }
+}
+/* SHIROHA_WEB_V36_HOME_STATS_AND_PRACTICE_RAIL_FIX_END */
+
+
+/* SHIROHA_WEB_V37_RECORDS_AND_EXAM_CARD_COMPACT_FIX_START
+   考试右侧答题卡进一步压缩并限制高度；练习退出直接回设置区；记录导航统一承载练习/考试记录。 */
+@media(min-width:1280px){
+  body.exam-focus #exam-card.card{
+    width:min(920px, calc(100vw - 390px)) !important;
+    max-width:920px !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31{
+    width:232px !important;
+    right:12px !important;
+    overflow:visible !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-v30{
+    max-height:min(500px, calc(100vh - 132px)) !important;
+    padding:10px !important;
+    border-radius:18px !important;
+    border-right:1px solid rgba(47,111,237,.14) !important;
+    overflow:hidden !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-head-v30{
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) auto !important;
+    align-items:start !important;
+    gap:8px !important;
+    margin-bottom:8px !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-head-v30 > div:first-child span{
+    white-space:normal !important;
+    font-size:11px !important;
+    line-height:1.25 !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-head-v30 .rail-hide-btn-v34{
+    grid-column:2 !important;
+    grid-row:1 !important;
+    align-self:start !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-mini-stats-v30{
+    grid-column:1 / -1 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:space-between !important;
+    min-width:0 !important;
+    padding:7px 9px !important;
+    border-radius:12px !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-mini-stats-v30 b{
+    margin:0 !important;
+    font-size:17px !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-nav-grid-v30{
+    grid-template-columns:repeat(5, 34px) !important;
+    justify-content:center !important;
+    gap:6px !important;
+    max-height:322px !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    padding:2px 2px 4px !important;
+    scrollbar-width:thin !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-nav-grid-v30 button{
+    width:34px !important;
+    min-width:34px !important;
+    height:32px !important;
+    min-height:32px !important;
+    border-radius:10px !important;
+    font-size:11.5px !important;
+  }
+  body.exam-rail-collapsed-v34 #exam-card > .exam-side-v31{
+    width:64px !important;
+    right:12px !important;
+  }
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30{
+    width:64px !important;
+    min-width:64px !important;
+    height:38px !important;
+    min-height:38px !important;
+    max-height:38px !important;
+    border-radius:14px !important;
+    border-right:1px solid rgba(47,111,237,.14) !important;
+  }
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30 .rail-show-btn-v34{
+    width:62px !important;
+    height:36px !important;
+    min-height:36px !important;
+    border-radius:13px !important;
+  }
+}
+@media(min-width:1280px) and (max-height:760px){
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-v30{
+    max-height:430px !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-nav-grid-v30{
+    max-height:252px !important;
+  }
+}
+@media(max-width:1279px){
+  body.exam-focus #exam-card > .exam-side-v31 .exam-answer-card-v30{
+    max-height:44vh !important;
+    overflow:hidden !important;
+  }
+  body.exam-focus #exam-card > .exam-side-v31 .exam-nav-grid-v30{
+    max-height:160px !important;
+    overflow:auto !important;
+  }
+}
+/* SHIROHA_WEB_V37_RECORDS_AND_EXAM_CARD_COMPACT_FIX_END */
+
+/* SHIROHA_WEB_V38_EXAM_MINI_AND_HOME_STATS_SOFTEN_START
+   修正考试答题卡隐藏态文字被裁切；弱化首页学习统计卡片的重色与蓝色横杠。 */
+@media(min-width:1280px){
+  body.exam-rail-collapsed-v34 #exam-card > .exam-side-v31{
+    width:76px !important;
+    right:14px !important;
+    overflow:visible !important;
+  }
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30{
+    width:76px !important;
+    min-width:76px !important;
+    max-width:76px !important;
+    height:38px !important;
+    min-height:38px !important;
+    max-height:38px !important;
+    padding:0 !important;
+    overflow:visible !important;
+    border-radius:14px !important;
+  }
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30 .rail-show-btn-v34{
+    width:74px !important;
+    min-width:74px !important;
+    max-width:74px !important;
+    height:36px !important;
+    min-height:36px !important;
+    max-height:36px !important;
+    padding:0 !important;
+    border-radius:13px !important;
+    white-space:nowrap !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+    font-size:12px !important;
+    letter-spacing:0 !important;
+  }
+}
+
+#dashboard .dashboard-stats-row{
+  gap:12px !important;
+  margin-top:13px !important;
+}
+#dashboard .dashboard-stat-item{
+  min-height:86px !important;
+  padding:14px 16px !important;
+  border:1px solid rgba(147,197,253,.26) !important;
+  border-radius:18px !important;
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(249,252,255,.94)) !important;
+  box-shadow:0 8px 20px rgba(37,99,235,.035) !important;
+  justify-content:center !important;
+  gap:9px !important;
+}
+#dashboard .dashboard-stat-item::before{
+  display:none !important;
+  content:none !important;
+}
+#dashboard .dashboard-stat-item span{
+  order:-1 !important;
+  color:#6f83a5 !important;
+  font-size:13px !important;
+  font-weight:700 !important;
+  letter-spacing:.01em !important;
+}
+#dashboard .dashboard-stat-item b{
+  margin:0 !important;
+  color:#3f73e6 !important;
+  font-size:25px !important;
+  line-height:1 !important;
+  font-weight:800 !important;
+  letter-spacing:-.02em !important;
+}
+#dashboard .dashboard-panel:has(.dashboard-stats-row){
+  min-height:244px !important;
+}
+@media(max-width:720px){
+  #dashboard .dashboard-stats-row{
+    gap:9px !important;
+  }
+  #dashboard .dashboard-stat-item{
+    min-height:78px !important;
+    padding:12px 13px !important;
+    border-radius:16px !important;
+  }
+  #dashboard .dashboard-stat-item b{
+    font-size:22px !important;
+  }
+  #dashboard .dashboard-stat-item span{
+    font-size:12px !important;
+  }
+}
+/* SHIROHA_WEB_V38_EXAM_MINI_AND_HOME_STATS_SOFTEN_END */
+
+/* SHIROHA_WEB_V40_COLLAPSED_BUTTON_AND_HOME_NUMBER_TONE_FIX_START
+   修正右侧栏隐藏态：只显示独立小按钮，不保留卡片外壳；首页学习统计只调整数字色彩，保留卡片材质。 */
+@media(min-width:1280px){
+  body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-v31,
+  body.exam-focus.exam-rail-collapsed-v34 #exam-card > .exam-side-v31{
+    width:auto !important;
+    min-width:0 !important;
+    max-width:none !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    right:14px !important;
+    padding:0 !important;
+    margin:0 !important;
+    border:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    overflow:visible !important;
+    pointer-events:none !important;
+  }
+  body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-v31 #practice-stat-card-v30,
+  body.exam-focus.exam-rail-collapsed-v34 #exam-card > .exam-side-v31 #exam-answer-card-v30{
+    width:auto !important;
+    min-width:0 !important;
+    max-width:none !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    padding:0 !important;
+    margin:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    overflow:visible !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    pointer-events:none !important;
+  }
+  body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-v31 #practice-stat-card-v30 > .practice-stat-head-v30,
+  body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-v31 #practice-stat-card-v30 > .practice-stat-list-v31,
+  body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-v31 #practice-stat-card-v30 > p,
+  body.exam-focus.exam-rail-collapsed-v34 #exam-card > .exam-side-v31 #exam-answer-card-v30 > .exam-answer-card-head-v30,
+  body.exam-focus.exam-rail-collapsed-v34 #exam-card > .exam-side-v31 #exam-answer-card-v30 > .exam-nav-grid-v30{
+    display:none !important;
+    visibility:hidden !important;
+    width:0 !important;
+    height:0 !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    padding:0 !important;
+    margin:0 !important;
+    overflow:hidden !important;
+  }
+  body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-v31 #practice-stat-card-v30 > .rail-show-btn-v34,
+  body.exam-focus.exam-rail-collapsed-v34 #exam-card > .exam-side-v31 #exam-answer-card-v30 > .rail-show-btn-v34{
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    position:relative !important;
+    pointer-events:auto !important;
+    height:34px !important;
+    min-height:34px !important;
+    max-height:34px !important;
+    padding:0 13px !important;
+    border:1px solid rgba(180,200,230,.52) !important;
+    border-radius:999px !important;
+    background:rgba(255,255,255,.88) !important;
+    box-shadow:0 5px 16px rgba(37,99,235,.04) !important;
+    color:#7890b0 !important;
+    font-size:12px !important;
+    font-weight:800 !important;
+    line-height:1 !important;
+    letter-spacing:0 !important;
+    white-space:nowrap !important;
+    writing-mode:horizontal-tb !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+    box-sizing:border-box !important;
+  }
+  body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-v31 #practice-stat-card-v30 > .rail-show-btn-v34{
+    width:58px !important;
+    min-width:58px !important;
+    max-width:58px !important;
+  }
+  body.exam-focus.exam-rail-collapsed-v34 #exam-card > .exam-side-v31 #exam-answer-card-v30 > .rail-show-btn-v34{
+    width:72px !important;
+    min-width:72px !important;
+    max-width:72px !important;
+  }
+}
+@media(max-width:1279px){
+  body.practice-rail-collapsed-v34 #practice-stat-card-v30,
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30{
+    border:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+  }
+  body.practice-rail-collapsed-v34 #practice-stat-card-v30 > :not(.rail-show-btn-v34),
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30 > :not(.rail-show-btn-v34){
+    display:none !important;
+  }
+  body.practice-rail-collapsed-v34 #practice-stat-card-v30 > .rail-show-btn-v34,
+  body.exam-rail-collapsed-v34 #exam-answer-card-v30 > .rail-show-btn-v34{
+    display:inline-flex !important;
+    width:auto !important;
+    min-width:58px !important;
+    height:34px !important;
+    min-height:34px !important;
+    padding:0 13px !important;
+    border-radius:999px !important;
+    white-space:nowrap !important;
+  }
+}
+
+#dashboard .dashboard-stat-item{
+  border-color:rgba(191,219,254,.42) !important;
+  background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(246,250,255,.92)) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.96),0 8px 20px rgba(37,99,235,.035) !important;
+  opacity:1 !important;
+}
+#dashboard .dashboard-stat-item::before,
+#dashboard .dashboard-stat-item::after{
+  display:none !important;
+  content:none !important;
+}
+#dashboard .dashboard-stat-item span{
+  color:#6f83a5 !important;
+  opacity:1 !important;
+}
+#dashboard .dashboard-stat-item b{
+  color:rgba(191,219,254,.96) !important;
+  opacity:1 !important;
+  text-shadow:0 1px 0 rgba(255,255,255,.98),0 0 10px rgba(147,197,253,.16) !important;
+  font-weight:800 !important;
+}
+/* SHIROHA_WEB_V40_COLLAPSED_BUTTON_AND_HOME_NUMBER_TONE_FIX_END */
+
+/* SHIROHA_WEB_V41_HOME_VERSION_AND_STAT_REBUILD_START
+   首页版本文案更新；学习统计卡片整体重做为蓝白云母/亚克力质感，数字仅用浅蓝白色。 */
+#dashboard .dashboard-panel:has(.learning-stats-v41){
+  min-height:260px !important;
+}
+#dashboard .learning-stats-v41{
+  display:grid !important;
+  grid-template-columns:minmax(0,1.18fr) minmax(116px,.82fr) !important;
+  grid-template-rows:repeat(3,minmax(0,1fr)) !important;
+  gap:10px !important;
+  margin-top:12px !important;
+  align-items:stretch !important;
+}
+#dashboard .learning-stats-v41 > *{
+  position:relative !important;
+  border:1px solid rgba(172,205,246,.46) !important;
+  background:
+    radial-gradient(circle at 18% 12%,rgba(255,255,255,.98),rgba(255,255,255,0) 36%),
+    linear-gradient(145deg,rgba(255,255,255,.98),rgba(248,252,255,.93)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.98),
+    0 10px 24px rgba(37,99,235,.045) !important;
+  border-radius:18px !important;
+  overflow:hidden !important;
+  opacity:1 !important;
+}
+#dashboard .learning-stats-v41 > *::before,
+#dashboard .learning-stats-v41 > *::after{
+  display:none !important;
+  content:none !important;
+}
+#dashboard .learning-stat-main-v41{
+  grid-column:1 !important;
+  grid-row:1 / span 3 !important;
+  min-height:172px !important;
+  padding:18px 18px 16px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:space-between !important;
+  gap:14px !important;
+}
+#dashboard .learning-stat-main-v41 span,
+#dashboard .learning-stat-rate-v41 span,
+#dashboard .learning-stat-mini-v41 span{
+  display:block !important;
+  margin:0 !important;
+  color:#617592 !important;
+  font-size:13px !important;
+  font-weight:800 !important;
+  line-height:1.25 !important;
+  letter-spacing:.01em !important;
+}
+#dashboard .learning-stat-main-v41 b,
+#dashboard .learning-stat-rate-v41 b,
+#dashboard .learning-stat-mini-v41 b{
+  display:block !important;
+  margin:0 !important;
+  color:#c7e0ff !important;
+  opacity:1 !important;
+  text-shadow:0 1px 0 rgba(255,255,255,.98),0 0 12px rgba(191,219,254,.22) !important;
+  font-weight:900 !important;
+  letter-spacing:-.035em !important;
+  line-height:.95 !important;
+}
+#dashboard .learning-stat-main-v41 b{
+  margin-top:12px !important;
+  font-size:58px !important;
+}
+#dashboard .learning-stat-main-v41 small{
+  display:inline-flex !important;
+  align-items:center !important;
+  width:max-content !important;
+  max-width:100% !important;
+  min-height:28px !important;
+  padding:0 11px !important;
+  border:1px solid rgba(191,219,254,.48) !important;
+  border-radius:999px !important;
+  background:rgba(255,255,255,.72) !important;
+  color:#8aa0bc !important;
+  font-size:12px !important;
+  font-weight:800 !important;
+  line-height:1 !important;
+}
+#dashboard .learning-stat-rate-v41,
+#dashboard .learning-stat-mini-v41{
+  min-height:52px !important;
+  padding:11px 13px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:10px !important;
+}
+#dashboard .learning-stat-rate-v41 b,
+#dashboard .learning-stat-mini-v41 b{
+  font-size:28px !important;
+  text-align:right !important;
+  flex:0 0 auto !important;
+}
+#dashboard .learning-stat-rate-v41{
+  border-color:rgba(147,197,253,.56) !important;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(255,255,255,1),rgba(255,255,255,0) 46%),
+    linear-gradient(145deg,rgba(255,255,255,.99),rgba(242,248,255,.96)) !important;
+}
+#dashboard .learning-stat-rate-v41 b{
+  color:#b9d8ff !important;
+}
+@media(max-width:1180px){
+  #dashboard .learning-stats-v41{
+    grid-template-columns:minmax(0,1.1fr) minmax(120px,.9fr) !important;
+  }
+}
+@media(max-width:720px){
+  #dashboard .learning-stats-v41{
+    grid-template-columns:1fr 1fr !important;
+    grid-template-rows:auto !important;
+    gap:9px !important;
+  }
+  #dashboard .learning-stat-main-v41{
+    grid-column:1 / -1 !important;
+    grid-row:auto !important;
+    min-height:118px !important;
+    padding:15px !important;
+  }
+  #dashboard .learning-stat-main-v41 b{
+    font-size:42px !important;
+  }
+  #dashboard .learning-stat-rate-v41,
+  #dashboard .learning-stat-mini-v41{
+    min-height:66px !important;
+    padding:12px !important;
+    flex-direction:column !important;
+    align-items:flex-start !important;
+    justify-content:center !important;
+  }
+  #dashboard .learning-stat-rate-v41 b,
+  #dashboard .learning-stat-mini-v41 b{
+    font-size:24px !important;
+    text-align:left !important;
+  }
+}
+/* SHIROHA_WEB_V41_HOME_VERSION_AND_STAT_REBUILD_END */
+
+
+/* SHIROHA_WEB_V42_HOME_STAT_SIMPLE_2X2_START
+   首页学习统计回到 2×2；数字使用黑色，整体保持干净蓝白卡片，不做特殊透明效果。 */
+#dashboard .dashboard-panel:has(.learning-stats-v42){
+  min-height:260px !important;
+}
+#dashboard .learning-stats-v42{
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  grid-template-rows:repeat(2,minmax(0,1fr)) !important;
+  gap:14px !important;
+  margin-top:16px !important;
+  align-items:stretch !important;
+}
+#dashboard .learning-stat-tile-v42{
+  position:relative !important;
+  min-height:92px !important;
+  padding:18px 18px 16px !important;
+  border:1px solid rgba(191,219,254,.55) !important;
+  border-radius:20px !important;
+  background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(247,251,255,.94)) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 22px rgba(37,99,235,.045) !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+  align-items:flex-start !important;
+  gap:10px !important;
+  overflow:hidden !important;
+  opacity:1 !important;
+}
+#dashboard .learning-stat-tile-v42::before,
+#dashboard .learning-stat-tile-v42::after{
+  display:none !important;
+  content:none !important;
+}
+#dashboard .learning-stat-tile-v42 span{
+  margin:0 !important;
+  color:#5f7496 !important;
+  font-size:14px !important;
+  font-weight:700 !important;
+  line-height:1.2 !important;
+  letter-spacing:.01em !important;
+  opacity:1 !important;
+}
+#dashboard .learning-stat-tile-v42 b{
+  margin:0 !important;
+  color:#0f172a !important;
+  font-size:30px !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+  letter-spacing:-.03em !important;
+  text-shadow:none !important;
+  opacity:1 !important;
+}
+@media(max-width:720px){
+  #dashboard .learning-stats-v42{
+    gap:10px !important;
+    margin-top:13px !important;
+  }
+  #dashboard .learning-stat-tile-v42{
+    min-height:82px !important;
+    padding:14px 14px 13px !important;
+    border-radius:17px !important;
+  }
+  #dashboard .learning-stat-tile-v42 span{
+    font-size:12px !important;
+  }
+  #dashboard .learning-stat-tile-v42 b{
+    font-size:25px !important;
+  }
+}
+/* SHIROHA_WEB_V42_HOME_STAT_SIMPLE_2X2_END */
+
+/* SHIROHA_WEB_V43_HOME_STAT_NUMBER_CENTER_START
+   首页学习统计：数字居中，取消加粗；保持 v42 的 2×2 卡片布局。 */
+#dashboard .learning-stat-tile-v42 b{
+  width:100% !important;
+  text-align:center !important;
+  align-self:center !important;
+  font-weight:400 !important;
+  letter-spacing:0 !important;
+}
+/* SHIROHA_WEB_V43_HOME_STAT_NUMBER_CENTER_END */

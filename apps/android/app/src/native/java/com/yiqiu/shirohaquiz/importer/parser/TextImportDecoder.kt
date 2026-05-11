@@ -57,7 +57,7 @@ object TextImportDecoder {
             .replace("<w:tab/>", "\t")
             .replace("<w:br/>", "\n")
 
-        val text = Regex("""<w:t[^>]*>(.*?)</w:t>""")
+        val text = Regex("""<w:t[^>]*>([\s\S]*?)</w:t>""")
             .replace(withBreaks) { match ->
                 decodeXmlEntities(match.groupValues[1])
             }

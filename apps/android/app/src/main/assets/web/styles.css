@@ -6355,3 +6355,947 @@ button{
   }
 }
 /* SHIROHA_APP_V29_24_DASHBOARD_LAYOUT_FIX_END */
+
+/* SHIROHA_APP_V30_1_DOCX_IMAGE_IMPORT_SYNC_START
+   WebView App 同步 Web 版 DOCX 图片题/复杂真题导入：限制题干图片展示尺寸，避免图形题和资料图撑开移动端页面。 */
+.question-media{
+  margin:14px 0;
+  padding:10px;
+  max-width:100%;
+  border:1px solid rgba(120,154,210,.18);
+  border-radius:16px;
+  background:#fff;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+}
+.question-image{
+  display:block;
+  max-width:100%;
+  max-height:min(52vh,520px);
+  width:auto;
+  height:auto;
+  object-fit:contain;
+  margin:0 auto;
+  cursor:zoom-in;
+  touch-action:manipulation;
+}
+.question-media.is-wide-image .question-image{
+  max-width:none;
+  max-height:min(48vh,460px);
+}
+.question-media.is-tall-image .question-image{
+  max-height:min(58vh,560px);
+}
+#import-preview .question-media,
+.import-table td .question-media,
+.preview-table td .question-media{
+  display:none!important;
+}
+.question-image-viewer-v302{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(13,25,45,.78);
+  backdrop-filter:blur(3px);
+}
+.question-image-viewer-v302.active{display:flex;}
+.question-image-viewer-stage-v302{
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.question-image-viewer-stage-v302 img{
+  display:block;
+  max-width:none;
+  max-height:none;
+  width:auto;
+  height:auto;
+  min-width:min(100%,360px);
+  object-fit:contain;
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 18px 45px rgba(0,0,0,.26);
+}
+.question-image-viewer-close-v302{
+  position:fixed;
+  top:calc(env(safe-area-inset-top,0px) + 12px);
+  right:14px;
+  z-index:1;
+  width:38px;
+  height:38px;
+  border:0;
+  border-radius:999px;
+  background:rgba(255,255,255,.92);
+  color:#1f3558;
+  font-size:26px;
+  line-height:38px;
+}
+.question-image-viewer-tip-v302{
+  position:fixed;
+  left:50%;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+  transform:translateX(-50%);
+  padding:7px 12px;
+  border-radius:999px;
+  background:rgba(255,255,255,.88);
+  color:#42526f;
+  font-size:12px;
+  white-space:nowrap;
+}
+body.image-preview-open-v302{overflow:hidden;}
+@media(max-width:720px){
+  .question-media{padding:8px;border-radius:14px;margin:12px 0;}
+  .question-image{max-height:min(42vh,340px);}
+  .question-media.is-wide-image .question-image{max-height:min(36vh,300px);}
+  .question-media.is-tall-image .question-image{max-height:min(48vh,420px);}
+  .question-image-viewer-v302{padding:12px;}
+  .question-image-viewer-stage-v302 img{max-width:none;max-height:none;}
+}
+/* SHIROHA_APP_V30_1_DOCX_IMAGE_IMPORT_SYNC_END */
+
+/* SHIROHA_APP_V32_MOBILE_PRACTICE_EXAM_COMPACT_START
+   WebView App 专属修正：撤回右侧悬挂答题卡，只保留考试沉浸；进一步压缩练习/考试选项卡片空白。 */
+body.practice-focus #practice.view{
+  padding:8px !important;
+}
+body.practice-focus #practice-card{
+  max-width:760px !important;
+  min-height:calc(100vh - 16px) !important;
+  padding:14px !important;
+  border-radius:18px !important;
+  box-shadow:0 8px 22px rgba(37,99,235,.06) !important;
+}
+body.practice-focus .practice-focus-head{
+  position:sticky !important;
+  top:0 !important;
+  z-index:12 !important;
+  gap:8px !important;
+  padding:6px 0 8px !important;
+  margin:0 0 8px !important;
+  background:rgba(255,255,255,.98) !important;
+  border-bottom:1px solid rgba(219,232,251,.82) !important;
+}
+body.practice-focus .practice-focus-head b{
+  font-size:16px !important;
+  line-height:1.15 !important;
+}
+body.practice-focus .practice-focus-head span{
+  font-size:14px !important;
+  line-height:1.15 !important;
+}
+body.practice-focus .practice-tools-v26{
+  width:auto !important;
+  margin-left:auto !important;
+  display:flex !important;
+  gap:5px !important;
+  flex-wrap:nowrap !important;
+}
+body.practice-focus .practice-tools-v26 button,
+body.practice-focus .mini-btn,
+body.exam-focus .mini-btn,
+body.exam-focus .focus-mini-btn{
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  min-height:28px !important;
+  height:28px !important;
+  padding:4px 8px !important;
+  border-radius:999px !important;
+  font-size:11px !important;
+  line-height:1 !important;
+}
+body.practice-focus .qmeta,
+body.exam-focus .qmeta{
+  gap:5px !important;
+  margin:3px 0 6px !important;
+}
+body.practice-focus .pill,
+body.exam-focus .pill{
+  padding:4px 8px !important;
+  border-radius:999px !important;
+  font-size:11px !important;
+  line-height:1.1 !important;
+}
+body.practice-focus .question-title,
+body.exam-focus .question-title{
+  font-size:clamp(16px,4.1vw,18px) !important;
+  line-height:1.38 !important;
+  margin:5px 0 8px !important;
+  letter-spacing:-.01em !important;
+}
+body.practice-focus .option,
+body.exam-focus .option{
+  gap:7px !important;
+  align-items:center !important;
+  padding:7px 9px !important;
+  margin:5px 0 !important;
+  min-height:38px !important;
+  border-width:1.25px !important;
+  border-radius:12px !important;
+  font-size:14px !important;
+  line-height:1.28 !important;
+  box-shadow:none !important;
+}
+body.practice-focus .option input,
+body.exam-focus .option input{
+  width:16px !important;
+  height:16px !important;
+  margin:0 !important;
+  flex:0 0 auto !important;
+}
+body.practice-focus .option-key,
+body.exam-focus .option-key{
+  min-width:20px !important;
+  font-size:14px !important;
+  line-height:1.2 !important;
+}
+body.practice-focus #practice-card > .actions{
+  display:grid !important;
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  gap:6px !important;
+  margin-top:10px !important;
+}
+body.practice-focus #practice-card > .actions button,
+body.practice-focus #p-feedback .actions button{
+  min-height:34px !important;
+  height:auto !important;
+  padding:6px 5px !important;
+  border-radius:12px !important;
+  font-size:12px !important;
+  line-height:1.1 !important;
+}
+body.practice-focus .feedback,
+body.exam-focus .feedback{
+  margin-top:8px !important;
+  padding:8px 10px !important;
+  border-radius:12px !important;
+  font-size:13px !important;
+  line-height:1.42 !important;
+}
+body.practice-focus .practice-nav-v26{
+  margin-top:10px !important;
+  padding-top:8px !important;
+}
+body.practice-focus .practice-nav-v26 > b{
+  font-size:12px !important;
+  color:#64748b !important;
+}
+body.practice-focus .practice-nav-grid-v26{
+  grid-template-columns:repeat(auto-fill,minmax(28px,1fr)) !important;
+  gap:5px !important;
+  max-height:78px !important;
+  overflow:auto !important;
+  -webkit-overflow-scrolling:touch !important;
+}
+body.practice-focus .practice-nav-grid-v26 button{
+  min-height:28px !important;
+  padding:0 !important;
+  border-radius:8px !important;
+  font-size:11px !important;
+}
+body.practice-focus .question-media,
+body.exam-focus .question-media{
+  margin:8px 0 !important;
+  padding:6px !important;
+  border-radius:12px !important;
+}
+body.practice-focus .question-image,
+body.exam-focus .question-image{
+  max-height:min(36vh,300px) !important;
+}
+body.practice-focus .question-media.is-wide-image .question-image,
+body.exam-focus .question-media.is-wide-image .question-image{
+  max-height:min(32vh,260px) !important;
+}
+
+body.exam-focus .side,
+body.exam-focus .sidebar,
+body.exam-focus .topbar,
+body.exam-focus .mobile-bottom-nav,
+body.exam-focus .bottom-nav,
+body.exam-focus nav.mobile-nav{
+  display:none !important;
+}
+body.exam-focus{
+  padding-bottom:0 !important;
+}
+body.exam-focus .app{
+  display:block !important;
+  min-height:100vh !important;
+  background:linear-gradient(180deg,#f8fbff 0%,#eef5ff 100%) !important;
+}
+body.exam-focus .main{
+  width:100% !important;
+  max-width:none !important;
+  padding:0 !important;
+}
+body.exam-focus .view{
+  display:none !important;
+}
+body.exam-focus #exam.view{
+  display:block !important;
+  min-height:100vh !important;
+  padding:8px !important;
+  background:linear-gradient(180deg,#f8fbff 0%,#eef5ff 100%) !important;
+}
+body.exam-focus #exam-setup,
+body.exam-focus #exam>.card:first-child{
+  display:none !important;
+}
+body.exam-focus #exam-card{
+  max-width:780px !important;
+  min-height:calc(100vh - 16px) !important;
+  margin:0 auto !important;
+  padding:12px !important;
+  border-radius:18px !important;
+  background:rgba(255,255,255,.98) !important;
+  border:1px solid rgba(47,111,237,.10) !important;
+  box-shadow:0 8px 22px rgba(37,99,235,.06) !important;
+}
+body.exam-focus .exam-focus-head{
+  position:sticky !important;
+  top:0 !important;
+  z-index:18 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:8px !important;
+  margin:0 0 9px !important;
+  padding:7px 0 8px !important;
+  border-bottom:1px solid rgba(219,232,251,.82) !important;
+  background:rgba(255,255,255,.98) !important;
+}
+body.exam-focus .exam-focus-head > div:first-child{
+  min-width:0 !important;
+  display:grid !important;
+  gap:2px !important;
+}
+body.exam-focus .exam-focus-head b{
+  max-width:44vw !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  font-size:15px !important;
+  line-height:1.15 !important;
+}
+body.exam-focus .exam-focus-head span{
+  color:#2563eb !important;
+  font-size:12px !important;
+  font-weight:800 !important;
+  white-space:nowrap !important;
+}
+body.exam-focus .exam-head-actions{
+  display:flex !important;
+  align-items:center !important;
+  gap:5px !important;
+  flex-wrap:nowrap !important;
+}
+body.exam-focus #exam-card > .notice{
+  margin:0 0 9px !important;
+  padding:7px 9px !important;
+  border-radius:12px !important;
+  font-size:12px !important;
+  line-height:1.42 !important;
+}
+body.exam-focus .exam-q{
+  margin:0 0 9px !important;
+  padding:10px !important;
+  border-radius:15px !important;
+  border:1px solid rgba(47,111,237,.10) !important;
+  background:#fff !important;
+  box-shadow:none !important;
+  scroll-margin-top:62px !important;
+}
+body.exam-focus .exam-focus-actions{
+  margin:12px 0 4px !important;
+}
+body.exam-focus .exam-focus-actions button{
+  width:100% !important;
+  min-height:38px !important;
+  padding:7px 8px !important;
+  border-radius:12px !important;
+  font-size:13px !important;
+}
+
+@media(max-width:420px){
+  body.practice-focus #practice-card,
+  body.exam-focus #exam-card{
+    padding:10px !important;
+  }
+  body.practice-focus .practice-focus-head,
+  body.exam-focus .exam-focus-head{
+    gap:6px !important;
+  }
+  body.practice-focus .practice-tools-v26{
+    gap:4px !important;
+  }
+  body.practice-focus .practice-tools-v26 button,
+  body.exam-focus .focus-mini-btn,
+  body.exam-focus .mini-btn{
+    height:27px !important;
+    min-height:27px !important;
+    padding-left:7px !important;
+    padding-right:7px !important;
+    font-size:10.5px !important;
+  }
+  body.practice-focus #practice-card > .actions{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+  body.practice-focus .option,
+  body.exam-focus .option{
+    min-height:36px !important;
+    padding:6px 8px !important;
+    margin:4px 0 !important;
+    border-radius:11px !important;
+  }
+}
+/* SHIROHA_APP_V32_MOBILE_PRACTICE_EXAM_COMPACT_END */
+
+/* SHIROHA_APP_V33_RECORDS_AND_MOBILE_COMPACT_START
+   WebView App 专属：结果回归记录页；手机端按钮/选项/底部导航做适度收敛，不新增布局。 */
+.compact-end-v5{
+  padding:16px !important;
+  border-radius:16px !important;
+  color:#35506d !important;
+}
+@media(max-width:720px){
+  body:not(.exam-focus) .main{
+    padding-bottom:calc(118px + env(safe-area-inset-bottom,0px)) !important;
+  }
+  body:not(.practice-focus):not(.exam-focus) .actions button,
+  body:not(.practice-focus):not(.exam-focus) .row-actions button,
+  body:not(.practice-focus):not(.exam-focus) button.primary,
+  body:not(.practice-focus):not(.exam-focus) button.ghost,
+  body:not(.practice-focus):not(.exam-focus) button.danger{
+    min-height:42px !important;
+    padding:8px 11px !important;
+    border-radius:14px !important;
+    font-size:13px !important;
+    line-height:1.16 !important;
+  }
+  body:not(.practice-focus):not(.exam-focus) .option{
+    min-height:42px !important;
+    padding:8px 10px !important;
+    margin:6px 0 !important;
+    gap:8px !important;
+    border-radius:14px !important;
+    font-size:14px !important;
+    line-height:1.32 !important;
+  }
+  body:not(.practice-focus):not(.exam-focus) .option input{
+    width:18px !important;
+    height:18px !important;
+    margin:0 !important;
+    flex:0 0 auto !important;
+  }
+  body:not(.practice-focus):not(.exam-focus) .option-key{
+    min-width:22px !important;
+    font-size:14px !important;
+  }
+  .side,
+  .mobile-bottom-nav,
+  .bottom-nav,
+  nav.mobile-nav{
+    left:12px !important;
+    right:12px !important;
+    bottom:calc(8px + env(safe-area-inset-bottom,0px)) !important;
+    max-width:calc(100vw - 24px) !important;
+    padding:8px !important;
+    gap:4px 5px !important;
+    border-radius:24px !important;
+  }
+  .side .nav,
+  .mobile-bottom-nav .nav,
+  .bottom-nav .nav,
+  nav.mobile-nav .nav,
+  .mobile-bottom-nav button,
+  .bottom-nav button,
+  nav.mobile-nav button{
+    min-height:38px !important;
+    padding:4px 1px !important;
+    border-radius:14px !important;
+    font-size:11.5px !important;
+    line-height:1.12 !important;
+  }
+  body.practice-focus #practice-card,
+  body.exam-focus #exam-card{
+    padding:9px !important;
+    border-radius:16px !important;
+  }
+  body.practice-focus .question-title,
+  body.exam-focus .question-title{
+    font-size:clamp(15px,3.9vw,17px) !important;
+    line-height:1.34 !important;
+    margin:4px 0 7px !important;
+  }
+  body.practice-focus .option,
+  body.exam-focus .option{
+    min-height:34px !important;
+    padding:5px 7px !important;
+    margin:3px 0 !important;
+    gap:6px !important;
+    border-radius:10px !important;
+    font-size:13.5px !important;
+    line-height:1.24 !important;
+  }
+  body.practice-focus .option input,
+  body.exam-focus .option input{
+    width:15px !important;
+    height:15px !important;
+  }
+  body.practice-focus .option-key,
+  body.exam-focus .option-key{
+    min-width:18px !important;
+    font-size:13.5px !important;
+  }
+  body.practice-focus #practice-card > .actions button,
+  body.practice-focus #p-feedback .actions button,
+  body.exam-focus .exam-focus-actions button{
+    min-height:32px !important;
+    padding:5px 6px !important;
+    border-radius:10px !important;
+    font-size:12px !important;
+  }
+  body.practice-focus .practice-focus-head,
+  body.exam-focus .exam-focus-head{
+    padding:5px 0 7px !important;
+    margin-bottom:7px !important;
+  }
+  body.exam-focus .exam-q{
+    padding:8px !important;
+    margin-bottom:8px !important;
+    border-radius:13px !important;
+  }
+}
+/* SHIROHA_APP_V33_RECORDS_AND_MOBILE_COMPACT_END */
+
+
+/* SHIROHA_APP_V34_DASHBOARD_AND_SIMPLE_OPTIONS_FIX_START
+   WebView App 专属：学习仪表盘两张状态卡做等高收敛；隐藏默认内置题库加载提示卡；短选项题进一步减少空白。 */
+.builtin-bank-card-v252,
+#builtin-bank-panel-v252{
+  display:none !important;
+}
+@media(max-width:720px){
+  #dashboard .dashboard-study-panel{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:8px !important;
+    align-items:stretch !important;
+  }
+  #dashboard .dashboard-study-head,
+  #dashboard .dashboard-study-metrics{
+    grid-column:1 / -1 !important;
+  }
+  #dashboard .dashboard-study-bank-card,
+  #dashboard .dashboard-study-tip-card{
+    min-width:0 !important;
+    min-height:94px !important;
+    height:100% !important;
+    margin:0 !important;
+    padding:10px 11px !important;
+    border-radius:17px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:flex-start !important;
+  }
+  #dashboard .dashboard-study-bank-card span,
+  #dashboard .dashboard-study-tip-card span{
+    margin-bottom:6px !important;
+    font-size:11px !important;
+  }
+  #dashboard .dashboard-study-bank-card b,
+  #dashboard .dashboard-study-tip-card b{
+    font-size:15px !important;
+    line-height:1.24 !important;
+    letter-spacing:-.02em !important;
+    display:-webkit-box !important;
+    -webkit-line-clamp:2 !important;
+    -webkit-box-orient:vertical !important;
+    overflow:hidden !important;
+  }
+  #dashboard .dashboard-study-bank-card em{
+    margin-top:6px !important;
+    font-size:11px !important;
+    line-height:1.22 !important;
+    display:-webkit-box !important;
+    -webkit-line-clamp:2 !important;
+    -webkit-box-orient:vertical !important;
+    overflow:hidden !important;
+  }
+  .options.simple-options .option,
+  body:not(.practice-focus):not(.exam-focus) .options.simple-options .option{
+    min-height:36px !important;
+    height:auto !important;
+    padding:5px 8px !important;
+    margin:3px 0 !important;
+    gap:6px !important;
+    border-radius:11px !important;
+    line-height:1.18 !important;
+  }
+  .options.simple-options .option input,
+  body:not(.practice-focus):not(.exam-focus) .options.simple-options .option input{
+    width:16px !important;
+    height:16px !important;
+    margin:0 !important;
+  }
+  .options.simple-options .option-key,
+  body:not(.practice-focus):not(.exam-focus) .options.simple-options .option-key{
+    min-width:18px !important;
+    font-size:13.5px !important;
+  }
+  .options.simple-options .option span:last-child{
+    font-size:13.5px !important;
+    line-height:1.18 !important;
+  }
+  body.practice-focus .options.simple-options .option,
+  body.exam-focus .options.simple-options .option{
+    min-height:32px !important;
+    padding:4px 7px !important;
+    margin:2px 0 !important;
+    gap:5px !important;
+    border-radius:10px !important;
+    font-size:13px !important;
+    line-height:1.16 !important;
+  }
+  body.practice-focus .options.simple-options .option input,
+  body.exam-focus .options.simple-options .option input{
+    width:14px !important;
+    height:14px !important;
+  }
+  body.practice-focus .options.simple-options .option-key,
+  body.exam-focus .options.simple-options .option-key{
+    min-width:17px !important;
+    font-size:13px !important;
+  }
+  body.practice-focus .options.simple-options .option span:last-child,
+  body.exam-focus .options.simple-options .option span:last-child{
+    font-size:13px !important;
+    line-height:1.16 !important;
+  }
+}
+@media(max-width:360px){
+  #dashboard .dashboard-study-panel{
+    grid-template-columns:1fr !important;
+  }
+  #dashboard .dashboard-study-bank-card,
+  #dashboard .dashboard-study-tip-card{
+    min-height:78px !important;
+  }
+}
+/* SHIROHA_APP_V34_DASHBOARD_AND_SIMPLE_OPTIONS_FIX_END */
+
+/* SHIROHA_APP_V35_EXAM_ANSWER_SHEET_TOGGLE_START
+   WebView App 专属：考试沉浸页中部小型答题卡开关；默认收起，不占用主答题区域。 */
+body.exam-focus .exam-sheet-toggle-row-v7{
+  display:flex !important;
+  justify-content:center !important;
+  align-items:center !important;
+  margin:-2px 0 7px !important;
+}
+body.exam-focus .exam-sheet-toggle-v7{
+  width:auto !important;
+  min-width:96px !important;
+  min-height:30px !important;
+  height:30px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  padding:5px 12px !important;
+  border-radius:999px !important;
+  border:1px solid rgba(47,111,237,.18) !important;
+  background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(243,248,255,.96)) !important;
+  color:#244362 !important;
+  box-shadow:0 6px 16px rgba(37,99,235,.07) !important;
+  font-size:12px !important;
+  font-weight:850 !important;
+  line-height:1 !important;
+}
+body.exam-focus .exam-sheet-toggle-v7.open{
+  border-color:rgba(47,111,237,.32) !important;
+  background:linear-gradient(180deg,#eef6ff,#ffffff) !important;
+  color:#1d4ed8 !important;
+}
+body.exam-focus .exam-sheet-toggle-v7 em{
+  min-width:34px !important;
+  padding:2px 7px !important;
+  border-radius:999px !important;
+  background:rgba(47,111,237,.10) !important;
+  color:#2563eb !important;
+  font-style:normal !important;
+  font-size:11px !important;
+  font-weight:900 !important;
+  line-height:1.25 !important;
+}
+body.exam-focus .exam-sheet-panel-v7[hidden]{
+  display:none !important;
+}
+body.exam-focus .exam-sheet-panel-v7{
+  margin:0 0 8px !important;
+  padding:8px !important;
+  border-radius:15px !important;
+  border:1px solid rgba(47,111,237,.12) !important;
+  background:rgba(248,251,255,.96) !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.72) !important;
+  max-height:146px !important;
+  overflow:auto !important;
+  -webkit-overflow-scrolling:touch !important;
+}
+body.exam-focus .exam-sheet-summary-v7{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:6px !important;
+  margin:0 0 7px !important;
+  color:#64748b !important;
+  font-size:11px !important;
+  line-height:1.2 !important;
+  white-space:nowrap !important;
+}
+body.exam-focus .exam-sheet-summary-v7 b{
+  color:#2563eb !important;
+}
+body.exam-focus .exam-sheet-summary-v7 .dot{
+  width:7px !important;
+  height:7px !important;
+  border-radius:999px !important;
+  border:1px solid rgba(148,163,184,.62) !important;
+  background:#fff !important;
+  flex:0 0 auto !important;
+}
+body.exam-focus .exam-sheet-summary-v7 .dot.answered{
+  border-color:rgba(37,99,235,.55) !important;
+  background:#3b82f6 !important;
+}
+body.exam-focus .exam-sheet-grid-v7{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fill,minmax(30px,1fr)) !important;
+  gap:5px !important;
+}
+body.exam-focus .exam-sheet-grid-v7 button{
+  min-width:0 !important;
+  min-height:28px !important;
+  height:28px !important;
+  padding:0 !important;
+  border-radius:9px !important;
+  border:1px solid rgba(203,213,225,.86) !important;
+  background:#fff !important;
+  color:#475569 !important;
+  box-shadow:none !important;
+  font-size:11px !important;
+  font-weight:850 !important;
+  line-height:1 !important;
+}
+body.exam-focus .exam-sheet-grid-v7 button.answered{
+  border-color:rgba(37,99,235,.42) !important;
+  background:linear-gradient(180deg,#3b82f6,#2f6fed) !important;
+  color:#fff !important;
+}
+@media(max-width:420px){
+  body.exam-focus .exam-sheet-toggle-row-v7{
+    margin:-1px 0 6px !important;
+  }
+  body.exam-focus .exam-sheet-toggle-v7{
+    min-height:28px !important;
+    height:28px !important;
+    min-width:88px !important;
+    padding:4px 10px !important;
+    font-size:11.5px !important;
+  }
+  body.exam-focus .exam-sheet-panel-v7{
+    padding:7px !important;
+    border-radius:13px !important;
+    max-height:128px !important;
+  }
+  body.exam-focus .exam-sheet-summary-v7{
+    gap:5px !important;
+    margin-bottom:6px !important;
+    font-size:10.5px !important;
+  }
+  body.exam-focus .exam-sheet-grid-v7{
+    grid-template-columns:repeat(auto-fill,minmax(27px,1fr)) !important;
+    gap:4px !important;
+  }
+  body.exam-focus .exam-sheet-grid-v7 button{
+    min-height:26px !important;
+    height:26px !important;
+    border-radius:8px !important;
+    font-size:10.5px !important;
+  }
+}
+/* SHIROHA_APP_V35_EXAM_ANSWER_SHEET_TOGGLE_END */
+
+/* SHIROHA_APP_V36_EXAM_SHEET_HEADER_ALIGN_FIX_START
+   WebView App 专属：答题卡按钮移入考试标题栏中间，撤掉单独占一行的小卡；计数文字改为浅蓝。 */
+body.exam-focus .exam-focus-head{
+  display:grid !important;
+  grid-template-columns:minmax(78px,1fr) auto max-content !important;
+  align-items:center !important;
+  justify-content:normal !important;
+  column-gap:8px !important;
+  row-gap:0 !important;
+}
+body.exam-focus .exam-focus-head .exam-head-title{
+  min-width:0 !important;
+  display:grid !important;
+  gap:2px !important;
+}
+body.exam-focus .exam-head-sheet-v8{
+  min-width:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+body.exam-focus .exam-sheet-toggle-row-v7{
+  display:none !important;
+}
+body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7{
+  min-width:86px !important;
+  min-height:28px !important;
+  height:28px !important;
+  padding:4px 10px !important;
+  gap:6px !important;
+  box-shadow:none !important;
+  border-color:rgba(47,111,237,.18) !important;
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(246,250,255,.98)) !important;
+}
+body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7 span{
+  color:#35516e !important;
+  font-size:11.5px !important;
+  font-weight:850 !important;
+}
+body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7 em{
+  min-width:34px !important;
+  padding:2px 6px !important;
+  background:rgba(47,111,237,.07) !important;
+  color:rgba(37,99,235,.68) !important;
+  font-size:11px !important;
+  font-weight:900 !important;
+}
+body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7.open{
+  border-color:rgba(47,111,237,.28) !important;
+  background:linear-gradient(180deg,#f2f8ff,#fff) !important;
+}
+body.exam-focus .exam-sheet-panel-v7{
+  margin:-1px 0 8px !important;
+}
+@media(max-width:420px){
+  body.exam-focus .exam-focus-head{
+    grid-template-columns:minmax(64px,1fr) auto max-content !important;
+    column-gap:5px !important;
+  }
+  body.exam-focus .exam-focus-head b{
+    max-width:22vw !important;
+    font-size:14px !important;
+  }
+  body.exam-focus .exam-focus-head .exam-head-title span{
+    font-size:11px !important;
+  }
+  body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7{
+    min-width:74px !important;
+    height:26px !important;
+    min-height:26px !important;
+    padding:3px 7px !important;
+    gap:4px !important;
+  }
+  body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7 span{
+    font-size:10.5px !important;
+  }
+  body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7 em{
+    min-width:30px !important;
+    padding:1px 5px !important;
+    font-size:10px !important;
+  }
+}
+/* SHIROHA_APP_V36_EXAM_SHEET_HEADER_ALIGN_FIX_END */
+
+/* SHIROHA_APP_V37_EXAM_SHEET_LIGHT_ACRYLIC_AND_LIMIT_LABEL_FIX_START
+   WebView App 专属：考试头部答题卡按钮居中、浅白浅蓝亚克力质感；题量文案见 index.html。 */
+body.exam-focus .exam-focus-head{
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) !important;
+  column-gap:8px !important;
+}
+body.exam-focus .exam-focus-head .exam-head-title{
+  justify-self:start !important;
+  min-width:0 !important;
+}
+body.exam-focus .exam-head-sheet-v8{
+  justify-self:center !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+body.exam-focus .exam-head-actions{
+  justify-self:end !important;
+  min-width:0 !important;
+}
+body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7{
+  min-width:88px !important;
+  height:28px !important;
+  min-height:28px !important;
+  padding:4px 11px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  text-align:center !important;
+  gap:6px !important;
+  border:1px solid rgba(139,190,246,.38) !important;
+  background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(240,247,255,.86)) !important;
+  color:#6b86a6 !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.92), 0 5px 14px rgba(96,165,250,.10) !important;
+  backdrop-filter:saturate(135%) blur(6px) !important;
+  -webkit-backdrop-filter:saturate(135%) blur(6px) !important;
+}
+body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7 span{
+  color:#6f87a4 !important;
+  font-weight:820 !important;
+}
+body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7 em{
+  min-width:31px !important;
+  padding:1px 5px !important;
+  border-radius:999px !important;
+  background:rgba(219,234,254,.72) !important;
+  color:#8bbcf2 !important;
+  box-shadow:inset 0 0 0 1px rgba(147,197,253,.18) !important;
+  text-align:center !important;
+}
+body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7.open{
+  border-color:rgba(125,181,241,.48) !important;
+  background:linear-gradient(180deg,rgba(246,251,255,.96),rgba(232,242,255,.90)) !important;
+  color:#5f7fa4 !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95), 0 6px 16px rgba(96,165,250,.12) !important;
+}
+@media(max-width:420px){
+  body.exam-focus .exam-focus-head{
+    grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) !important;
+    column-gap:5px !important;
+  }
+  body.exam-focus .exam-focus-head b{
+    max-width:24vw !important;
+  }
+  body.exam-focus .exam-head-actions{
+    gap:4px !important;
+  }
+  body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7{
+    min-width:76px !important;
+    height:26px !important;
+    min-height:26px !important;
+    padding:3px 7px !important;
+    gap:4px !important;
+  }
+  body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7 em{
+    min-width:28px !important;
+    padding:1px 4px !important;
+  }
+}
+/* SHIROHA_APP_V37_EXAM_SHEET_LIGHT_ACRYLIC_AND_LIMIT_LABEL_FIX_END */

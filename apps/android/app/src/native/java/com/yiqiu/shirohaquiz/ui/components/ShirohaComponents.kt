@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -123,17 +124,21 @@ fun ActionPillButton(
     icon: ImageVector,
     text: String,
     primary: Boolean = true,
+    modifier: Modifier = Modifier,
+    fillWidthContent: Boolean = false,
     onClick: () -> Unit = {}
 ) {
     Surface(
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(ShirohaRadius.Pill),
         color = if (primary) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.84f),
         border = if (primary) null else BorderStroke(1.dp, ShirohaColors.LineStrong)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = (if (fillWidthContent) Modifier.fillMaxSize() else Modifier)
+                .padding(horizontal = 16.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (fillWidthContent) Arrangement.Center else Arrangement.Start
         ) {
             Icon(
                 imageVector = icon,

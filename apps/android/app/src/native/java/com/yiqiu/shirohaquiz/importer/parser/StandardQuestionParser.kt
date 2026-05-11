@@ -12,6 +12,11 @@ object StandardQuestionParser {
     private val shortKeywords = Regex("""(简答|问答|名词解释|论述|说明原因|谈谈|分析|阐述|为什么|如何|哪些|什么是)""")
     private val blankKeywords = Regex("""(填空|填入|补全|补充完整|_{2,}|[\(]\s*[\)]|空白处)""")
     private val judgeKeywords = Regex("""(判断|正确|错误|对错|是非|是否|√|×)""")
+    private val shirohaImageMarkerRegex = Regex("""\[\[SHIROHA_IMAGE:img_\d{4}]]""")
+    private val solutionChoiceRegex = Regex(
+        """^\s*(?:答|答案|解析|分析|思路(?:一|二|三|四|五|六|七|八|九|十)?)[：:]\s*(?:本题)?(?:应?选|选择)?\s*([A-Ga-g])\b[.。,:：，、;；]?\s*(.*)$""",
+        RegexOption.IGNORE_CASE
+    )
 
     private data class OptionMarker(val key: String, val markerStart: Int, val contentStart: Int)
     private data class LineAnswerExtraction(val cleanLine: String, val answerText: String? = null, val analysisText: String? = null)
@@ -138,6 +143,12 @@ object StandardQuestionParser {
         var analysis: String? = null
         var clean = line
 
+        solutionChoiceRegex.find(clean)?.let { match ->
+            answer = answer ?: match.groupValues[1].trim()
+            val tail = match.groupValues.getOrElse(2) { "" }.trim()
+            analysis = tail.ifBlank { null }
+        }
+
         bracketAnswerRegex.find(clean)?.let { match ->
             answer = match.groupValues[1].trim()
             clean = clean.removeRange(match.range).trim()
@@ -178,8 +189,15 @@ object StandardQuestionParser {
             if (text.isNotBlank()) {
                 val existingIndex = options.indexOfLast { it.key == marker.key }
                 if (existingIndex >= 0) {
-                    val old = options[existingIndex]
-                    options[existingIndex] = old.copy(text = "${old.text} $text".replace(Regex("""\s+"""), " ").trim())
+                    val relabelKey = missingPreviousOptionKey(marker.key, options)
+                    if (relabelKey != null) {
+                        val old = options[existingIndex]
+                        options[existingIndex] = old.copy(key = relabelKey)
+                        options += Option(marker.key, text)
+                    } else {
+                        val old = options[existingIndex]
+                        options[existingIndex] = old.copy(text = "${old.text} $text".replace(Regex("""\s+"""), " ").trim())
+                    }
                 } else {
                     options += Option(marker.key, text)
                 }
@@ -216,9 +234,35 @@ object StandardQuestionParser {
             )
         }
 
+        val imageRanges = shirohaImageMarkerRegex.findAll(line).map { it.range }.toList()
         return markers
+            .filterNot { marker -> imageRanges.any { range -> marker.markerStart in range } }
+            .filterNot { marker -> looksLikeInlineEnumerationMarker(line, marker) }
             .distinctBy { it.markerStart to it.key }
             .sortedBy { it.markerStart }
+    }
+
+    private fun looksLikeInlineEnumerationMarker(line: String, marker: OptionMarker): Boolean {
+        val markerText = line.substring(marker.markerStart, marker.contentStart)
+        if ('、' !in markerText) return false
+        val previous = line.getOrNull(marker.markerStart - 1)
+        val next = line.getOrNull(marker.contentStart)
+        if (previous != null && (previous in 'A'..'G' || previous in 'a'..'g')) return true
+        if (next != null && (next in 'A'..'G' || next in 'a'..'g')) return true
+        val prefix = line.take(marker.markerStart)
+        if (Regex("""[A-Ga-g]\s*、\s*$""").containsMatchIn(prefix)) return true
+        if (marker.markerStart > 0 && previous != null && previous.toString().matches(Regex("""[\u4e00-\u9fa5A-Za-z0-9]"""))) {
+            return true
+        }
+        return false
+    }
+
+    private fun missingPreviousOptionKey(key: String, options: List<Option>): String? {
+        val expected = listOf("A", "B", "C", "D", "E", "F", "G")
+        val index = expected.indexOf(key.uppercase())
+        if (index <= 0) return null
+        val previous = expected[index - 1]
+        return previous.takeIf { candidate -> options.none { it.key == candidate } }
     }
 
     private fun inferType(

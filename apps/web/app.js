@@ -1,5 +1,5 @@
 (function(){
-const APP_VERSION='v28.2';
+const APP_VERSION='v28.8';
 const CURRENT_SCHEMA_VERSION=1;
 const KEY='shiroha_quiz_state_v28_4_c1';
 const LEGACY_KEYS=[];
@@ -11,7 +11,7 @@ const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s
 init();
 function init(){upgradeState();ensureDefaultBank();bindNav();bindEvents();renderBankSelect();renderAll();setupEnhancedDataToolsV23();}
 function defaultBank(){const qb=window.questionBank||{meta:{title:'空题库'},questions:[]};return {id:'default-c1',name:qb.meta?.title||'默认题库',createdAt:now(),questions:(qb.questions||[]).map(normalizeQuestion)}}
-function ensureDefaultBank(){if(!state.banks.length) state.banks.push(defaultBank()); if(!state.activeBankId) state.activeBankId=state.banks[0]?.id;}
+function ensureDefaultBank(){if(!state.banks.length&&!state.settings?.suppressDefaultBank) state.banks.push(defaultBank()); if(!state.activeBankId) state.activeBankId=state.banks[0]?.id||'';}
 function blankState(){return {schemaVersion:CURRENT_SCHEMA_VERSION,banks:[],activeBankId:'',wrongBook:{},records:[],settings:{}}}
 function warnDev(message,error){try{console.warn('[Shiroha Quiz]',message,error||'')}catch(_){}}
 function loadState(){
@@ -93,7 +93,7 @@ $('#dual-question-file').onchange=e=>readDualFile(e,'question');$('#dual-answer-
 $('#edit-close-btn').onclick=closeEditModal;$('#edit-save-btn').onclick=saveEditQuestion;$('#edit-delete-btn').onclick=deleteEditQuestion;const pf=$('#import-preview-filter');if(pf)pf.onchange=e=>{importPreviewFilter=e.target.value;renderImportPreview(importCache)};const bid=$('#batch-delete-import-btn');if(bid)bid.onclick=batchDeleteImportSelected;const cis=$('#clear-import-selection-btn');if(cis)cis.onclick=()=>{importSelected.clear();renderImportPreview(importCache)};
 $('#dedupe-btn').onclick=dedupeActiveBank;$('#rename-bank-btn').onclick=renameActiveBank;$('#duplicate-bank-btn').onclick=duplicateActiveBank;$('#new-empty-bank-btn').onclick=newEmptyBank;$('#merge-bank-btn').onclick=mergeBankIntoActive;$('#bank-sort-mode').onchange=renderBankList;$('#start-practice-btn').onclick=startPractice;$('#reset-practice-btn').onclick=()=>{exitPracticeFocus();$('#practice-card').innerHTML='<div class="empty">选择条件后点击“开始练习”。</div>';practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};$('#practice-progress').textContent='0 / 0'};
 $('#start-exam-btn').onclick=startExam;$('#submit-exam-btn').onclick=()=>submitExam(false);$('#clear-wrong-btn').onclick=()=>{if(confirm('确定清空当前题库错题本？')){state.wrongBook[activeBank().id]=[];saveSilent();renderAll()}};
-$('#clear-records-btn').onclick=()=>{if(confirm('确定清空全部刷题记录？')){state.records=[];saveSilent();renderAll()}};$('#export-records-btn').onclick=exportRecords;$('#record-mode-filter').onchange=renderRecords;$('#record-limit').onchange=renderRecords;$('#record-refresh-btn').onclick=renderRecords;$('#wrong-status-filter').onchange=renderWrongBook;$('#wrong-sort-mode').onchange=renderWrongBook;$('#practice-wrong-btn').onclick=startWrongPractice;$('#export-json-btn').onclick=exportCurrentBank;$('#export-all-btn').onclick=exportAll;$('#reset-data-btn').onclick=resetData;
+$('#clear-records-btn').onclick=()=>{if(confirm('确定清空全部练习与考试记录？')){state.records=[];saveSilent();renderAll()}};$('#export-records-btn').onclick=exportRecords;$('#record-mode-filter').onchange=renderRecords;$('#record-limit').onchange=renderRecords;$('#record-refresh-btn').onclick=renderRecords;$('#wrong-status-filter').onchange=renderWrongBook;$('#wrong-sort-mode').onchange=renderWrongBook;$('#practice-wrong-btn').onclick=startWrongPractice;$('#export-json-btn').onclick=exportCurrentBank;$('#export-all-btn').onclick=exportAll;$('#reset-data-btn').onclick=resetData;
 }
 
 function cleanImportBankNameFromFile(fileName){
@@ -115,7 +115,30 @@ function setImportBankNameFromFile(fileName){
 
 function saveSilent(){localStorage.setItem(KEY,serializeState())}
 function renderAll(){renderStats();renderBankSelect();renderMergeSelect();renderBankList();renderBankPreview();renderWrongBook();renderRecords();renderBankInputs();if(typeof renderExportBankSelectorV23==='function')renderExportBankSelectorV23();}
-function renderStats(){const b=activeBank();$('#stat-total').textContent=b.questions.length;$('#stat-wrong').textContent=(state.wrongBook[b.id]||[]).length;$('#stat-records').textContent=state.records.length;}
+function localDateKeyV36(value){
+  const d=value?new Date(value):new Date();
+  if(Number.isNaN(d.getTime()))return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function renderStats(){
+  const b=activeBank();
+  const rawWrong=state.wrongBook[b.id]||[];
+  const wrongCount=Array.isArray(rawWrong)?rawWrong.length:0;
+  $('#stat-total').textContent=b.questions.length;
+  $('#stat-wrong').textContent=wrongCount;
+  $('#stat-records').textContent=state.records.length;
+  const today=localDateKeyV36();
+  const practiceRecords=(state.records||[]).filter(r=>r&&r.mode==='练习');
+  const todayPractice=practiceRecords.filter(r=>localDateKeyV36(r.date)===today);
+  const todayAnswered=todayPractice.reduce((n,r)=>n+Number(r.answered||0),0);
+  const todayCorrect=todayPractice.reduce((n,r)=>n+Number(r.correct||0),0);
+  const activeWrong=Array.isArray(rawWrong)?rawWrong.filter(x=>typeof x==='string'||!x||x.status!=='已掌握').length:0;
+  const setText=(id,val)=>{const el=$(id);if(el)el.textContent=val};
+  setText('#stat-today-count',todayAnswered);
+  setText('#stat-today-rate',todayAnswered?`${Math.round(todayCorrect/todayAnswered*100)}%`:'—');
+  setText('#stat-review-due',activeWrong);
+  setText('#stat-total-practice',practiceRecords.length);
+}
 function renderBankSelect(){const sel=$('#active-bank-select');const old=state.activeBankId;sel.innerHTML=state.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}（${b.questions.length}题）</option>`).join('');sel.value=old||state.activeBankId;}
 function renderMergeSelect(){const sel=$('#merge-bank-select');if(!sel)return;const current=state.activeBankId;sel.innerHTML=state.banks.filter(b=>b.id!==current).map(b=>`<option value="${esc(b.id)}">${esc(b.name)}（${b.questions.length}题）</option>`).join('')||'<option value="">暂无可合并题库</option>'}
 function renderBankInputs(){const inp=$('#bank-rename-input');if(inp&&!inp.value)inp.placeholder='当前：'+(activeBank().name||'未命名题库')}
@@ -131,27 +154,29 @@ function renderBankList(){
   box.innerHTML=banks.map(b=>{
     const stats=countTypes(b.questions);const active=b.id===state.activeBankId;const checked=exportBankSelectedV23.has(b.id);
     return `<article class="bank-item bank-item-compact-v28 ${active?'active-bank':''} ${checked?'selected-bank-v28':''}">
-      <label class="bank-bulk-check-v23 bank-card-check-v28" title="选择后可批量导出"><input type="checkbox" data-bank-bulk-v23="${esc(b.id)}" ${checked?'checked':''}></label>
+      <label class="bank-bulk-check-v23 bank-card-check-v28" title="选择题库"><input type="checkbox" data-bank-bulk-v23="${esc(b.id)}" ${checked?'checked':''}></label>
       <div class="bank-card-main-v28">
         <div class="bank-card-title-v28"><b>${esc(b.name)}</b>${active?'<span class="source-badge">当前</span>':''}</div>
         <p class="muted bank-card-meta-v28">${b.questions.length}题｜单选${stats.single}｜多选${stats.multiple+stats.multi}｜判断${stats.judge}｜填空${stats.blank}｜简答${stats.short}｜创建 ${fmt(b.createdAt||now())}</p>
       </div>
-      <details class="bank-more-menu-v28">
-        <summary aria-label="更多题库操作">更多</summary>
-        <div class="bank-more-panel-v28">
-          ${active?'':`<button class="ghost" data-openbank="${esc(b.id)}" type="button">设为当前</button>`}
-          <button class="ghost" data-copybank="${esc(b.id)}" type="button">复制</button>
-          <button class="ghost" data-exportbank="${esc(b.id)}" type="button">导出该题库</button>
-          ${b.id==='default-c1'?'':`<button class="ghost danger" data-delbank="${esc(b.id)}" type="button">删除</button>`}
-        </div>
-      </details>
+      <div class="bank-card-actions-v33">
+        <details class="bank-more-menu-v28">
+          <summary aria-label="更多题库操作">更多</summary>
+          <div class="bank-more-panel-v28">
+            ${active?'':`<button class="ghost" data-openbank="${esc(b.id)}" type="button">设为当前</button>`}
+            <button class="ghost" data-copybank="${esc(b.id)}" type="button">复制</button>
+            <button class="ghost" data-exportbank="${esc(b.id)}" type="button">导出该题库</button>
+          </div>
+        </details>
+        <button class="ghost danger mini-btn bank-delete-quick-v32" data-delbank="${esc(b.id)}" type="button" title="删除该题库">删除</button>
+      </div>
     </article>`
   }).join('')||'<p class="muted">暂无题库。</p>';
   $$('[data-bank-bulk-v23]').forEach(x=>x.onchange=()=>{if(x.checked)exportBankSelectedV23.add(x.dataset.bankBulkV23);else exportBankSelectedV23.delete(x.dataset.bankBulkV23);renderBankList()});
   $$('[data-openbank]').forEach(x=>x.onclick=()=>{state.activeBankId=x.dataset.openbank;saveSilent();renderAll()});
   $$('[data-copybank]').forEach(x=>x.onclick=()=>duplicateBankById(x.dataset.copybank));
   $$('[data-exportbank]').forEach(x=>x.onclick=()=>exportBankById(x.dataset.exportbank));
-  $$('[data-delbank]').forEach(x=>x.onclick=()=>{if(confirm('确定删除该题库？删除后不可恢复，请先确认已完成备份。')){state.banks=state.banks.filter(b=>b.id!==x.dataset.delbank);delete state.wrongBook[x.dataset.delbank];if(state.favorites)delete state.favorites[x.dataset.delbank];exportBankSelectedV23.delete(x.dataset.delbank);state.activeBankId=state.banks[0]?.id||'';saveSilent();renderAll()}});
+  $$('[data-delbank]').forEach(x=>x.onclick=()=>deleteBanksV32([x.dataset.delbank]));
   renderBankToolbarV28();
   renderExportBankSummaryV23();
 }
@@ -3148,7 +3173,7 @@ function startWrongPractice(){
   $('#practice-source').value='wrong';$('#practice-order').value='random';$('#practice-limit').value='100';updateShellLayoutByView('practice');startPractice();
 }
 function enterPracticeFocus(){document.body.classList.add('practice-focus')}
-function exitPracticeFocus(){document.body.classList.remove('practice-focus')}
+function exitPracticeFocus(){document.body.classList.remove('practice-focus','practice-rail-collapsed-v34')}
 
 function renderPracticeQuestion(done=false){$('#practice-progress').textContent=`${Math.min(practice.idx+1,practice.items.length)} / ${practice.items.length}`;if(done||practice.idx>=practice.items.length){finishPractice();return}const q=practice.items[practice.idx];$('#practice-card').innerHTML=`<div class="practice-focus-head"><b>刷题练习</b><span>${practice.idx+1} / ${practice.items.length}</span><button class="ghost mini-btn" id="p-exit">退出练习</button></div>`+questionHtml(q,false)+`<div class="actions"><button class="primary" id="p-submit">提交答案</button><button class="ghost" id="p-reveal">看答案</button><button class="ghost" id="p-next" disabled>下一题</button></div><div id="p-feedback"></div>`;bindOptionSelect('#practice-card',q);$('#p-exit').onclick=()=>{if(confirm('退出本轮练习？已作答部分会保存为一条记录。'))finishPractice(true)};$('#p-submit').onclick=()=>submitPractice(q,false);$('#p-reveal').onclick=()=>submitPractice(q,true);$('#p-next').onclick=()=>{practice.idx++;renderPracticeQuestion()}}
 
@@ -3245,10 +3270,20 @@ function finishPractice(exited=false){
   const rec={id:'rec_'+Date.now(),mode:'练习',bankId:activeBank().id,bankName:activeBank().name,total:practice.items.length,answered:total,correct:practice.correct,wrong:practice.wrong,accuracy:total?Math.round(practice.correct/total*100):0,score:null,date:now(),duration:Math.round((Date.now()-practice.start)/1000),details:practice.details||[]};
   if(total||exited)state.records.unshift(rec);
   saveSilent();
-  $('#practice-card').innerHTML=`<div class="score-card"><div class="metric"><span>已答</span><b>${total}</b></div><div class="metric"><span>正确</span><b>${practice.correct}</b></div><div class="metric"><span>错误</span><b>${practice.wrong}</b></div><div class="metric"><span>正确率</span><b>${rec.accuracy}%</b></div></div><div class="notice ok">${exited?'本轮练习已退出，已保存已作答记录。':'本轮练习已完成，并已写入刷题记录。记录包含每题作答明细。'}</div><div class="actions"><button class="primary" id="back-practice-setup">返回练习设置</button><button class="ghost" id="again-practice">按当前条件再练一次</button></div>`;
+  if(exited){
+    exitPracticeFocus();
+    document.body.classList.remove('practice-rail-collapsed-v34');
+    $('#practice-card').innerHTML='<div class="empty">选择条件后点击“开始练习”。</div>';
+    $('#practice-progress').textContent='0 / 0';
+    practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0,details:[],answerState:{}};
+    toast(total?'已退出练习，作答记录已保存到记录页。':'已退出练习。','ok');
+    renderAll();
+    return;
+  }
+  $('#practice-card').innerHTML=`<div class="score-card"><div class="metric"><span>已答</span><b>${total}</b></div><div class="metric"><span>正确</span><b>${practice.correct}</b></div><div class="metric"><span>错误</span><b>${practice.wrong}</b></div><div class="metric"><span>正确率</span><b>${rec.accuracy}%</b></div></div><div class="notice ok">本轮练习已完成，并已写入记录页。记录包含每题作答明细。</div><div class="actions"><button class="primary" id="back-practice-setup">返回练习设置</button><button class="ghost" id="again-practice">按当前条件再练一次</button></div>`;
   $('#back-practice-setup').onclick=()=>exitPracticeFocus();
   $('#again-practice').onclick=()=>startPractice();
-  showNotice(exited?'练习已退出':'练习完成',`已答 ${total} 道，正确率 ${rec.accuracy}%。`,'ok');
+  showNotice('练习完成',`已答 ${total} 道，正确率 ${rec.accuracy}%。`,'ok');
   renderAll();
 }
 
@@ -3261,8 +3296,8 @@ function submitExam(auto){if(exam.submitted)return;collectExamTextAnswers();exam
 function addWrongOnExam(id,isWrong){if(isWrong)addWrong(id);else markRight(id)}
 function renderExamResult(rec){const typeRows=Object.entries(rec.byType||{}).map(([t,v])=>`<tr><td>${label(t)}</td><td>${v.correct}/${v.total}</td><td>${Number(v.score.toFixed? v.score.toFixed(1):v.score)}/${v.fullScore}</td></tr>`).join('');let html=`<div class="score-card"><div class="metric"><span>得分</span><b>${rec.score}/${rec.totalScore}</b></div><div class="metric"><span>结果</span><b>${rec.passed?'合格':'未合格'}</b></div><div class="metric"><span>正确率</span><b>${rec.accuracy}%</b></div><div class="metric"><span>用时</span><b>${rec.duration}秒</b></div></div><div class="notice ${rec.passed?'ok':'warn'}">${esc(rec.name||'模拟考试')}：及格线 ${rec.passScore} 分，${rec.autoSubmitted?'系统已自动交卷。':'已交卷。'}</div>${typeRows?`<div class="table-wrap"><table><thead><tr><th>题型</th><th>正确</th><th>得分</th></tr></thead><tbody>${typeRows}</tbody></table></div>`:''}`;exam.items.forEach((q,i)=>{const ans=exam.answers[q.id]||[];html+=`<div class="exam-q" data-result-qid="${esc(q.id)}">${questionHtml(q,true,i+1)}<div class="feedback ${sameAnswerForQuestion(q,ans,q.answer)?'ok':'bad'}">你的答案：${esc(ans.join('；')||'未作答')}｜参考答案：${esc(q.answer.join('；'))}${q.analysis?'<br>解析：'+esc(q.analysis):''}</div></div>`});$('#exam-card').innerHTML=html;exam.items.forEach(q=>markOptions(`#exam-card [data-result-qid="${CSS.escape(q.id)}"]`,q,exam.answers[q.id]||[]))}
 function renderWrongBook(){const bid=activeBank().id;let entries=getWrongEntries(bid);const filter=$('#wrong-status-filter')?.value||'active';if(filter==='active')entries=entries.filter(e=>e.status!=='已掌握');else if(filter!=='all')entries=entries.filter(e=>e.status===filter);const sort=$('#wrong-sort-mode')?.value||'lastWrong';if(sort==='wrongCount')entries.sort((a,b)=>b.wrongCount-a.wrongCount);else if(sort==='status')entries.sort((a,b)=>String(a.status).localeCompare(String(b.status),'zh-CN'));else entries.sort((a,b)=>String(b.lastWrongAt||'').localeCompare(String(a.lastWrongAt||'')));const map=new Map(activeBank().questions.map(q=>[q.id,q]));const rows=entries.map(e=>({e,q:map.get(e.id)})).filter(x=>x.q);$('#wrongbook-list').innerHTML=rows.length?rows.map(({e,q})=>`<div class="wrong-item"><div class="section-head"><div><b>${label(q.type)}｜${esc(short(q.question,80))}</b><p class="muted">答案：${esc(q.answer.join(''))}｜状态：${esc(e.status)}｜错误 ${e.wrongCount} 次｜做对 ${e.rightCount} 次${e.lastWrongAt?'｜最近错：'+fmt(e.lastWrongAt):''}${q.analysis?'｜解析：'+esc(short(q.analysis,80)):''}</p></div><div class="row-actions"><button class="ghost mini-btn" data-master-wrong="${esc(q.id)}">标记已掌握</button><button class="ghost danger mini-btn" data-remove-wrong="${esc(q.id)}">移出</button></div></div></div>`).join(''):'<p class="muted">当前条件下暂无错题。</p>';$$('[data-remove-wrong]').forEach(b=>b.onclick=()=>{removeWrong(b.dataset.removeWrong);saveSilent();renderAll()});$$('[data-master-wrong]').forEach(b=>b.onclick=()=>{const arr=getWrongEntries();const e=arr.find(x=>x.id===b.dataset.masterWrong);if(e){e.status='已掌握';e.lastCorrectAt=now();e.rightCount=Math.max(e.rightCount||0,2);setWrongEntries(arr);saveSilent();renderAll()}})}
-function renderRecords(){const list=$('#records-list');let rows=[...state.records];const mode=$('#record-mode-filter')?.value||'all';if(mode!=='all')rows=rows.filter(r=>r.mode===mode);const lim=$('#record-limit')?.value||'30';if(lim!=='all')rows=rows.slice(0,Number(lim));list.innerHTML=rows.length?rows.map((r,idx)=>{const detail=(r.details||[]).slice(0,8).map((d,i)=>`<tr><td>${i+1}</td><td>${esc(short(d.question,42))}</td><td>${esc((d.chosen||[]).join('')||'未答')}</td><td>${esc((d.answer||[]).join(''))}</td><td>${d.correct?'正确':'错误'}</td></tr>`).join('');const summary=`题数${r.total}｜已答${r.answered}｜正确${r.correct}｜错误${r.wrong}｜正确率${r.accuracy}%${r.score!=null?`｜得分${r.score}/${r.totalScore}${r.passScore!=null?`｜及格线${r.passScore}｜${r.passed?'合格':'未合格'}`:''}`:''}｜用时${r.duration}秒`;return `<div class="record-item"><b>${esc(r.name||r.mode)}｜${esc(r.bankName)}｜${fmt(r.date)}</b><p class="muted">${summary}</p>${detail?`<details><summary>查看作答明细（前8题 / 共${(r.details||[]).length}题）</summary><div class="table-wrap"><table><thead><tr><th>#</th><th>题干</th><th>你的答案</th><th>正确答案</th><th>结果</th></tr></thead><tbody>${detail}</tbody></table></div></details>`:''}</div>`}).join(''):'<p class="muted">暂无刷题记录。</p>'}
-function exportRecords(){const text=JSON.stringify(state.records||[],null,2);$('#export-output')&&($('#export-output').value=text);download('刷题记录.json',text)}
+function renderRecords(){const list=$('#records-list');let rows=[...state.records];const mode=$('#record-mode-filter')?.value||'all';if(mode!=='all')rows=rows.filter(r=>r.mode===mode);const lim=$('#record-limit')?.value||'30';if(lim!=='all')rows=rows.slice(0,Number(lim));list.innerHTML=rows.length?rows.map((r,idx)=>{const detail=(r.details||[]).slice(0,8).map((d,i)=>`<tr><td>${i+1}</td><td>${esc(short(d.question,42))}</td><td>${esc((d.chosen||[]).join('')||'未答')}</td><td>${esc((d.answer||[]).join(''))}</td><td>${d.correct?'正确':'错误'}</td></tr>`).join('');const summary=`题数${r.total}｜已答${r.answered}｜正确${r.correct}｜错误${r.wrong}｜正确率${r.accuracy}%${r.score!=null?`｜得分${r.score}/${r.totalScore}${r.passScore!=null?`｜及格线${r.passScore}｜${r.passed?'合格':'未合格'}`:''}`:''}｜用时${r.duration}秒`;return `<div class="record-item"><b>${esc(r.name||r.mode)}｜${esc(r.bankName)}｜${fmt(r.date)}</b><p class="muted">${summary}</p>${detail?`<details><summary>查看作答明细（前8题 / 共${(r.details||[]).length}题）</summary><div class="table-wrap"><table><thead><tr><th>#</th><th>题干</th><th>你的答案</th><th>正确答案</th><th>结果</th></tr></thead><tbody>${detail}</tbody></table></div></details>`:''}</div>`}).join(''):'<p class="muted">暂无练习或考试记录。</p>'}
+function exportRecords(){const text=JSON.stringify(state.records||[],null,2);$('#export-output')&&($('#export-output').value=text);download('学习记录.json',text)}
 function fmt(s){return new Date(s).toLocaleString('zh-CN',{hour12:false})}
 function exportCurrentBank(){const text=JSON.stringify(activeBank(),null,2);$('#export-output').value=text;download(activeBank().name+'.json',text)}
 function exportAll(){const text=JSON.stringify({...state,schemaVersion:CURRENT_SCHEMA_VERSION},null,2);$('#export-output').value=text;download('shiroha_quiz_all_data.json',text)}
@@ -3291,26 +3326,26 @@ function ensureBankManageExportPanelV23(){
   if($('#bank-bulk-export-panel-v23'))return;
   const bankList=$('#bank-list');if(!bankList)return;
   bankList.insertAdjacentHTML('beforebegin',`<div id="bank-bulk-export-panel-v23" class="data-tool-card-v23 bank-bulk-panel-v23 bank-manage-toolbar-v28">
-    <div class="section-head compact-head-v23"><div><h3>当前题库与批量导出</h3><p class="muted">当前题库改为在上方统一选择；下方卡片只展示题库信息。需要批量导出时，勾选题库后使用这里的导出按钮。</p></div></div>
+    <div class="section-head compact-head-v23"><div><h3>当前题库与批量管理</h3><p class="muted">在这里切换当前题库；勾选下方题库后，可以批量导出或删除。</p></div></div>
     <div class="bank-current-bar-v28">
       <label>当前题库<select id="bank-current-select-v28"></select></label>
-      <span class="muted">切换后会同步顶部当前题库，并刷新预览、练习和错题范围。</span>
+      <span class="muted">切换后会同步预览、练习、考试和错题范围。</span>
     </div>
     <div class="actions wrap-v23 bank-toolbar-actions-v28">
       <label class="check-line-v23"><input id="export-bank-all-v23" type="checkbox">全选</label>
       <button class="ghost" id="export-bank-invert-v23" type="button">反选</button>
       <button class="ghost" id="export-bank-current-v23" type="button">仅选当前题库</button>
       <button class="primary" id="export-selected-banks-v23" type="button">导出选中题库</button>
-      <button class="ghost" id="copy-selected-banks-v23" type="button">复制选中题库 JSON</button>
+      <button class="ghost danger" id="delete-selected-banks-v32" type="button">删除选中题库</button>
     </div>
-    <div id="export-bank-summary-v23" class="notice warn">请选择需要导出的题库。</div>
+    <div id="export-bank-summary-v23" class="notice warn">请选择需要管理的题库。</div>
   </div>`);
   $('#bank-current-select-v28').onchange=e=>{if(e.target.value){state.activeBankId=e.target.value;saveSilent();renderAll()}};
   $('#export-bank-all-v23').onchange=e=>{exportBankSelectedV23=e.target.checked?new Set(state.banks.map(b=>b.id)):new Set();renderBankList()};
   $('#export-bank-invert-v23').onclick=()=>{const next=new Set();state.banks.forEach(b=>{if(!exportBankSelectedV23.has(b.id))next.add(b.id)});exportBankSelectedV23=next;renderBankList()};
   $('#export-bank-current-v23').onclick=()=>{exportBankSelectedV23=new Set([activeBank().id]);renderBankList()};
   $('#export-selected-banks-v23').onclick=exportSelectedBanksV23;
-  $('#copy-selected-banks-v23').onclick=copySelectedBanksJsonV23;
+  const deleteSelectedBtnV32=$('#delete-selected-banks-v32');if(deleteSelectedBtnV32)deleteSelectedBtnV32.onclick=deleteSelectedBanksV32;
   renderBankToolbarV28();
 }
 function ensureImportBackupPanelV23(){/* v28.4.4: 导入配置 / 备份 JSON 入口已移动到设置/导出页，不再插入导入题库页。 */}
@@ -3356,9 +3391,23 @@ function renderExportBankSummaryV23(){
   const all=$('#export-bank-all-v23');if(all){all.checked=state.banks.length>0&&selected.length===state.banks.length;all.indeterminate=selected.length>0&&selected.length<state.banks.length}
   if(summary){summary.textContent=selected.length?`已选择 ${selected.length} 个题库，共 ${qCount} 道题。`:'请至少选择一个题库。';summary.className='notice '+(selected.length?'ok':'warn')}
   const btn=$('#export-selected-banks-v23');if(btn)btn.disabled=!selected.length;
-  const copy=$('#copy-selected-banks-v23');if(copy)copy.disabled=!selected.length;
+  const del=$('#delete-selected-banks-v32');if(del)del.disabled=!selected.length;
 }
 function selectedBanksV23(){return state.banks.filter(b=>exportBankSelectedV23.has(b.id))}
+function deleteSelectedBanksV32(){deleteBanksV32([...exportBankSelectedV23])}
+function deleteBanksV32(ids){
+  const unique=[...new Set((ids||[]).filter(Boolean))];
+  const targets=state.banks.filter(b=>unique.includes(b.id));
+  if(!targets.length){toast('请先选择要删除的题库。','warn');return}
+  const preview=targets.slice(0,4).map(b=>'“'+b.name+'”').join('、')+(targets.length>4?' 等':'');
+  if(!confirm(`确定删除 ${targets.length} 个题库：${preview}？删除后不会影响已导出的备份，但本机数据不可恢复。`))return;
+  const delIds=new Set(targets.map(b=>b.id));
+  state.banks=state.banks.filter(b=>!delIds.has(b.id));
+  delIds.forEach(id=>{delete state.wrongBook[id];if(state.favorites)delete state.favorites[id];exportBankSelectedV23.delete(id)});
+  if(!state.banks.length){state.activeBankId='';state.settings={...(state.settings||{}),suppressDefaultBank:true};}
+  else if(!state.banks.some(b=>b.id===state.activeBankId))state.activeBankId=state.banks[0]?.id||'';
+  saveSilent();renderAll();toast(`已删除 ${targets.length} 个题库。`,'ok');
+}
 function cleanFileNameV23(s){return String(s||'').replace(/[\\/:*?"<>|]/g,'_').replace(/\s+/g,'_').slice(0,80)||'bank'}
 function todayV23(){return new Date().toISOString().slice(0,10)}
 function buildBackupPayloadV23(banks,exportType='selected_banks',includeAll=false){
@@ -3482,13 +3531,15 @@ function ensureV25ToV28Panels(){
 function ensureBuiltInPanelV252(){
   if($('#builtin-bank-panel-v252'))return;
   const bankList=$('#bank-list');if(!bankList)return;
-  bankList.insertAdjacentHTML('beforebegin',`<div id="builtin-bank-panel-v252" class="builtin-bank-card-v252"><div class="section-head compact-head-v23"><div><h3>内置题库按需加载</h3><p class="muted">完整 C1 题库已从 question-bank.js 拆分到 data/c1-full.json，页面启动时不再同步加载完整题库。</p></div><button id="load-built-in-bank-btn-panel" class="primary" type="button">加载内置 C1 题库</button></div><div id="builtin-bank-status-v252" class="muted"></div></div>`);
+  bankList.insertAdjacentHTML('beforebegin',`<div id="builtin-bank-panel-v252" class="builtin-bank-card-v252 compact-built-in-v33"><div class="section-head compact-head-v23"><div><h3>内置 C1 题库</h3><p class="muted">本地没有 C1 题库时，可重新加入。</p></div><button id="load-built-in-bank-btn-panel" class="primary" type="button">加载内置 C1 题库</button></div><div id="builtin-bank-status-v252" class="muted"></div></div>`);
   $('#load-built-in-bank-btn-panel').onclick=()=>loadBuiltInBankV252();
 }
 function renderBuiltInPanelV252(){
+  const panel=$('#builtin-bank-panel-v252');
   const el=$('#builtin-bank-status-v252');if(!el)return;
   const has=state.banks.some(b=>b.id==='default-c1'&&(b.questions||[]).length>0)||state.banks.some(b=>/C1驾照科目一/.test(b.name||''));
-  el.textContent=has?'内置 C1 题库已在本地题库列表中。':'尚未加载完整内置题库，可按需加载。';
+  if(panel)panel.hidden=!!has;
+  el.textContent=has?'已加载，可直接使用。':'当前未加入 C1 题库。';
 }
 async function fetchJsonLocalV252(url){
   try{const res=await fetch(url,{cache:'no-store'});if(res.ok)return await res.json();throw new Error('HTTP '+res.status)}
@@ -3517,6 +3568,7 @@ async function loadBuiltInBankV252(){
     const bank={id:'default-c1',name:data.meta?.title||item?.name||'C1 驾照科目一模拟练习题库',createdAt:now(),updatedAt:now(),questions,builtInLazy:false};
     const old=state.banks.findIndex(b=>b.id==='default-c1'||b.builtInLazy);
     if(old>=0)state.banks[old]=bank;else state.banks.push(bank);
+    state.settings={...(state.settings||{}),suppressDefaultBank:false};
     state.activeBankId=bank.id;saveSilent();renderAll();toast(`已加载内置题库：${bank.name}，共 ${bank.questions.length} 题。`,'ok');
   }catch(e){warnDev('加载内置题库失败',e);toast('加载内置题库失败：'+e.message,'danger')}
 }
@@ -3540,7 +3592,7 @@ function renderPracticeQuestion(done=false){
   $('#practice-progress').textContent=`${Math.min(practice.idx+1,practice.items.length)} / ${practice.items.length}`;
   if(done||practice.idx>=practice.items.length){finishPractice();return}
   const q=practice.items[practice.idx];const st=getPracticeAnswerStateV26(q.id);const fav=isFavoriteV27(q.id);
-  $('#practice-card').innerHTML=`<div class="practice-focus-head"><b>刷题练习</b><span>${practice.idx+1} / ${practice.items.length}</span><div class="practice-tools-v26"><button class="ghost mini-btn" id="p-favorite">${fav?'取消收藏':'收藏题目'}</button><button class="ghost mini-btn" id="p-exit">退出练习</button></div></div>`+questionHtml(q,false)+`<div class="actions"><button class="ghost" id="p-prev" ${practice.idx===0?'disabled':''}>上一题</button><button class="primary" id="p-submit" ${st.answered||st.revealed?'disabled':''}>提交答案</button><button class="ghost" id="p-reveal" ${st.answered||st.revealed?'disabled':''}>看答案</button><button class="ghost" id="p-next">${practice.idx>=practice.items.length-1?'完成练习':'下一题'}</button></div><div id="p-feedback"></div>${renderPracticeNavV26()}`;
+  $('#practice-card').innerHTML=`<div class="practice-focus-head"><b>刷题练习</b><span>${practice.idx+1} / ${practice.items.length}</span><div class="practice-tools-v26"><button class="ghost mini-btn" id="p-favorite">${fav?'取消收藏':'收藏题目'}</button><button class="ghost mini-btn" id="p-exit">退出练习</button></div></div>${questionHtml(q,false)}<div class="actions"><button class="ghost" id="p-prev" ${practice.idx===0?'disabled':''}>上一题</button><button class="primary" id="p-submit" ${st.answered||st.revealed?'disabled':''}>提交答案</button><button class="ghost" id="p-reveal" ${st.answered||st.revealed?'disabled':''}>看答案</button><button class="ghost" id="p-next">${practice.idx>=practice.items.length-1?'完成练习':'下一题'}</button></div><div id="p-feedback"></div>${renderPracticeNavV26()}<aside class="practice-side-v31">${renderPracticeStatsV30()}</aside>`;
   bindOptionSelect('#practice-card',q);applyAnswerStateV26('#practice-card',q,st.chosen||[]);
   if(st.answered||st.revealed)showAnsweredStateV26(q,st);
   $('#p-exit').onclick=()=>{if(confirm('退出本轮练习？已作答部分会保存为一条记录。'))finishPractice(true)};
@@ -3549,6 +3601,26 @@ function renderPracticeQuestion(done=false){
   $('#p-submit').onclick=()=>submitPractice(q,false);
   $('#p-reveal').onclick=()=>submitPractice(q,true);
   $('#p-next').onclick=()=>{if(practice.idx>=practice.items.length-1)finishPractice();else{practice.idx++;renderPracticeQuestion()}};
+  bindPracticeNavV30();
+  bindFocusRailToggleV34();
+}
+function renderPracticeStatsV30(){
+  const total=(practice.items||[]).length;
+  const answered=Number(practice.answered||0);
+  const correct=Number(practice.correct||0);
+  const wrong=Number(practice.wrong||0);
+  const accuracy=answered?Math.round(correct/answered*100):0;
+  const remaining=Math.max(0,total-answered);
+  return `<div id="practice-stat-card-v30" class="practice-stat-card-v30"><div class="practice-stat-head-v30"><div><b>本轮统计</b><span>沉浸练习</span></div><button class="rail-hide-btn-v34" data-rail-toggle-v34="practice" type="button" title="隐藏本轮统计">隐藏</button></div><div class="practice-stat-list-v31"><div><span>总题</span><b>${total}</b></div><div><span>已刷</span><b>${answered}</b></div><div><span>正确率</span><b>${accuracy}%</b></div><div><span>错题</span><b>${wrong}</b></div></div><p>正确 ${correct} · 剩余 ${remaining}</p><button class="rail-show-btn-v34" data-rail-toggle-v34="practice" type="button" title="显示本轮统计">统计</button></div>`;
+}
+function refreshPracticeStatsV30(){
+  const box=$('#practice-stat-card-v30');
+  if(box)box.outerHTML=renderPracticeStatsV30();
+  bindFocusRailToggleV34();
+  const nav=$('#practice-nav-v26');
+  if(nav){nav.outerHTML=renderPracticeNavV26();bindPracticeNavV30();bindFocusRailToggleV34();}
+}
+function bindPracticeNavV30(){
   $$('#practice-card [data-practice-jump]').forEach(btn=>btn.onclick=()=>{practice.idx=Number(btn.dataset.practiceJump);renderPracticeQuestion()});
 }
 function getPracticeAnswerStateV26(id){practice.answerState=practice.answerState||{};return practice.answerState[id]||{chosen:[],answered:false,revealed:false,correct:null};}
@@ -3559,14 +3631,14 @@ function applyAnswerStateV26(root,q,chosen){
 }
 function renderPracticeNavV26(){
   const buttons=(practice.items||[]).map((q,i)=>{const st=getPracticeAnswerStateV26(q.id);const cls=[i===practice.idx?'current':'',st.answered?'done':'',st.correct===true?'ok':st.correct===false?'bad':'',isFavoriteV27(q.id)?'favorite':''].filter(Boolean).join(' ');return `<button type="button" class="${cls}" data-practice-jump="${i}" title="第${i+1}题">${i+1}</button>`}).join('');
-  return `<div class="practice-nav-v26"><b>答题卡</b><div class="practice-nav-grid-v26">${buttons}</div></div>`;
+  return `<div id="practice-nav-v26" class="practice-nav-v26"><b>答题卡</b><div class="practice-nav-grid-v26">${buttons}</div></div>`;
 }
 function submitPractice(q,reveal){
   const chosen=collectAnswer('#practice-card',q);if(!chosen.length&&!reveal){$('#p-feedback').innerHTML='<div class="feedback warn">请先作答，再提交。</div>';return}
   if(q.type==='short'){showSubjectiveFeedback(q,chosen,reveal);return}
   const ok=!reveal&&sameAnswerForQuestion(q,chosen,q.answer);
   if(!reveal)recordPracticeAnswer(q,chosen,ok);else setPracticeAnswerStateV26(q.id,{chosen,revealed:true,correct:null});
-  markOptions('#practice-card',q,chosen);showAnsweredStateV26(q,getPracticeAnswerStateV26(q.id));saveSilent();renderStats();
+  markOptions('#practice-card',q,chosen);showAnsweredStateV26(q,getPracticeAnswerStateV26(q.id));refreshPracticeStatsV30();saveSilent();renderStats();
 }
 function showAnsweredStateV26(q,st){
   markOptions('#practice-card',q,st.chosen||[]);
@@ -3685,7 +3757,7 @@ function setupSidebarCollapse(){
   refresh();
 }
 function exitExamFocus(){
-  document.body.classList.remove('exam-focus');
+  document.body.classList.remove('exam-focus','exam-rail-collapsed-v34');
   const setup=$('#exam-setup');
   if(setup)setup.style.display='';
 }
@@ -3712,15 +3784,68 @@ function updateTimer(){
 }
 function renderExamPaper(){
   const timerText=exam.deadline?($('#exam-timer')?.textContent||'计时中'):'不限时';
-  let html=`<div class="exam-focus-head"><div><b>${esc(exam.name||'模拟考试')}</b><span id="exam-focus-timer">${esc(timerText)}</span></div><div class="exam-head-actions"><button class="ghost mini-btn focus-mini-btn" id="exam-exit-focus" type="button">退出考试</button><button class="danger focus-mini-btn" id="exam-submit-focus" type="button">交卷评分</button></div></div><div class="notice warn">考试中：多选题需完全一致才得分；填空/简答按参考答案规范化匹配评分，简答题建议交卷后人工核对。</div>`;
-  exam.items.forEach((q,i)=>{html+=`<div class="exam-q" data-qid="${esc(q.id)}">${questionHtml(q,true,i+1)}</div>`});
-  html+=`<div class="exam-focus-actions"><button class="danger" id="exam-submit-focus-bottom" type="button">交卷评分</button></div>`;
+  let html=`<main class="exam-focus-main-v31"><div class="exam-focus-head"><div><b>${esc(exam.name||'模拟考试')}</b><span id="exam-focus-timer">${esc(timerText)}</span></div><div class="exam-head-actions"><button class="ghost mini-btn focus-mini-btn" id="exam-exit-focus" type="button">退出考试</button><button class="danger focus-mini-btn" id="exam-submit-focus" type="button">交卷评分</button></div></div><div class="notice warn">考试中：多选题需完全一致才得分；填空/简答按参考答案规范化匹配评分，简答题建议交卷后人工核对。</div>`;
+  exam.items.forEach((q,i)=>{html+=`<div class="exam-q" data-qid="${esc(q.id)}" id="exam-q-${i+1}">${questionHtml(q,true,i+1)}</div>`});
+  html+=`<div class="exam-focus-actions"><button class="danger" id="exam-submit-focus-bottom" type="button">交卷评分</button></div></main><aside class="exam-side-v31">${renderExamAnswerCardV30()}</aside>`;
   $('#exam-card').innerHTML=html;
   $('#exam-submit-focus').onclick=()=>submitExam(false);
   $('#exam-submit-focus-bottom').onclick=()=>submitExam(false);
   $('#exam-exit-focus').onclick=()=>{if(confirm('退出本次考试？当前作答不会评分保存。')){clearInterval(exam.timer);exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};$('#exam-card').innerHTML='<div class="empty">考试已退出，可重新配置后开始。</div>';$('#submit-exam-btn').disabled=true;$('#exam-timer').textContent='未开始';exitExamFocus();}};
-  $$('#exam-card .option').forEach(opt=>{opt.onclick=()=>setTimeout(()=>{const box=opt.closest('.exam-q');const id=box.dataset.qid;exam.answers[id]=selectedKeys(`[data-qid="${CSS.escape(id)}"]`);box.querySelectorAll('.option').forEach(o=>o.classList.toggle('selected',o.querySelector('input').checked))},0)});
-  $$('#exam-card .text-answer').forEach(el=>{el.oninput=()=>{const box=el.closest('.exam-q');if(box)exam.answers[box.dataset.qid]=el.value.trim()?[el.value.trim()]:[]}});
+  bindExamAnswerCardV30();
+  bindFocusRailToggleV34();
+  $$('#exam-card .option').forEach(opt=>{opt.onclick=()=>setTimeout(()=>{const box=opt.closest('.exam-q');const id=box.dataset.qid;exam.answers[id]=selectedKeys(`[data-qid="${CSS.escape(id)}"]`);box.querySelectorAll('.option').forEach(o=>o.classList.toggle('selected',o.querySelector('input').checked));refreshExamAnswerCardV30();},0)});
+  $$('#exam-card .text-answer').forEach(el=>{el.oninput=()=>{const box=el.closest('.exam-q');if(box){exam.answers[box.dataset.qid]=el.value.trim()?[el.value.trim()]:[];refreshExamAnswerCardV30();}}});
+}
+function examAnsweredCountV30(){return (exam.items||[]).filter(q=>((exam.answers||{})[q.id]||[]).length).length;}
+function renderExamAnswerCardV30(){
+  const total=(exam.items||[]).length;
+  const answered=examAnsweredCountV30();
+  const remain=Math.max(0,total-answered);
+  const buttons=(exam.items||[]).map((q,i)=>{const done=((exam.answers||{})[q.id]||[]).length>0;return `<button type="button" class="${done?'answered':''}" data-exam-jump="${i}" title="第${i+1}题">${i+1}</button>`}).join('');
+  return `<div id="exam-answer-card-v30" class="exam-answer-card-v30"><div class="exam-answer-card-head-v30"><div><b>答题卡</b><span>已答 ${answered} / ${total}，未答 ${remain}</span></div><div class="exam-answer-mini-stats-v30"><span>进度</span><b>${total?Math.round(answered/total*100):0}%</b></div><button class="rail-hide-btn-v34" data-rail-toggle-v34="exam" type="button" title="隐藏答题卡">隐藏</button></div><div class="exam-nav-grid-v30">${buttons}</div><button class="rail-show-btn-v34" data-rail-toggle-v34="exam" type="button" title="显示答题卡">答题卡</button></div>`;
+}
+function refreshExamAnswerCardV30(){
+  const box=$('#exam-answer-card-v30');
+  if(box){box.outerHTML=renderExamAnswerCardV30();bindExamAnswerCardV30();bindFocusRailToggleV34();}
+}
+function bindExamAnswerCardV30(){
+  $$('#exam-card [data-exam-jump]').forEach(btn=>btn.onclick=()=>{const i=Number(btn.dataset.examJump);const target=$(`#exam-q-${i+1}`)||$$('#exam-card .exam-q')[i];if(target){target.scrollIntoView({behavior:'smooth',block:'start'});target.classList.add('exam-q-pulse-v30');setTimeout(()=>target.classList.remove('exam-q-pulse-v30'),900);const focus=target.querySelector('input,textarea');if(focus)focus.focus({preventScroll:true});}});
+}
+function syncFocusRailTopV35(){
+  const isPractice=document.body.classList.contains('practice-focus');
+  const isExam=document.body.classList.contains('exam-focus');
+  const card=isPractice?$('#practice-card'):(isExam?$('#exam-card'):null);
+  const rail=isPractice?$('#practice-card > .practice-side-v31'):(isExam?$('#exam-card > .exam-side-v31'):null);
+  if(!card||!rail)return;
+  if(window.innerWidth<1280){rail.style.removeProperty('top');rail.style.removeProperty('max-height');return;}
+  const top=Math.max(12,Math.round(card.getBoundingClientRect().top));
+  rail.style.setProperty('top',top+'px','important');
+  rail.style.setProperty('max-height','calc(100vh - '+(top+18)+'px)','important');
+}
+let focusRailSyncBoundV35=false;
+function setupFocusRailSyncV35(){
+  if(focusRailSyncBoundV35)return;
+  focusRailSyncBoundV35=true;
+  let ticking=false;
+  const schedule=()=>{
+    if(ticking)return;
+    ticking=true;
+    requestAnimationFrame(()=>{ticking=false;syncFocusRailTopV35();});
+  };
+  window.addEventListener('resize',schedule,{passive:true});
+  window.addEventListener('scroll',schedule,{passive:true});
+}
+function bindFocusRailToggleV34(){
+  setupFocusRailSyncV35();
+  $$('[data-rail-toggle-v34]').forEach(btn=>btn.onclick=()=>{
+    const kind=btn.dataset.railToggleV34;
+    if(kind==='practice')document.body.classList.toggle('practice-rail-collapsed-v34');
+    if(kind==='exam')document.body.classList.toggle('exam-rail-collapsed-v34');
+    syncFocusRailTopV35();
+  });
+  syncFocusRailTopV35();
+  requestAnimationFrame(syncFocusRailTopV35);
+  setTimeout(syncFocusRailTopV35,80);
 }
 function submitExam(auto){
   if(exam.submitted)return;
