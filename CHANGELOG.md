@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.3.8-alpha
+
+- 修导航栏显示 bug
+
 ## v0.3.7-alpha
 
 - Web 壳子构建，独立版本号管理
