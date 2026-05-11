@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## v0.4.3-alpha
+
+- 优化原生 APP UI
+- 版本更新：native 0.1.7
+
+## v0.4.2-alpha
+
+- 增强对考公题目解析
+- 优化 UI 布局
+- 考试模式完善答题卡
+- 原生 APP 框架基本落实
+- 版本更新：web 0.4.2-alpha / native 0.1.6
+
 ## v0.3.8-alpha
 
 - 修导航栏显示 bug
