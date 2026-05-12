@@ -139,26 +139,60 @@ function renderBankList(){
         <div class="bank-card-title-v28"><b>${esc(b.name)}</b>${active?'<span class="source-badge">当前</span>':''}</div>
         <p class="muted bank-card-meta-v28">${b.questions.length}题｜单选${stats.single}｜多选${stats.multiple+stats.multi}｜判断${stats.judge}｜填空${stats.blank}｜简答${stats.short}｜创建 ${fmt(b.createdAt||now())}</p>
       </div>
-      <details class="bank-more-menu-v28">
-        <summary aria-label="更多题库操作">更多</summary>
-        <div class="bank-more-panel-v28">
-          ${active?'':`<button class="ghost" data-openbank="${esc(b.id)}" type="button">设为当前</button>`}
-          <button class="ghost" data-copybank="${esc(b.id)}" type="button">复制</button>
-          <button class="ghost" data-editbank="${esc(b.id)}" type="button">编辑</button>
-          <button class="ghost" data-exportbank="${esc(b.id)}" type="button">导出该题库</button>
-          ${b.id==='default-c1'?'':`<button class="ghost danger" data-delbank="${esc(b.id)}" type="button">删除</button>`}
-        </div>
-      </details>
+      <div class="bank-card-actions-v16">
+        <details class="bank-more-menu-v28">
+          <summary aria-label="更多题库操作">更多</summary>
+          <div class="bank-more-panel-v28">
+            ${active?'':`<button class="ghost" data-openbank="${esc(b.id)}" type="button">设为当前</button>`}
+            <button class="ghost" data-copybank="${esc(b.id)}" type="button">复制</button>
+            <button class="ghost" data-editbank="${esc(b.id)}" type="button">编辑</button>
+            <button class="ghost" data-exportbank="${esc(b.id)}" type="button">导出该题库</button>
+          </div>
+        </details>
+        <button class="ghost danger bank-delete-under-more-v16" data-delbank="${esc(b.id)}" type="button">删除</button>
+      </div>
     </article>`
   }).join('')||'<p class="muted">暂无题库。</p>';
   $$('[data-bank-bulk-v23]').forEach(x=>x.onchange=()=>{if(x.checked)exportBankSelectedV23.add(x.dataset.bankBulkV23);else exportBankSelectedV23.delete(x.dataset.bankBulkV23);renderBankList()});
-  $$('[data-openbank]').forEach(x=>x.onclick=()=>{state.activeBankId=x.dataset.openbank;saveSilent();renderAll()});
-  $$('[data-copybank]').forEach(x=>x.onclick=()=>duplicateBankById(x.dataset.copybank));
-  $$('[data-editbank]').forEach(x=>x.onclick=()=>openBankEditor(x.dataset.editbank));
-  $$('[data-exportbank]').forEach(x=>x.onclick=()=>exportBankById(x.dataset.exportbank));
-  $$('[data-delbank]').forEach(x=>x.onclick=()=>{if(confirm('确定删除该题库？删除后不可恢复，请先确认已完成备份。')){state.banks=state.banks.filter(b=>b.id!==x.dataset.delbank);delete state.wrongBook[x.dataset.delbank];if(state.favorites)delete state.favorites[x.dataset.delbank];exportBankSelectedV23.delete(x.dataset.delbank);state.activeBankId=state.banks[0]?.id||'';saveSilent();renderAll()}});
+  $$('[data-openbank]').forEach(x=>x.onclick=()=>{closeBankMoreMenusV16();state.activeBankId=x.dataset.openbank;saveSilent();renderAll()});
+  $$('[data-copybank]').forEach(x=>x.onclick=()=>{closeBankMoreMenusV16();duplicateBankById(x.dataset.copybank)});
+  $$('[data-editbank]').forEach(x=>x.onclick=()=>{closeBankMoreMenusV16();openBankEditor(x.dataset.editbank)});
+  $$('[data-exportbank]').forEach(x=>x.onclick=()=>{closeBankMoreMenusV16();exportBankById(x.dataset.exportbank)});
+  $$('[data-delbank]').forEach(x=>x.onclick=()=>deleteBankByIdV16(x.dataset.delbank));
+  bindBankMoreMenusV16();
   renderBankToolbarV28();
   renderExportBankSummaryV23();
+}
+
+function closeBankMoreMenusV16(){
+  $$('.bank-more-menu-v28[open]').forEach(d=>d.open=false);
+}
+function bindBankMoreMenusV16(){
+  $$('.bank-more-menu-v28').forEach(menu=>{
+    const summary=menu.querySelector('summary');
+    if(summary)summary.onclick=()=>setTimeout(()=>{if(menu.open)$$('.bank-more-menu-v28[open]').forEach(d=>{if(d!==menu)d.open=false})},0);
+  });
+  if(document.body.dataset.bankMoreDismissBoundV16==='1')return;
+  document.body.dataset.bankMoreDismissBoundV16='1';
+  document.addEventListener('click',ev=>{if(!ev.target.closest('.bank-more-menu-v28'))closeBankMoreMenusV16()});
+  document.addEventListener('keydown',ev=>{if(ev.key==='Escape')closeBankMoreMenusV16()});
+}
+function deleteBankByIdV16(id){
+  const bank=state.banks.find(b=>b.id===id);
+  if(!bank){toast('没有找到该题库。','warn');return}
+  const msg=state.banks.length<=1
+    ? `确定删除“${bank.name||'该题库'}”？删除后当前本地题库列表会清空，请确认已完成备份。`
+    : `确定删除“${bank.name||'该题库'}”？删除后不可恢复，请先确认已完成备份。`;
+  if(!confirm(msg))return;
+  closeBankMoreMenusV16();
+  state.banks=state.banks.filter(b=>b.id!==id);
+  delete state.wrongBook[id];
+  if(state.favorites)delete state.favorites[id];
+  exportBankSelectedV23.delete(id);
+  if(state.activeBankId===id)state.activeBankId=state.banks[0]?.id||'';
+  saveSilent();
+  renderAll();
+  toast('题库已删除。','ok');
 }
 function renderBankToolbarV28(){
   const sel=$('#bank-current-select-v28');

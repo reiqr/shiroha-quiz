@@ -502,16 +502,17 @@ private fun CompactPracticeSetupHero() {
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+                horizontalAlignment = Alignment.Start
             ) {
                 PracticeSetupStepCard(index = "1", text = "选好参数")
                 PracticeSetupStepCard(index = "2", text = "开始练习")
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(10.dp))
             Image(
                 painter = painterResource(R.drawable.illus_practice_hint_webp),
                 contentDescription = "练习提示",
-                modifier = Modifier.size(92.dp)
+                modifier = Modifier.size(88.dp)
             )
         }
     }
@@ -520,24 +521,20 @@ private fun CompactPracticeSetupHero() {
 @Composable
 private fun PracticeSetupStepCard(index: String, text: String) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.width(172.dp),
         shape = RoundedCornerShape(999.dp),
         color = ShirohaColors.BrandPrimarySoft,
         border = BorderStroke(1.dp, ShirohaColors.LineSelected)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.Center
         ) {
             Text(
-                text = index,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = text,
+                text = "$index  $text",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
