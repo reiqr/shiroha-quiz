@@ -18,7 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.ListAlt
+import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.Timer
@@ -512,7 +512,7 @@ private fun ActiveExamPanel() {
             }
             Spacer(Modifier.height(10.dp))
             ActionPillButton(
-                icon = Icons.Rounded.ListAlt,
+                icon = Icons.AutoMirrored.Rounded.ListAlt,
                 text = "答题卡",
                 primary = false,
                 modifier = Modifier.fillMaxWidth().height(42.dp),
@@ -672,7 +672,7 @@ private fun ExamAnswerCardDialog(
                             val answeredQuestion = QuizRepository.examAnswers[question.id].orEmpty().isNotEmpty()
                             val currentQuestion = index == QuizRepository.examIndex
                             val icon = when {
-                                currentQuestion -> Icons.Rounded.ListAlt
+                                currentQuestion -> Icons.AutoMirrored.Rounded.ListAlt
                                 answeredQuestion -> Icons.Rounded.CheckCircle
                                 else -> Icons.Rounded.Timer
                             }
