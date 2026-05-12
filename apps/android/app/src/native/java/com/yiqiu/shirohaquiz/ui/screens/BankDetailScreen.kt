@@ -70,7 +70,7 @@ fun BankDetailScreen(
             EmptyStateIllustration(
                 title = "没有找到对应题库",
                 message = "这通常说明题库已经被切换或删除。回到首页重新选择一份题库就好。",
-                imageRes = R.drawable.illus_empty_state,
+                imageRes = R.drawable.illus_empty_state_webp,
                 action = {
                     Spacer(Modifier.height(12.dp))
                 }

@@ -24,7 +24,6 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.Save
-import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -61,35 +60,38 @@ import java.util.Locale
 @Composable
 fun MeScreen(
     onOpenWrongBook: () -> Unit,
-    onOpenRecords: () -> Unit
+    onOpenRecords: () -> Unit,
+    onOpenStandardFormat: () -> Unit,
+    onOpenAbout: () -> Unit
 ) {
     val context = LocalContext.current
     var statusText by remember { mutableStateOf<String?>(null) }
-    var pendingExportText by remember { mutableStateOf<String?>(null) }
+    var pendingExportBytes by remember { mutableStateOf<ByteArray?>(null) }
     var showBankExportDialog by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
     var selectedBankIds by remember { mutableStateOf(QuizRepository.banks.map { it.id }.toSet()) }
 
     val createDocumentLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
+        ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
-        val text = pendingExportText
-        if (uri != null && text != null) {
-            val ok = writeTextToUri(context, uri, text)
-            statusText = if (ok) "已导出到所选位置。" else "导出失败：无法写入文件。"
+        val bytes = pendingExportBytes
+        if (uri != null && bytes != null) {
+            val ok = writeBytesToUri(context, uri, bytes)
+            statusText = if (ok) "已导出 ZIP 备份到所选位置。" else "导出失败：无法写入文件。"
         }
-        pendingExportText = null
+        pendingExportBytes = null
     }
 
     val importBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val text = readTextFromUri(context, uri)
-        statusText = if (text.isNullOrBlank()) {
+        val bytes = readBytesFromUri(context, uri)
+        val fileName = uri.lastPathSegment.orEmpty()
+        statusText = if (bytes == null || bytes.isEmpty()) {
             "导入失败：没有读取到有效内容。"
         } else {
-            QuizRepository.importBackupJson(context, text)
+            QuizRepository.importBackupBytes(context, fileName, bytes)
         }
         selectedBankIds = QuizRepository.banks.map { it.id }.toSet()
     }
@@ -106,10 +108,10 @@ fun MeScreen(
             subtitle = ""
         )
         IllustrationHeroCard(
-            title = "资料页先保持轻一点",
-            subtitle = "设置入口保持清爽，不堆太多卡片。",
-            imageRes = R.drawable.illus_home_welcome,
-            imageSize = 88.dp
+            title = "我是Shiroha，欢迎关注。",
+            subtitle = "",
+            imageRes = R.drawable.illus_home_welcome_webp,
+            imageSize = 92.dp
         )
 
         statusText?.let { message ->
@@ -129,9 +131,9 @@ fun MeScreen(
                 DataActionTile(
                     icon = Icons.Rounded.FileOpen,
                     title = "导入题库",
-                    desc = "导入备份 JSON",
+                    desc = "导入 ZIP / JSON",
                     modifier = Modifier.weight(1f),
-                    onClick = { importBackupLauncher.launch(arrayOf("application/json", "text/*", "*/*")) }
+                    onClick = { importBackupLauncher.launch(arrayOf("application/zip", "application/json", "text/*", "*/*")) }
                 )
                 DataActionTile(
                     icon = Icons.Rounded.Description,
@@ -152,8 +154,8 @@ fun MeScreen(
                     desc = "完整备份",
                     modifier = Modifier.weight(1f),
                     onClick = {
-                        pendingExportText = QuizRepository.exportFullBackupJson()
-                        createDocumentLauncher.launch("shiroha_full_backup_${backupTimeStamp()}.json")
+                        pendingExportBytes = QuizRepository.exportFullBackupZip()
+                        createDocumentLauncher.launch("shiroha_full_backup_${backupTimeStamp()}.zip")
                     }
                 )
                 DataActionTile(
@@ -178,14 +180,16 @@ fun MeScreen(
             Spacer(Modifier.height(12.dp))
             FeaturePlanStrip(
                 icon = Icons.Rounded.AutoStories,
-                title = "标准文本档案",
-                desc = "后续整理标准文本导入模板和历史档案。"
+                title = "标准导入格式",
+                desc = "查看题库文本、答案和解析的推荐写法。",
+                onClick = onOpenStandardFormat
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
             FeaturePlanStrip(
-                icon = Icons.Rounded.Timer,
-                title = "原生考试模式",
-                desc = "考试入口已接入首页和练习页。"
+                icon = Icons.Rounded.Description,
+                title = "关于 Shiroha Quiz",
+                desc = "项目地址、版本说明和开源信息。",
+                onClick = onOpenAbout
             )
         }
     }
@@ -200,8 +204,8 @@ fun MeScreen(
                 if (selectedBankIds.isEmpty()) {
                     statusText = "请至少选择一个题库。"
                 } else {
-                    pendingExportText = QuizRepository.exportBanksBackupJson(selectedBankIds)
-                    createDocumentLauncher.launch("shiroha_selected_banks_${backupTimeStamp()}.json")
+                    pendingExportBytes = QuizRepository.exportBanksBackupZip(selectedBankIds)
+                    createDocumentLauncher.launch("shiroha_selected_banks_${backupTimeStamp()}.zip")
                 }
                 showBankExportDialog = false
             }
@@ -354,10 +358,14 @@ private fun DataActionTile(
 private fun FeaturePlanStrip(
     icon: ImageVector,
     title: String,
-    desc: String
+    desc: String,
+    onClick: () -> Unit = {}
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -387,16 +395,16 @@ private fun FeaturePlanStrip(
     }
 }
 
-private fun readTextFromUri(context: Context, uri: Uri): String? {
+private fun readBytesFromUri(context: Context, uri: Uri): ByteArray? {
     return runCatching {
-        context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+        context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
     }.getOrNull()
 }
 
-private fun writeTextToUri(context: Context, uri: Uri, text: String): Boolean {
+private fun writeBytesToUri(context: Context, uri: Uri, bytes: ByteArray): Boolean {
     return runCatching {
         context.contentResolver.openOutputStream(uri)?.use { output ->
-            output.write(text.toByteArray(Charsets.UTF_8))
+            output.write(bytes)
             output.flush()
         } ?: return false
         true

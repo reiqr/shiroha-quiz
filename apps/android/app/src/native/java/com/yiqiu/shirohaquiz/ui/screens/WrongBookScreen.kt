@@ -88,7 +88,7 @@ fun WrongBookScreen(
             EmptyStateIllustration(
                 title = "错题本还是空的",
                 message = "继续练习或考试后，错题会自动进入这里。",
-                imageRes = R.drawable.illus_wrongbook_hint,
+                imageRes = R.drawable.illus_wrongbook_hint_webp,
                 action = {
                     Spacer(Modifier.height(12.dp))
                     ActionPillButton(

@@ -84,7 +84,7 @@ fun BankReviewScreen(
             EmptyStateIllustration(
                 title = "题库不存在",
                 message = "这份题库可能已经被删除或切换。",
-                imageRes = R.drawable.illus_empty_state
+                imageRes = R.drawable.illus_empty_state_webp
             )
             ActionPillButton(
                 icon = Icons.Rounded.ArrowBack,
