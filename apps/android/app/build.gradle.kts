@@ -19,8 +19,8 @@ android {
         create("web") {
             dimension = "variant"
             applicationId = "com.yiqiu.shirohaquiz"
-            versionCode = 17
-            versionName = "0.4.2-alpha"
+            versionCode = 18
+            versionName = "0.4.3-alpha"
         }
         create("native") {
             dimension = "variant"
@@ -68,7 +68,7 @@ android {
 val exportWebDebugApk by tasks.registering(Copy::class) {
     from(layout.buildDirectory.file("outputs/apk/web/debug/app-web-debug.apk"))
     into(layout.buildDirectory.dir("outputs/shiroha-quiz"))
-    rename { "Shiroha-Quiz-v0.4.2-alpha-web-debug.apk" }
+    rename { "Shiroha-Quiz-v0.4.3-alpha-web-debug.apk" }
 }
 
 val exportNativeDebugApk by tasks.registering(Copy::class) {

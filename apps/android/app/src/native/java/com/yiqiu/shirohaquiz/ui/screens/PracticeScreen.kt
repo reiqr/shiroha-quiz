@@ -1,5 +1,16 @@
 package com.yiqiu.shirohaquiz.ui.screens
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -65,8 +76,8 @@ fun PracticeScreen(
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
-        verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
+            .padding(horizontal = ShirohaSpacing.Xl, vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Sm)) {
             Text(
@@ -157,17 +168,13 @@ fun PracticeScreen(
             ) {
                 FlowRow(
                     modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    StatusChip("第 ${QuizRepository.practiceIndex + 1} / ${practiceQuestions.size} 题", selected = true)
-                    StatusChip(typeLabel(question.type))
+                    CompactPracticeChip("第 ${QuizRepository.practiceIndex + 1} / ${practiceQuestions.size} 题", selected = true)
+                    CompactPracticeChip(typeLabel(question.type))
                 }
-                ActionPillButton(
-                    icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                    text = "退出练习",
-                    primary = false,
-                    modifier = Modifier.height(38.dp),
+                CompactExitPracticeButton(
                     onClick = { QuizRepository.endPracticeSession() }
                 )
             }
@@ -360,6 +367,62 @@ private fun PracticeSetupPanel(
             fillWidthContent = true,
             onClick = onStartPractice
         )
+    }
+}
+
+
+@Composable
+private fun CompactPracticeChip(
+    text: String,
+    selected: Boolean = false
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = if (selected) ShirohaColors.BrandPrimarySoft else Color.White.copy(alpha = 0.82f),
+        border = BorderStroke(1.dp, if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun CompactExitPracticeButton(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .height(34.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(999.dp),
+        color = Color.White.copy(alpha = 0.86f),
+        border = BorderStroke(1.dp, ShirohaColors.LineStrong)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = "退出练习",
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = "退出练习",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

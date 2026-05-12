@@ -66,20 +66,21 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = ShirohaSpacing.Xl, vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        ShirohaHeader(
-            kicker = "Shiroha Quiz",
-            title = "首页",
-            subtitle = ""
+        Text(
+            text = "Shiroha Quiz",
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelLarge
         )
 
         IllustrationHeroCard(
             title = "欢迎回来",
             subtitle = "继续练习、考试或查看学习记录。",
             imageRes = R.drawable.illus_home_welcome_v2,
-            imageSize = 108.dp
+            imageSize = 82.dp
         )
 
         TodayStatusCard(
@@ -147,7 +148,7 @@ private fun TodayStatusCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
         MiniStatusCard(
             title = "当前题库",
             value = bankName,
@@ -166,7 +167,7 @@ private fun TodayStatusCard(
                 modifier = Modifier.weight(1f)
             )
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ActionPillButton(
                 icon = Icons.Rounded.PlayArrow,
@@ -238,14 +239,14 @@ private fun HomeShortcutCard(
 ) {
     Surface(
         modifier = modifier
-            .height(124.dp)
+            .height(110.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(26.dp),
         color = Color.White.copy(alpha = 0.72f),
         border = BorderStroke(1.dp, ShirohaColors.LineSoft)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Row(

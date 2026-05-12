@@ -6,7 +6,7 @@ const LEGACY_KEYS=[];
 const CLEAR_STORAGE_KEYS=['shiroha_quiz_state','uquiz_state_v8_c1'];
 const TYPE_LABEL={single:'单选题',multiple:'多选题',multi:'多选题',judge:'判断题',blank:'填空题',short:'简答题',short_answer:'简答题'};
 const state=loadState();
-let importCache=[];let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};
+let importCache=[];let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let bankEditSessionV45=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 init();
 function init(){upgradeState();ensureDefaultBank();bindNav();bindEvents();renderBankSelect();renderAll();setupEnhancedDataToolsV23();}
@@ -80,6 +80,8 @@ function bindNav(){ $$('.nav').forEach(btn=>btn.onclick=()=>{
   const target=btn.dataset.view;
   const view=target&&$('#'+target);
   if(!view||view.classList.contains('active'))return;
+  if(document.body.classList.contains('practice-focus')&&target!=='practice')exitPracticeFocus();
+  if(document.body.classList.contains('exam-focus')&&target!=='exam')exitExamFocus();
   $$('.nav').forEach(b=>b.classList.toggle('active',b===btn));
   $$('.view').forEach(v=>v.classList.toggle('active',v===view));
   const title=$('#page-title');if(title)title.textContent=btn.textContent;
@@ -163,7 +165,7 @@ function renderBankList(){
         <details class="bank-more-menu-v28">
           <summary aria-label="更多题库操作">更多</summary>
           <div class="bank-more-panel-v28">
-            ${active?'':`<button class="ghost" data-openbank="${esc(b.id)}" type="button">设为当前</button>`}
+            <button class="ghost" data-editbank-v45="${esc(b.id)}" type="button">编辑 / 识别详情</button>
             <button class="ghost" data-copybank="${esc(b.id)}" type="button">复制</button>
             <button class="ghost" data-exportbank="${esc(b.id)}" type="button">导出该题库</button>
           </div>
@@ -174,6 +176,7 @@ function renderBankList(){
   }).join('')||'<p class="muted">暂无题库。</p>';
   $$('[data-bank-bulk-v23]').forEach(x=>x.onchange=()=>{if(x.checked)exportBankSelectedV23.add(x.dataset.bankBulkV23);else exportBankSelectedV23.delete(x.dataset.bankBulkV23);renderBankList()});
   $$('[data-openbank]').forEach(x=>x.onclick=()=>{state.activeBankId=x.dataset.openbank;saveSilent();renderAll()});
+  $$('[data-editbank-v45]').forEach(x=>x.onclick=()=>editBankByIdV45(x.dataset.editbankV45));
   $$('[data-copybank]').forEach(x=>x.onclick=()=>duplicateBankById(x.dataset.copybank));
   $$('[data-exportbank]').forEach(x=>x.onclick=()=>exportBankById(x.dataset.exportbank));
   $$('[data-delbank]').forEach(x=>x.onclick=()=>deleteBanksV32([x.dataset.delbank]));
@@ -2310,6 +2313,14 @@ function splitSemicolonOptionsFromLine(line,answer=[]){
   if(!raw || !/[;；]/.test(raw))return null;
   let parts=raw.split(/[;；]/).map(x=>x.trim()).filter(Boolean);
   if(parts.length<2||parts.length>8)return null;
+  // 显式标号选项里的分号属于选项内容，不能再按分号兜底拆选项。
+  // 例如：A. 人民；经济 / B. 人民；生命，应保持为完整 A/B 选项。
+  // 只有 A...；B...；C... 这类每段都带选项标号的紧凑写法，才允许继续拆。
+  const startsWithExplicitOption=/^\s*(?:[oOxXuUyYvV√✔✓]\s*)?(?:[（(]\s*[A-Ga-g1-9]\s*[）)]|[A-Ga-g]\s*(?:[、.．:：，,]|\s+|(?=[\u4e00-\u9fa5])))/.test(raw);
+  if(startsWithExplicitOption){
+    const labeledCount=parts.filter(part=>/^\s*(?:[oOxXuUyYvV√✔✓]\s*)?(?:[（(]\s*[A-Ga-g1-9]\s*[）)]|[A-Ga-g]\s*[、.．:：，,])/.test(part)).length;
+    if(labeledCount<2)return null;
+  }
   const opts=[];
   for(let i=0;i<parts.length;i++){
     let part=parts[i];
@@ -3064,7 +3075,7 @@ function renderImportPreview(arr){
   $('#import-summary').innerHTML=arr.length?`${report}<b>识别到 ${arr.length} 道题，当前显示 ${shown.length} 道（${filterLabel}），已选择 ${importSelected.size} 道。</b>${warnings.length?'<br>警告 '+warnings.length+' 条：<br>'+warnings.slice(0,12).map(esc).join('<br>')+(warnings.length>12?'<br>……':''):'<br>未发现明显异常。'}`:'尚未识别到题目。';
   $('#import-summary').className='notice '+(warnings.length?'warn':'ok');
   const pf=$('#import-preview-filter');if(pf&&pf.value!==importPreviewFilter)pf.value=importPreviewFilter;
-  $('#confirm-import-btn').disabled=!arr.length;const dualConfirm=$('#dual-confirm-import-btn');if(dualConfirm)dualConfirm.disabled=!arr.length;
+  $('#confirm-import-btn').disabled=!arr.length;const dualConfirm=$('#dual-confirm-import-btn');if(dualConfirm)dualConfirm.disabled=!arr.length;updateBankEditUiV45(arr.length);
   const batchBtn=$('#batch-delete-import-btn');if(batchBtn)batchBtn.disabled=importSelected.size===0;
   const clearBtn=$('#clear-import-selection-btn');if(clearBtn)clearBtn.disabled=importSelected.size===0;
   const all=$('#import-select-all-visible');
@@ -3140,6 +3151,7 @@ function deleteEditQuestion(){
   if(confirm('删除这道题？')){importCache.splice(i,1);importSelected=new Set([...importSelected].map(x=>x>i?x-1:x).filter(x=>x!==i));closeEditModal();renderImportPreview(importCache)}
 }
 function confirmImport(){
+  if(bankEditSessionV45){saveBankEditSessionV45();return}
   if(!importCache.length){showNotice('导入失败','当前没有可导入的题目。','danger');return}
   const warnings=collectImportWarnings(importCache);
   const name=$('#import-bank-name').value.trim()||'导入题库';
@@ -3172,8 +3184,14 @@ function startWrongPractice(){
   $$('.nav').forEach(b=>b.classList.remove('active'));document.querySelector('[data-view="practice"]').classList.add('active');$$('.view').forEach(v=>v.classList.remove('active'));$('#practice').classList.add('active');$('#page-title').textContent='刷题练习';
   $('#practice-source').value='wrong';$('#practice-order').value='random';$('#practice-limit').value='100';updateShellLayoutByView('practice');startPractice();
 }
-function enterPracticeFocus(){document.body.classList.add('practice-focus')}
-function exitPracticeFocus(){document.body.classList.remove('practice-focus','practice-rail-collapsed-v34')}
+function enterPracticeFocus(){
+  document.body.classList.add('practice-focus');
+  autoCollapseSidebarForFocusV47();
+}
+function exitPracticeFocus(){
+  document.body.classList.remove('practice-focus','practice-rail-collapsed-v34');
+  restoreSidebarAfterFocusV47();
+}
 
 function renderPracticeQuestion(done=false){$('#practice-progress').textContent=`${Math.min(practice.idx+1,practice.items.length)} / ${practice.items.length}`;if(done||practice.idx>=practice.items.length){finishPractice();return}const q=practice.items[practice.idx];$('#practice-card').innerHTML=`<div class="practice-focus-head"><b>刷题练习</b><span>${practice.idx+1} / ${practice.items.length}</span><button class="ghost mini-btn" id="p-exit">退出练习</button></div>`+questionHtml(q,false)+`<div class="actions"><button class="primary" id="p-submit">提交答案</button><button class="ghost" id="p-reveal">看答案</button><button class="ghost" id="p-next" disabled>下一题</button></div><div id="p-feedback"></div>`;bindOptionSelect('#practice-card',q);$('#p-exit').onclick=()=>{if(confirm('退出本轮练习？已作答部分会保存为一条记录。'))finishPractice(true)};$('#p-submit').onclick=()=>submitPractice(q,false);$('#p-reveal').onclick=()=>submitPractice(q,true);$('#p-next').onclick=()=>{practice.idx++;renderPracticeQuestion()}}
 
@@ -3592,7 +3610,7 @@ function renderPracticeQuestion(done=false){
   $('#practice-progress').textContent=`${Math.min(practice.idx+1,practice.items.length)} / ${practice.items.length}`;
   if(done||practice.idx>=practice.items.length){finishPractice();return}
   const q=practice.items[practice.idx];const st=getPracticeAnswerStateV26(q.id);const fav=isFavoriteV27(q.id);
-  $('#practice-card').innerHTML=`<div class="practice-focus-head"><b>刷题练习</b><span>${practice.idx+1} / ${practice.items.length}</span><div class="practice-tools-v26"><button class="ghost mini-btn" id="p-favorite">${fav?'取消收藏':'收藏题目'}</button><button class="ghost mini-btn" id="p-exit">退出练习</button></div></div>${questionHtml(q,false)}<div class="actions"><button class="ghost" id="p-prev" ${practice.idx===0?'disabled':''}>上一题</button><button class="primary" id="p-submit" ${st.answered||st.revealed?'disabled':''}>提交答案</button><button class="ghost" id="p-reveal" ${st.answered||st.revealed?'disabled':''}>看答案</button><button class="ghost" id="p-next">${practice.idx>=practice.items.length-1?'完成练习':'下一题'}</button></div><div id="p-feedback"></div>${renderPracticeNavV26()}<aside class="practice-side-v31">${renderPracticeStatsV30()}</aside>`;
+  $('#practice-card').innerHTML=`<div class="practice-focus-head"><b>刷题练习</b><span>${practice.idx+1} / ${practice.items.length}</span><div class="practice-tools-v26"><button class="ghost mini-btn" id="p-favorite">${fav?'取消收藏':'收藏题目'}</button><button class="ghost mini-btn" id="p-exit">退出练习</button></div></div>${questionHtml(q,false)}<div class="actions practice-actions-v44"><button class="ghost" id="p-prev" ${practice.idx===0?'disabled':''}>上一题</button><button class="ghost" id="p-next">${practice.idx>=practice.items.length-1?'完成练习':'下一题'}</button><button class="primary" id="p-submit" ${st.answered||st.revealed?'disabled':''}>提交答案</button><button class="ghost" id="p-reveal" ${st.answered||st.revealed?'disabled':''}>看答案</button></div><div id="p-feedback"></div>${renderPracticeNavV26()}<aside class="practice-side-v31">${renderPracticeStatsV30()}</aside>`;
   bindOptionSelect('#practice-card',q);applyAnswerStateV26('#practice-card',q,st.chosen||[]);
   if(st.answered||st.revealed)showAnsweredStateV26(q,st);
   $('#p-exit').onclick=()=>{if(confirm('退出本轮练习？已作答部分会保存为一条记录。'))finishPractice(true)};
@@ -3603,6 +3621,54 @@ function renderPracticeQuestion(done=false){
   $('#p-next').onclick=()=>{if(practice.idx>=practice.items.length-1)finishPractice();else{practice.idx++;renderPracticeQuestion()}};
   bindPracticeNavV30();
   bindFocusRailToggleV34();
+  bindPracticeHotkeysV44();
+}
+function bindPracticeHotkeysV44(){
+  if(window.__shirohaPracticeHotkeysV44Bound)return;
+  window.__shirohaPracticeHotkeysV44Bound=true;
+  document.addEventListener('keydown',e=>{
+    if(!document.body.classList.contains('practice-focus'))return;
+    if(!practice||!practice.items||!practice.items.length)return;
+    if(e.isComposing||e.ctrlKey||e.metaKey||e.altKey)return;
+    const target=e.target;
+    const tag=(target&&target.tagName||'').toUpperCase();
+    const type=String(target&&target.type||'').toLowerCase();
+    const editable=target&&(target.isContentEditable||tag==='TEXTAREA'||tag==='SELECT'||(tag==='INPUT'&&!['radio','checkbox','button','submit'].includes(type)));
+    if(editable)return;
+    if(tag==='BUTTON'&&(e.key==='Enter'||e.key===' '))return;
+    const q=practice.items[practice.idx];
+    if(!q)return;
+    const clickIfReady=selector=>{const btn=$(selector);if(btn&&!btn.disabled){btn.click();return true}return false};
+    if(e.key==='ArrowLeft'){
+      e.preventDefault();
+      clickIfReady('#p-prev');
+      return;
+    }
+    if(e.key==='ArrowRight'){
+      e.preventDefault();
+      clickIfReady('#p-next');
+      return;
+    }
+    if(e.key==='Enter'){
+      e.preventDefault();
+      if(!clickIfReady('#p-submit'))clickIfReady('#p-next');
+      return;
+    }
+    if(String(e.key||'').toLowerCase()==='v'){
+      e.preventDefault();
+      clickIfReady('#p-reveal');
+      return;
+    }
+    const key=String(e.key||'').toUpperCase();
+    if(/^[A-G]$/.test(key)&&!isTextType(q.type)){
+      const input=$(`#practice-card .option input[value="${key}"]`);
+      if(input){
+        e.preventDefault();
+        const label=input.closest('.option');
+        if(label)label.click();else input.click();
+      }
+    }
+  });
 }
 function renderPracticeStatsV30(){
   const total=(practice.items||[]).length;
@@ -3734,6 +3800,36 @@ function importBackupJsonFileV23(e){
 
 
 /* SHIROHA_WEB_V28_2_LAYOUT_AND_IMMERSIVE_FIX_START */
+function refreshSidebarToggleV47(){
+  const btn=$('#sidebar-toggle');
+  if(!btn)return;
+  const collapsed=document.body.classList.contains('side-collapsed');
+  btn.textContent=collapsed?'展开导航':'收起导航';
+  btn.setAttribute('aria-label',collapsed?'展开左侧导航':'收起左侧导航');
+  btn.setAttribute('aria-pressed',String(collapsed));
+}
+function setSidebarCollapsedV47(collapsed,persist=false){
+  document.body.classList.toggle('side-collapsed',!!collapsed);
+  if(persist)localStorage.setItem('shiroha-sidebar-collapsed',document.body.classList.contains('side-collapsed')?'1':'0');
+  refreshSidebarToggleV47();
+}
+function autoCollapseSidebarForFocusV47(){
+  if(!document.body.classList.contains('side-collapsed')){
+    document.body.dataset.focusAutoCollapsedV47='1';
+    setSidebarCollapsedV47(true,false);
+  }else{
+    delete document.body.dataset.focusAutoCollapsedV47;
+    refreshSidebarToggleV47();
+  }
+}
+function restoreSidebarAfterFocusV47(){
+  if(document.body.dataset.focusAutoCollapsedV47==='1'){
+    setSidebarCollapsedV47(false,false);
+    delete document.body.dataset.focusAutoCollapsedV47;
+  }else{
+    refreshSidebarToggleV47();
+  }
+}
 function setupSidebarCollapse(){
   if($('#sidebar-toggle'))return;
   const btn=document.createElement('button');
@@ -3742,22 +3838,16 @@ function setupSidebarCollapse(){
   btn.className='sidebar-toggle';
   document.body.appendChild(btn);
   const stored=localStorage.getItem('shiroha-sidebar-collapsed')==='1';
-  document.body.classList.toggle('side-collapsed',stored);
-  const refresh=()=>{
-    const collapsed=document.body.classList.contains('side-collapsed');
-    btn.textContent=collapsed?'展开导航':'收起导航';
-    btn.setAttribute('aria-label',collapsed?'展开左侧导航':'收起左侧导航');
-    btn.setAttribute('aria-pressed',String(collapsed));
-  };
+  setSidebarCollapsedV47(stored,false);
   btn.onclick=()=>{
-    document.body.classList.toggle('side-collapsed');
-    localStorage.setItem('shiroha-sidebar-collapsed',document.body.classList.contains('side-collapsed')?'1':'0');
-    refresh();
+    delete document.body.dataset.focusAutoCollapsedV47;
+    setSidebarCollapsedV47(!document.body.classList.contains('side-collapsed'),true);
   };
-  refresh();
+  refreshSidebarToggleV47();
 }
 function exitExamFocus(){
   document.body.classList.remove('exam-focus','exam-rail-collapsed-v34');
+  restoreSidebarAfterFocusV47();
   const setup=$('#exam-setup');
   if(setup)setup.style.display='';
 }
@@ -3769,6 +3859,7 @@ function startExam(){
   if(min>0){exam.deadline=Date.now()+min*60000;clearInterval(exam.timer);exam.timer=setInterval(updateTimer,1000);updateTimer()}else $('#exam-timer').textContent='不限时';
   $('#submit-exam-btn').disabled=false;
   document.body.classList.add('exam-focus');
+  autoCollapseSidebarForFocusV47();
   updateShellLayoutByView('exam');
   renderExamPaper();
 }
@@ -3865,6 +3956,101 @@ function renderExamResult(rec){
 /* SHIROHA_WEB_V28_2_LAYOUT_AND_IMMERSIVE_FIX_END */
 
 function resetData(){if(confirm('确定清除全部本地数据？默认题库也会重新初始化。')){clearStoredState();location.reload()}}
+
+/* SHIROHA_WEB_V45_BANK_EDITOR_AND_FOCUS_NAV_START */
+function switchViewV45(viewId){
+  const view=viewId&&$('#'+viewId);
+  if(!view)return;
+  $$('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===viewId));
+  $$('.view').forEach(v=>v.classList.toggle('active',v===view));
+  const nav=document.querySelector(`[data-view="${viewId}"]`);
+  const title=$('#page-title');
+  if(title&&nav)title.textContent=nav.textContent;
+  updateShellLayoutByView(viewId);
+  resetViewScrollV282();
+}
+function ensureBankEditPanelV45(){
+  let panel=$('#bank-edit-panel-v45');
+  const summary=$('#import-summary');
+  if(!summary)return null;
+  if(!panel){
+    summary.insertAdjacentHTML('beforebegin',`<div id="bank-edit-panel-v45" class="bank-edit-panel-v45 hidden"><div><b>题库二次编辑</b><span id="bank-edit-title-v45"></span></div><div class="bank-edit-panel-actions-v45"><button class="primary" id="bank-edit-save-v45" type="button">保存回题库</button><button class="ghost" id="bank-edit-cancel-v45" type="button">退出编辑</button></div></div>`);
+    panel=$('#bank-edit-panel-v45');
+    $('#bank-edit-save-v45').onclick=saveBankEditSessionV45;
+    $('#bank-edit-cancel-v45').onclick=cancelBankEditSessionV45;
+  }
+  return panel;
+}
+function updateBankEditUiV45(count=0){
+  const panel=ensureBankEditPanelV45();
+  const confirmBtn=$('#confirm-import-btn');
+  const dualConfirm=$('#dual-confirm-import-btn');
+  if(!panel)return;
+  if(bankEditSessionV45){
+    const b=state.banks.find(x=>x.id===bankEditSessionV45.bankId);
+    panel.classList.remove('hidden');
+    const title=$('#bank-edit-title-v45');
+    if(title)title.textContent=`正在编辑：${b?.name||bankEditSessionV45.name||'题库'}｜${count||importCache.length} 题`;
+    if(confirmBtn){confirmBtn.textContent='保存回题库';confirmBtn.disabled=!importCache.length;}
+    if(dualConfirm){dualConfirm.textContent='保存回题库';dualConfirm.disabled=!importCache.length;}
+  }else{
+    panel.classList.add('hidden');
+    if(confirmBtn)confirmBtn.textContent='确认导入';
+    if(dualConfirm)dualConfirm.textContent='确认导入';
+  }
+}
+function editBankByIdV45(id){
+  const bank=state.banks.find(b=>b.id===id);
+  if(!bank){toast('没有找到该题库。','warn');return}
+  bankEditSessionV45={bankId:id,name:bank.name||'题库',startedAt:now()};
+  importCache=(bank.questions||[]).map((q,i)=>normalizeQuestion(JSON.parse(JSON.stringify({...q,number:i+1})),i));
+  importSelected.clear();
+  importWarnings=[];
+  importReport='从题库管理进入二次编辑：可逐题查看题型、答案、状态提示，并修改后保存回原题库。';
+  importDiagnostics={strategy:'题库二次编辑',mode:'题库管理',expected:{total:importCache.length},profile:{}};
+  importPreviewFilter='all';
+  const nameInput=$('#import-bank-name');
+  if(nameInput){nameInput.value=bank.name||'题库';nameInput.dataset.autoName='0'}
+  switchViewV45('import');
+  renderImportPreview(importCache);
+  setTimeout(()=>{$('#bank-edit-panel-v45')?.scrollIntoView({behavior:'smooth',block:'start'});},60);
+  toast('已进入题库二次编辑。','ok');
+}
+function saveBankEditSessionV45(){
+  if(!bankEditSessionV45)return;
+  const bank=state.banks.find(b=>b.id===bankEditSessionV45.bankId);
+  if(!bank){toast('原题库不存在，无法保存。','danger');return}
+  if(!importCache.length){toast('当前没有可保存的题目。','warn');return}
+  const warnings=collectImportWarnings(importCache);
+  const name=($('#import-bank-name')?.value||bank.name||'题库').trim()||bank.name||'题库';
+  bank.name=name;
+  bank.updatedAt=now();
+  bank.questions=importCache.map((q,i)=>cleanImportedQuestion({...q,id:q.id||('q_'+Date.now()+'_'+i),number:i+1}));
+  state.activeBankId=bank.id;
+  saveSilent();
+  bankEditSessionV45=null;
+  importReport='';
+  importDiagnostics=null;
+  importSelected.clear();
+  updateBankEditUiV45(0);
+  renderAll();
+  switchViewV45('banks');
+  toast(`已保存题库“${name}”：${bank.questions.length} 道题${warnings.length?`，仍有 ${warnings.length} 条提示可后续再核对`:''}。`,warnings.length?'warn':'ok');
+}
+function cancelBankEditSessionV45(){
+  if(!bankEditSessionV45)return;
+  if(!confirm('退出题库二次编辑？未保存的修改不会写回题库。'))return;
+  bankEditSessionV45=null;
+  importCache=[];
+  importSelected.clear();
+  importWarnings=[];
+  importReport='';
+  importDiagnostics=null;
+  renderImportPreview([]);
+  switchViewV45('banks');
+}
+/* SHIROHA_WEB_V45_BANK_EDITOR_AND_FOCUS_NAV_END */
+
 })();
 
 

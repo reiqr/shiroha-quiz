@@ -7299,3 +7299,176 @@ body.exam-focus .exam-head-sheet-v8 .exam-sheet-toggle-v7.open{
   }
 }
 /* SHIROHA_APP_V37_EXAM_SHEET_LIGHT_ACRYLIC_AND_LIMIT_LABEL_FIX_END */
+
+/* SHIROHA_APP_V38_PRACTICE_FULL_WIDTH_AND_OPTION_TIGHTEN_START
+   WebView App 专属：练习沉浸页贴近手机宽度；练习/考试选项卡片再次收紧，重点减少简单选项的大块空白。 */
+body.practice-focus .main{
+  padding:0 !important;
+  width:100% !important;
+  max-width:none !important;
+}
+body.practice-focus #practice.view{
+  padding:4px !important;
+  width:100% !important;
+  max-width:none !important;
+}
+body.practice-focus #practice-card{
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+  min-height:calc(100vh - 8px) !important;
+  padding:10px !important;
+  border-radius:15px !important;
+}
+body.practice-focus .quiz-card .question-title,
+body.exam-focus .quiz-card .question-title,
+body.practice-focus .question-title,
+body.exam-focus .question-title{
+  margin:4px 0 7px !important;
+  line-height:1.32 !important;
+}
+body.practice-focus .options,
+body.exam-focus .options{
+  display:grid !important;
+  gap:4px !important;
+}
+body.practice-focus .option,
+body.exam-focus .option{
+  min-height:30px !important;
+  padding:4px 7px !important;
+  margin:0 !important;
+  gap:5px !important;
+  align-items:center !important;
+  border-width:1px !important;
+  border-radius:9px !important;
+  font-size:13px !important;
+  line-height:1.18 !important;
+}
+body.practice-focus .option input,
+body.exam-focus .option input{
+  width:14px !important;
+  height:14px !important;
+  margin:0 !important;
+}
+body.practice-focus .option-key,
+body.exam-focus .option-key{
+  min-width:17px !important;
+  font-size:13px !important;
+  line-height:1.12 !important;
+}
+body.practice-focus .option span:last-child,
+body.exam-focus .option span:last-child{
+  font-size:13px !important;
+  line-height:1.18 !important;
+}
+body.practice-focus .options.simple-options,
+body.exam-focus .options.simple-options{
+  gap:3px !important;
+}
+body.practice-focus .options.simple-options .option,
+body.exam-focus .options.simple-options .option{
+  min-height:28px !important;
+  padding:3px 6px !important;
+  gap:5px !important;
+  border-radius:8px !important;
+}
+body.practice-focus .options.simple-options .option input,
+body.exam-focus .options.simple-options .option input{
+  width:13px !important;
+  height:13px !important;
+}
+body.practice-focus .options.simple-options .option-key,
+body.exam-focus .options.simple-options .option-key{
+  min-width:16px !important;
+  font-size:12.5px !important;
+}
+body.practice-focus .options.simple-options .option span:last-child,
+body.exam-focus .options.simple-options .option span:last-child{
+  font-size:12.5px !important;
+  line-height:1.16 !important;
+}
+body.exam-focus .exam-q{
+  padding:8px !important;
+}
+@media(max-width:420px){
+  body.practice-focus #practice.view{
+    padding:3px !important;
+  }
+  body.practice-focus #practice-card{
+    padding:9px !important;
+    border-radius:14px !important;
+  }
+  body.practice-focus .options,
+  body.exam-focus .options{
+    gap:3px !important;
+  }
+  body.practice-focus .option,
+  body.exam-focus .option{
+    min-height:29px !important;
+    padding:3px 6px !important;
+    border-radius:8px !important;
+  }
+  body.practice-focus .options.simple-options .option,
+  body.exam-focus .options.simple-options .option{
+    min-height:27px !important;
+    padding:3px 6px !important;
+  }
+}
+/* SHIROHA_APP_V38_PRACTICE_FULL_WIDTH_AND_OPTION_TIGHTEN_END */
+
+/* v13: WebView App 题库二次编辑入口，仅服务“更多 → 编辑” */
+.bank-edit-toolbar-v13{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  margin:10px 0 12px;
+  padding:12px 14px;
+  border:1px solid rgba(47,111,237,.14);
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(235,246,255,.86));
+  box-shadow:0 12px 28px rgba(47,111,237,.08);
+}
+.bank-edit-toolbar-v13.hidden{display:none!important;}
+.bank-edit-toolbar-v13 b{
+  display:block;
+  color:#0f2442;
+  font-size:15px;
+  line-height:1.35;
+}
+.bank-edit-toolbar-v13 span{
+  display:block;
+  margin-top:3px;
+  color:#5c6d86;
+  font-size:12px;
+  line-height:1.45;
+}
+.bank-edit-mode-v13 #import .import-preview-card{
+  border-color:rgba(47,111,237,.18);
+}
+.bank-edit-mode-v13 #import-preview-focus-btn,
+.bank-edit-mode-v13 #batch-delete-import-btn,
+.bank-edit-mode-v13 #clear-import-selection-btn,
+.bank-edit-mode-v13 #revalidate-import-btn{
+  min-height:34px;
+}
+@media(max-width:720px){
+  .bank-edit-toolbar-v13{
+    grid-template-columns:1fr;
+    padding:10px 12px;
+    border-radius:16px;
+  }
+  .bank-edit-toolbar-v13 .row-actions{
+    display:grid!important;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .bank-edit-toolbar-v13 .row-actions button{
+    min-height:36px!important;
+    padding:7px 10px!important;
+    border-radius:13px!important;
+  }
+  .bank-more-panel-v28 button{
+    min-height:36px;
+  }
+}

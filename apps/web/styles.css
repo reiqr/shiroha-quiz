@@ -6830,3 +6830,137 @@ body.exam-rail-collapsed-v34 #exam-answer-card-v30 .rail-show-btn-v34:hover{
   letter-spacing:0 !important;
 }
 /* SHIROHA_WEB_V43_HOME_STAT_NUMBER_CENTER_END */
+
+/* SHIROHA_WEB_V45_FOCUS_NAV_AND_BANK_EDITOR_START
+   修复沉浸页展开导航无效；题库操作改为右侧上下对齐；增加题库二次编辑提示条。 */
+@media (min-width:721px){
+  body.practice-focus:not(.side-collapsed) .side,
+  body.exam-focus:not(.side-collapsed) .side{
+    display:block !important;
+    position:fixed !important;
+    left:var(--shiroha-side-left,20px) !important;
+    top:18px !important;
+    bottom:18px !important;
+    width:var(--shiroha-side-width,188px) !important;
+    height:auto !important;
+    transform:none !important;
+    opacity:1 !important;
+    pointer-events:auto !important;
+    z-index:1160 !important;
+    border-radius:24px !important;
+    border:1px solid rgba(191,219,254,.62) !important;
+    box-shadow:0 18px 42px rgba(37,99,235,.12) !important;
+    background:rgba(255,255,255,.94) !important;
+    backdrop-filter:blur(12px) !important;
+    -webkit-backdrop-filter:blur(12px) !important;
+  }
+  body.practice-focus .sidebar-toggle,
+  body.exam-focus .sidebar-toggle{
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    z-index:1200 !important;
+  }
+}
+
+.bank-item-compact-v28{
+  grid-template-columns:auto minmax(0,1fr) max-content !important;
+  align-items:center !important;
+}
+.bank-card-actions-v33{
+  grid-column:3 !important;
+  grid-row:1 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  flex-wrap:nowrap !important;
+  align-items:stretch !important;
+  justify-content:center !important;
+  justify-self:end !important;
+  align-self:center !important;
+  gap:6px !important;
+  width:64px !important;
+  min-width:64px !important;
+}
+.bank-card-actions-v33 .bank-more-menu-v28,
+.bank-card-actions-v33 .bank-delete-quick-v32{
+  width:64px !important;
+  min-width:64px !important;
+  max-width:64px !important;
+  margin:0 !important;
+}
+.bank-card-actions-v33 .bank-more-menu-v28 summary,
+.bank-card-actions-v33 .bank-delete-quick-v32{
+  width:64px !important;
+  min-width:64px !important;
+  max-width:64px !important;
+  height:34px !important;
+  min-height:34px !important;
+  max-height:34px !important;
+  padding:0 !important;
+  border-radius:14px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  box-sizing:border-box !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+  font-size:12px !important;
+}
+.bank-card-actions-v33 .bank-more-panel-v28{
+  right:0 !important;
+  left:auto !important;
+  top:calc(100% + 8px) !important;
+  min-width:168px !important;
+}
+.bank-card-actions-v33 .bank-more-panel-v28 button{
+  width:100% !important;
+  justify-content:flex-start !important;
+  min-height:34px !important;
+}
+
+.bank-edit-panel-v45{
+  margin:0 0 12px !important;
+  padding:12px 14px !important;
+  border:1px solid rgba(47,111,237,.16) !important;
+  border-radius:18px !important;
+  background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(241,247,255,.92)) !important;
+  box-shadow:0 10px 24px rgba(37,99,235,.055), inset 0 1px 0 rgba(255,255,255,.96) !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:12px !important;
+}
+.bank-edit-panel-v45.hidden{
+  display:none !important;
+}
+.bank-edit-panel-v45 b{
+  display:block !important;
+  color:#10233f !important;
+  font-size:15px !important;
+  line-height:1.35 !important;
+}
+.bank-edit-panel-v45 span{
+  display:block !important;
+  margin-top:2px !important;
+  color:#5f7496 !important;
+  font-size:13px !important;
+  line-height:1.4 !important;
+}
+.bank-edit-panel-actions-v45{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:8px !important;
+  flex:0 0 auto !important;
+}
+@media(max-width:720px){
+  .bank-edit-panel-v45{
+    flex-direction:column !important;
+    align-items:stretch !important;
+  }
+  .bank-edit-panel-actions-v45{
+    justify-content:flex-start !important;
+    flex-wrap:wrap !important;
+  }
+}
+/* SHIROHA_WEB_V45_FOCUS_NAV_AND_BANK_EDITOR_END */
