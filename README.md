@@ -69,7 +69,7 @@ Shiroha Quiz 解决一个很实际的问题：
 ### 题库导入
 
 **多格式支持**
-- 粘贴纯文本或上传 `txt`、`json`、`docx`、文字层 `pdf` 文件
+- 上传 `docx` 文件（推荐），也支持 `txt`、`json`、文字层 `pdf` 或粘贴纯文本
 - 原生版支持 docx 内嵌图片提取，Web 版支持 PDF.js 解析
 - **扫描件/图片型 PDF 暂不支持**
 
@@ -208,10 +208,8 @@ Shiroha Quiz 的题库和记录主要保存在本地浏览器或 App WebView 的
 支持：
 
 ```text
-txt
-json
-docx
-文字层 pdf
+docx（推荐）
+txt / json / 文字层 pdf
 题目文件 + 答案文件双文件导入
 ```
 
