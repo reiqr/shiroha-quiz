@@ -17,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -510,25 +512,25 @@ private fun PracticeSetupPanel(
 @Composable
 private fun CompactPracticeSetupHero() {
     val density = LocalDensity.current
-    val floatDistancePx = with(density) { 2.6.dp.toPx() }
+    val floatDistancePx = with(density) { ShirohaMotion.HeroFloatDistance.toPx() }
     val heroFloat = rememberInfiniteTransition(label = "practice_illustration_float")
     val imageOffsetY by heroFloat.animateFloat(
         initialValue = -floatDistancePx,
         targetValue = floatDistancePx,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1700),
+            animation = tween(durationMillis = ShirohaMotion.HeroFloatMillis),
             repeatMode = RepeatMode.Reverse
         ),
         label = "practice_illustration_float_y"
     )
 
     GlassCard(
-        modifier = Modifier.height(132.dp),
+        modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
         contentPadding = ShirohaSpacing.Xl
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
@@ -541,16 +543,16 @@ private fun CompactPracticeSetupHero() {
                 PracticeSetupStepCard(index = "3", text = "记录结果", selected = false)
             }
             Box(
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier.size(ShirohaDimens.HeroImageFrameSize),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
                     painter = painterResource(R.drawable.illus_practice_hint_webp),
                     contentDescription = "练习提示",
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(ShirohaDimens.HeroImageFrameSize)
                         .graphicsLayer { translationY = imageOffsetY }
-                        .alpha(0.92f),
+                        .alpha(ShirohaDimens.HeroImageAlpha),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -566,16 +568,16 @@ private fun PracticeSetupStepCard(
 ) {
     Surface(
         modifier = Modifier
-            .width(136.dp)
-            .defaultMinSize(minHeight = 28.dp),
+            .width(ShirohaDimens.StepPillWidth)
+            .defaultMinSize(minHeight = ShirohaDimens.StepPillMinHeight),
         shape = RoundedCornerShape(ShirohaRadius.Pill),
         color = if (selected) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardMuted,
-        border = BorderStroke(1.dp, if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft)
+        border = BorderStroke(ShirohaDimens.Hairline, if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 5.dp),
+                .padding(horizontal = ShirohaDimens.StepPillHorizontalPadding, vertical = ShirohaDimens.StepPillVerticalPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -602,7 +604,7 @@ private fun CompactPracticeChip(
         modifier = Modifier.defaultMinSize(minHeight = 32.dp),
         shape = RoundedCornerShape(ShirohaRadius.Pill),
         color = if (selected) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardMuted,
-        border = BorderStroke(1.dp, if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft)
+        border = BorderStroke(ShirohaDimens.Hairline, if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft)
     ) {
         Text(
             text = text,
@@ -624,8 +626,8 @@ private fun CompactExitPracticeButton(onClick: () -> Unit) {
             .defaultMinSize(minHeight = 34.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(ShirohaRadius.Pill),
-        color = Color.White.copy(alpha = 0.86f),
-        border = BorderStroke(1.dp, ShirohaColors.LineStrong)
+        color = ShirohaColors.CardWhite86,
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineStrong)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),

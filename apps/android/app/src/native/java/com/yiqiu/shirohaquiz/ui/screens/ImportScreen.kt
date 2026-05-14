@@ -87,6 +87,8 @@ import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 import androidx.compose.ui.res.painterResource
@@ -308,8 +310,8 @@ fun ImportScreen(
             Spacer(Modifier.height(14.dp))
             Surface(
                 shape = RoundedCornerShape(22.dp),
-                color = Color.White.copy(alpha = 0.62f),
-                border = BorderStroke(1.dp, ShirohaColors.LineSoft)
+                color = ShirohaColors.CardWhite62,
+                border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft)
             ) {
                 Row(
                     modifier = Modifier
@@ -611,8 +613,8 @@ private fun LargeImportTextPreview(
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = Color.White.copy(alpha = 0.62f),
-        border = BorderStroke(1.dp, ShirohaColors.LineSoft)
+        color = ShirohaColors.CardWhite62,
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft)
     ) {
         Column(
             modifier = Modifier
@@ -706,8 +708,8 @@ private fun ReviewCompactButton(
             .defaultMinSize(minHeight = 38.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(ShirohaRadius.Pill),
-        color = if (primary) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.86f),
-        border = BorderStroke(1.dp, if (primary) MaterialTheme.colorScheme.primary else ShirohaColors.LineStrong)
+        color = if (primary) MaterialTheme.colorScheme.primary else ShirohaColors.CardWhite86,
+        border = BorderStroke(ShirohaDimens.Hairline, if (primary) MaterialTheme.colorScheme.primary else ShirohaColors.LineStrong)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 0.dp),
@@ -1402,7 +1404,7 @@ private fun ReviewFilteredJumpList(
                     .fillMaxWidth()
                     .clickable { onIndexChange(index) },
                 shape = RoundedCornerShape(ShirohaRadius.Md),
-                color = if (index == currentIndex) ShirohaColors.BrandPrimarySoft else Color.White.copy(alpha = 0.72f),
+                color = if (index == currentIndex) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardWhite78,
                 border = BorderStroke(
                     1.dp,
                     if (index == currentIndex) ShirohaColors.LineSelected else ShirohaColors.LineStrong
@@ -1587,26 +1589,26 @@ private fun sampleAnswerText(): String = """
 @Composable
 private fun ImportStepHeroCard() {
     val density = LocalDensity.current
-    val floatDistancePx = with(density) { 2.6.dp.toPx() }
+    val floatDistancePx = with(density) { ShirohaMotion.HeroFloatDistance.toPx() }
     val heroFloat = rememberInfiniteTransition(label = "import_illustration_float")
     val imageOffsetY by heroFloat.animateFloat(
         initialValue = -floatDistancePx,
         targetValue = floatDistancePx,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1700),
+            animation = tween(durationMillis = ShirohaMotion.HeroFloatMillis),
             repeatMode = RepeatMode.Reverse
         ),
         label = "import_illustration_float_y"
     )
 
     GlassCard(
-        modifier = Modifier.height(132.dp),
+        modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
         contentPadding = ShirohaSpacing.Xl
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
         ) {
             Column(
                 modifier = Modifier.weight(1f),
@@ -1618,16 +1620,16 @@ private fun ImportStepHeroCard() {
                 ImportStepPill(index = "3", text = "创建题库", selected = false)
             }
             Box(
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier.size(ShirohaDimens.HeroImageFrameSize),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
                     painter = painterResource(R.drawable.illus_import_hint_webp),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(ShirohaDimens.HeroImageFrameSize)
                         .graphicsLayer { translationY = imageOffsetY }
-                        .alpha(0.92f),
+                        .alpha(ShirohaDimens.HeroImageAlpha),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -1644,15 +1646,15 @@ private fun ImportStepPill(
     Surface(
         shape = RoundedCornerShape(ShirohaRadius.Pill),
         color = if (selected) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardMuted,
-        border = BorderStroke(1.dp, if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft),
+        border = BorderStroke(ShirohaDimens.Hairline, if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft),
         modifier = Modifier
-            .width(136.dp)
-            .defaultMinSize(minHeight = 28.dp)
+            .width(ShirohaDimens.StepPillWidth)
+            .defaultMinSize(minHeight = ShirohaDimens.StepPillMinHeight)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 5.dp),
+                .padding(horizontal = ShirohaDimens.StepPillHorizontalPadding, vertical = ShirohaDimens.StepPillVerticalPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {

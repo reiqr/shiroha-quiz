@@ -27,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,6 +38,7 @@ import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.IllustrationHeroCard
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 import java.util.Calendar
 
@@ -77,8 +77,8 @@ fun HomeScreen(
             title = "欢迎回来",
             subtitle = "继续练习、考试或查看学习记录。",
             imageRes = R.drawable.illus_home_welcome_v2,
-            modifier = Modifier.height(132.dp),
-            imageSize = 92.dp
+            modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
+            imageSize = ShirohaDimens.HeroImageSize
         )
 
         TodayStatusCard(
@@ -218,8 +218,8 @@ private fun MiniStatusCard(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(22.dp),
-        color = Color.White.copy(alpha = 0.62f),
-        border = BorderStroke(1.dp, ShirohaColors.LineSoft)
+        color = ShirohaColors.CardWhite62,
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -258,8 +258,8 @@ private fun HomeShortcutCard(
             .height(112.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(26.dp),
-        color = Color.White.copy(alpha = 0.72f),
-        border = BorderStroke(1.dp, ShirohaColors.LineSoft)
+        color = ShirohaColors.CardWhite72,
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),

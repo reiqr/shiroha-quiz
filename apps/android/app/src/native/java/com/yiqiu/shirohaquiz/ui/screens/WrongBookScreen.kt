@@ -40,6 +40,7 @@ import com.yiqiu.shirohaquiz.ui.components.IllustrationHeroCard
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -107,8 +108,8 @@ fun WrongBookScreen(
             title = "错题需要慢慢消化。",
             subtitle = "筛错题，集中复盘",
             imageRes = R.drawable.illus_wrongbook_hint_webp,
-            modifier = Modifier.height(132.dp),
-            imageSize = 92.dp
+            modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
+            imageSize = ShirohaDimens.HeroImageSize
         )
 
         GlassCard {

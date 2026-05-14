@@ -54,6 +54,7 @@ import com.yiqiu.shirohaquiz.ui.components.IllustrationHeroCard
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -113,8 +114,8 @@ fun MeScreen(
             title = "我是Shiroha",
             subtitle = "欢迎关注",
             imageRes = R.drawable.illus_home_welcome_webp,
-            modifier = Modifier.height(132.dp),
-            imageSize = 92.dp
+            modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
+            imageSize = ShirohaDimens.HeroImageSize
         )
 
         statusText?.let { message ->
@@ -331,8 +332,8 @@ private fun DataActionTile(
     Surface(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
-        color = Color.White.copy(alpha = 0.68f),
-        border = BorderStroke(1.dp, if (warning) ShirohaColors.StateWarningSoft else ShirohaColors.LineSoft)
+        color = ShirohaColors.CardWhite68,
+        border = BorderStroke(ShirohaDimens.Hairline, if (warning) ShirohaColors.StateWarningSoft else ShirohaColors.LineSoft)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -341,7 +342,7 @@ private fun DataActionTile(
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = if (warning) Color(0xFFE29A00) else MaterialTheme.colorScheme.primary,
+                tint = if (warning) ShirohaColors.IconWarning else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(21.dp)
             )
             Text(

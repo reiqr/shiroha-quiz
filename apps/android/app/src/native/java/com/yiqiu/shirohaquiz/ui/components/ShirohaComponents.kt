@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 
@@ -132,7 +134,7 @@ fun GlassCard(
             .cardRiseMotion(animated),
         shape = RoundedCornerShape(ShirohaRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = ShirohaColors.CardSoft),
-        border = BorderStroke(1.dp, ShirohaColors.LineSoft),
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -150,17 +152,17 @@ fun StatusChip(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier.defaultMinSize(minHeight = 32.dp),
+        modifier = modifier.defaultMinSize(minHeight = ShirohaDimens.StatusChipMinHeight),
         shape = RoundedCornerShape(ShirohaRadius.Pill),
         color = if (selected) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardMuted,
         border = BorderStroke(
-            1.dp,
+            ShirohaDimens.Hairline,
             if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft
         )
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = ShirohaDimens.StatusChipHorizontalPadding, vertical = ShirohaDimens.StatusChipVerticalPadding),
             color = if (selected) MaterialTheme.colorScheme.primary else ShirohaColors.TextSecondary,
             fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.labelMedium,
@@ -186,9 +188,9 @@ fun ActionPillButton(
 
     Surface(
         modifier = modifier
-            .defaultMinSize(minHeight = 44.dp)
+            .defaultMinSize(minHeight = ShirohaDimens.ActionButtonMinHeight)
             .clip(shape)
-            .alpha(if (enabled) 1f else 0.52f)
+            .alpha(if (enabled) 1f else ShirohaDimens.DisabledAlpha)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -196,28 +198,28 @@ fun ActionPillButton(
                 onClick = onClick
             ),
         shape = shape,
-        color = if (primary) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.86f),
+        color = if (primary) MaterialTheme.colorScheme.primary else ShirohaColors.CardWhite86,
         border = BorderStroke(
-            1.dp,
+            ShirohaDimens.Hairline,
             if (primary) MaterialTheme.colorScheme.primary else ShirohaColors.LineStrong
         )
     ) {
         Row(
-            modifier = (if (fillWidthContent) Modifier.fillMaxSize() else Modifier.defaultMinSize(minHeight = 44.dp))
-                .padding(horizontal = if (fillWidthContent) 10.dp else 14.dp, vertical = 0.dp),
+            modifier = (if (fillWidthContent) Modifier.fillMaxSize() else Modifier.defaultMinSize(minHeight = ShirohaDimens.ActionButtonMinHeight))
+                .padding(horizontal = if (fillWidthContent) ShirohaDimens.ActionButtonEqualHorizontalPadding else ShirohaDimens.ActionButtonHorizontalPadding, vertical = 0.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (fillWidthContent) Arrangement.Center else Arrangement.Start
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = text,
-                modifier = Modifier.size(17.dp),
-                tint = if (primary) Color.White else MaterialTheme.colorScheme.primary
+                modifier = Modifier.size(ShirohaDimens.ActionButtonIconSize),
+                tint = if (primary) ShirohaColors.TextOnBrand else MaterialTheme.colorScheme.primary
             )
-            Spacer(Modifier.width(if (fillWidthContent) 6.dp else 7.dp))
+            Spacer(Modifier.width(if (fillWidthContent) ShirohaDimens.ActionButtonEqualIconTextGap else ShirohaDimens.ActionButtonIconTextGap))
             Text(
                 text = text,
-                color = if (primary) Color.White else MaterialTheme.colorScheme.onSurface,
+                color = if (primary) ShirohaColors.TextOnBrand else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
@@ -292,32 +294,32 @@ fun QuizOptionCard(
                 onClick = onClick
             ),
         shape = shape,
-        color = if (selected) ShirohaColors.BrandPrimarySoft else Color.White.copy(alpha = 0.84f),
+        color = if (selected) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardWhite84,
         border = BorderStroke(
-            1.dp,
+            ShirohaDimens.Hairline,
             if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .padding(horizontal = ShirohaDimens.OptionCardHorizontalPadding, vertical = ShirohaDimens.OptionCardVerticalPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = CircleShape,
-                color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFFF3F5FA),
-                modifier = Modifier.size(36.dp)
+                color = if (selected) MaterialTheme.colorScheme.primary else ShirohaColors.OptionLabelIdle,
+                modifier = Modifier.size(ShirohaDimens.OptionLabelSize)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = label,
-                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+                        color = if (selected) ShirohaColors.TextOnBrand else MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(ShirohaDimens.OptionLabelTextGap))
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyLarge,
@@ -342,7 +344,7 @@ fun UploadPanel(
     Surface(
         shape = RoundedCornerShape(ShirohaRadius.Lg),
         color = ShirohaColors.CardSoft,
-        border = BorderStroke(1.dp, ShirohaColors.LineSoft)
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft)
     ) {
         Column(
             modifier = Modifier
@@ -373,8 +375,8 @@ fun NoticeCard(
     text: String,
     warning: Boolean = true
 ) {
-    val background = if (warning) ShirohaColors.StateWarningSoft else Color.White.copy(alpha = 0.78f)
-    val foreground = if (warning) Color(0xFF9A6700) else MaterialTheme.colorScheme.onSurface
+    val background = if (warning) ShirohaColors.StateWarningSoft else ShirohaColors.CardWhite78
+    val foreground = if (warning) ShirohaColors.TextWarning else MaterialTheme.colorScheme.onSurface
 
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -395,17 +397,17 @@ fun IllustrationHeroCard(
     subtitle: String,
     @DrawableRes imageRes: Int,
     modifier: Modifier = Modifier,
-    imageSize: Dp = 96.dp,
+    imageSize: Dp = ShirohaDimens.HeroImageSize,
     content: @Composable ColumnScope.() -> Unit = {}
 ) {
     val density = LocalDensity.current
-    val floatDistancePx = with(density) { 2.6.dp.toPx() }
+    val floatDistancePx = with(density) { ShirohaMotion.HeroFloatDistance.toPx() }
     val heroFloat = rememberInfiniteTransition(label = "hero_illustration_float")
     val imageOffsetY by heroFloat.animateFloat(
         initialValue = -floatDistancePx,
         targetValue = floatDistancePx,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1700),
+            animation = tween(durationMillis = ShirohaMotion.HeroFloatMillis),
             repeatMode = RepeatMode.Reverse
         ),
         label = "hero_illustration_float_y"
@@ -413,12 +415,12 @@ fun IllustrationHeroCard(
 
     GlassCard(modifier = modifier) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Sm)
             ) {
                 Text(
                     text = title,
@@ -439,16 +441,16 @@ fun IllustrationHeroCard(
                 content()
             }
             Box(
-                modifier = Modifier.size(imageSize + 8.dp),
+                modifier = Modifier.size(imageSize + ShirohaDimens.HeroImageFrameExtra),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
                     painter = painterResource(imageRes),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(imageSize + 8.dp)
+                        .size(imageSize + ShirohaDimens.HeroImageFrameExtra)
                         .graphicsLayer { translationY = imageOffsetY }
-                        .alpha(0.92f),
+                        .alpha(ShirohaDimens.HeroImageAlpha),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -468,13 +470,13 @@ fun EmptyStateIllustration(
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Md)
         ) {
             Image(
                 painter = painterResource(imageRes),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(140.dp)
+                    .size(ShirohaDimens.EmptyStateImageSize)
                     .alpha(0.9f),
                 contentScale = ContentScale.Fit
             )
@@ -500,10 +502,10 @@ fun LoadingIllustration(
 ) {
     val transition = rememberInfiniteTransition(label = "loading_illus")
     val scale = transition.animateFloat(
-        initialValue = 0.98f,
-        targetValue = 1.02f,
+        initialValue = ShirohaMotion.LoadingScaleMin,
+        targetValue = ShirohaMotion.LoadingScaleMax,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900),
+            animation = tween(durationMillis = ShirohaMotion.LoadingScaleMillis),
             repeatMode = RepeatMode.Reverse
         ),
         label = "loading_scale"
@@ -513,13 +515,13 @@ fun LoadingIllustration(
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Md)
         ) {
             Image(
                 painter = painterResource(imageRes),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(112.dp)
+                    .size(ShirohaDimens.LoadingImageSize)
                     .scale(scale.value)
                     .alpha(0.9f),
                 contentScale = ContentScale.Fit

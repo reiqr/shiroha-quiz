@@ -62,6 +62,10 @@ import com.yiqiu.shirohaquiz.ui.screens.RecordDetailScreen
 import com.yiqiu.shirohaquiz.ui.screens.RecordsScreen
 import com.yiqiu.shirohaquiz.ui.screens.StandardImportFormatScreen
 import com.yiqiu.shirohaquiz.ui.screens.WrongBookScreen
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 
 private val ShirohaPageEaseOut = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 
@@ -95,14 +99,14 @@ fun ShirohaAppShell() {
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             BottomAppBar(
-                containerColor = Color.White.copy(alpha = 0.82f),
+                containerColor = ShirohaColors.BottomBar,
                 tonalElevation = 0.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        .padding(horizontal = ShirohaDimens.BottomBarHorizontalPadding, vertical = ShirohaDimens.BottomBarVerticalPadding),
+                    horizontalArrangement = Arrangement.spacedBy(ShirohaDimens.BottomNavItemGap),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     MainTab.entries.filter { it.showInBottomBar }.forEach { tab ->
@@ -125,9 +129,9 @@ fun ShirohaAppShell() {
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFF7F9FF),
-                            Color(0xFFF1F4FB),
-                            Color(0xFFF6F7FB)
+                            ShirohaColors.BgGradientTop,
+                            ShirohaColors.BgGradientMiddle,
+                            ShirohaColors.BgGradientBottom
                         )
                     )
                 )
@@ -138,12 +142,12 @@ fun ShirohaAppShell() {
                 modifier = Modifier.fillMaxSize(),
                 transitionSpec = {
                     (fadeIn(
-                        animationSpec = tween(durationMillis = 180, easing = ShirohaPageEaseOut)
+                        animationSpec = tween(durationMillis = ShirohaMotion.PageTransitionMillis, easing = ShirohaPageEaseOut)
                     ) + slideInVertically(
-                        animationSpec = tween(durationMillis = 180, easing = ShirohaPageEaseOut),
-                        initialOffsetY = { 6 }
+                        animationSpec = tween(durationMillis = ShirohaMotion.PageTransitionMillis, easing = ShirohaPageEaseOut),
+                        initialOffsetY = { ShirohaMotion.PageTransitionOffsetPx }
                     )) togetherWith fadeOut(
-                        animationSpec = tween(durationMillis = 90)
+                        animationSpec = tween(durationMillis = ShirohaMotion.PageFadeOutMillis)
                     )
                 },
                 contentAlignment = Alignment.TopStart,
@@ -233,24 +237,24 @@ private fun ShirohaBottomNavItem(
     val interactionSource = remember { MutableInteractionSource() }
     val backgroundColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else Color.Transparent,
-        animationSpec = tween(durationMillis = 140),
+        animationSpec = tween(durationMillis = ShirohaMotion.BottomNavMillis),
         label = "bottom_nav_bg"
     )
     val contentColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color(0xFF667085),
-        animationSpec = tween(durationMillis = 140),
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else ShirohaColors.TextSecondary,
+        animationSpec = tween(durationMillis = ShirohaMotion.BottomNavMillis),
         label = "bottom_nav_color"
     )
     val iconScale by animateFloatAsState(
-        targetValue = if (selected) 1.05f else 1f,
-        animationSpec = tween(durationMillis = 140),
+        targetValue = if (selected) ShirohaDimens.BottomNavIconSelectedScale else 1f,
+        animationSpec = tween(durationMillis = ShirohaMotion.BottomNavMillis),
         label = "bottom_nav_icon_scale"
     )
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(ShirohaRadius.Md)
 
     Surface(
         modifier = modifier
-            .height(56.dp)
+            .height(ShirohaDimens.BottomNavItemHeight)
             .clip(shape)
             .clickable(
                 interactionSource = interactionSource,
@@ -263,7 +267,7 @@ private fun ShirohaBottomNavItem(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = ShirohaDimens.BottomNavItemHorizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -272,7 +276,7 @@ private fun ShirohaBottomNavItem(
                 contentDescription = tab.title,
                 tint = contentColor,
                 modifier = Modifier
-                    .size(21.dp)
+                    .size(ShirohaDimens.BottomNavIconSize)
                     .graphicsLayer {
                         scaleX = iconScale
                         scaleY = iconScale
