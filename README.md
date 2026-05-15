@@ -18,7 +18,7 @@ Shiroha Quiz 解决一个很实际的问题：
 
 - **Web 版**：功能完整稳定，题库导入、刷题考试、错题复习均已就绪。
 - **Android WebView 壳版**：Web 资源打包进 APK，离线加载，适合日常手机刷题。
-- **Android 原生 Compose 版**：Kotlin + Compose 原生实现，启动快、体积小，核心流程已可用。
+- **Android 原生 Compose 版**：Kotlin + Compose 原生实现，启动快、体积小，已覆盖暗夜模式、AI 解析、批量做题等功能。
 
 ---
 
@@ -41,16 +41,17 @@ Shiroha Quiz 解决一个很实际的问题：
 ### 刷题与考试
 
 **练习模式**
-- 支持随机抽题或题库顺序两种组题方式
+- 支持随机抽题或题库顺序两种组题方式，偏好自动记忆
 - 单选题/多选题选项选择，判断题对错切换，填空/简答文本输入
-- 提交后锁定选项，即时显示正确/错误反馈与解析
+- 支持分组答题，一组提交后查看结果
+- 提交后选项着色区分正误，顶部卡片可收起
 - 答错的题自动进入错题本
 - 完成全部题目后展示总结：正确率、错题数、重新练习入口
 
 **考试模式**
-- 按题型自定义题目数量与分值，设置考试时长
+- 按题型自定义题目数量与分值，设置考试时长，偏好自动记忆
 - 实时倒计时，到时自动交卷
-- 答题卡快速跳题，未答题目交卷前提醒
+- 答题卡快速跳题，未答题目交卷前提醒，支持滑动切题
 - 交卷后展示各题型得分、正确率和明细报告
 
 **错题本**
@@ -184,6 +185,7 @@ apps/android/
 核心模块：
 
 - `QuizRepository`：题库、练习、考试、错题、记录的集中状态管理
+- `ai/`：AI 核对、AI 解析生成、OpenAI 兼容 API
 - `importer/`：解析器链、双文件合并、策略评分、验证
 - `ui/components/`：GlassCard、ActionPillButton 等设计系统组件
 - `ui/theme/`：Material3 主题、间距令牌、字体系统
@@ -344,7 +346,7 @@ apps/android/app/build/outputs/
 - [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases)
 - [在线体验](https://reiqr.github.io/shiroha-quiz)
 
-最新发布版本：`v1.0.0-beta`（Web `v0.4.4-alpha`） / `v0.3.1-native`（原生）。详见 [Releases](https://github.com/reiqr/shiroha-quiz/releases)。
+最新发布版本：`v1.0.0-beta`（Web `v0.4.4-alpha`） / `v0.3.6-native`（原生）。详见 [Releases](https://github.com/reiqr/shiroha-quiz/releases)。
 
 每次发布包含 Android APK 及相关说明文档。
 
@@ -354,7 +356,7 @@ apps/android/app/build/outputs/
 
 ## 开发计划
 
-详见 [下阶段开发计划](docs/下阶段开发计划.md)。
+详见 [30.1-30.4](docs/native/Shiroha_Quiz_后续功能开发计划30.1-30.4.md) / [30.5-31](docs/native/Shiroha_Quiz_后续功能开发计划30.5-31.md)。
 
 ---
 
