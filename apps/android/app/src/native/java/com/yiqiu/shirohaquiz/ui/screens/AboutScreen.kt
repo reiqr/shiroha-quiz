@@ -36,13 +36,6 @@ fun AboutScreen(
             subtitle = "我是Shiroha，欢迎关注。"
         )
 
-        ActionPillButton(
-            icon = Icons.AutoMirrored.Rounded.ArrowBack,
-            text = "返回设置",
-            primary = false,
-            modifier = Modifier.height(42.dp),
-            onClick = onBack
-        )
 
         GlassCard {
             Text(
@@ -85,5 +78,13 @@ fun AboutScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+
+        ActionPillButton(
+            icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            text = "返回设置",
+            primary = false,
+            modifier = Modifier.height(42.dp),
+            onClick = onBack
+        )
     }
 }

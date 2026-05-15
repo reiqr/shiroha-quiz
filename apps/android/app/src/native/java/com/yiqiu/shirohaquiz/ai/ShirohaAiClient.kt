@@ -2,6 +2,7 @@ package com.yiqiu.shirohaquiz.ai
 
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
+import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -38,6 +39,14 @@ data class AiAnalysisSuggestion(
     val analysis: String,
     val needHumanReview: Boolean,
     val confidence: Double
+)
+
+data class AiRefactorResult(
+    val mode: String,
+    val cleanedText: String?,
+    val cleanedAnswerText: String?,
+    val questions: List<Question>,
+    val notes: List<String>
 )
 
 object ShirohaAiClient {
@@ -106,6 +115,37 @@ object ShirohaAiClient {
             timeoutSeconds = timeoutSeconds.coerceIn(15, 180)
         )
         return parseAnalysisSuggestions(content)
+    }
+
+    fun refactorQuestions(
+        apiBaseUrl: String,
+        apiKey: String,
+        modelName: String,
+        rawText: String,
+        answerText: String,
+        currentQuestions: List<Question>,
+        warnings: List<String>,
+        timeoutSeconds: Int = DEFAULT_AI_TIMEOUT_SECONDS
+    ): AiRefactorResult {
+        validateConfig(apiBaseUrl, apiKey, modelName)
+        require(rawText.trim().isNotBlank()) { "AI 重构需要原始文本。" }
+        val content = requestChatCompletion(
+            apiBaseUrl = apiBaseUrl,
+            apiKey = apiKey,
+            modelName = modelName,
+            systemPrompt = AiPrompts.AI_REFACTOR_SYSTEM_PROMPT,
+            userPayload = JSONObject()
+                .put("task", "refactor_questions")
+                .put("outputFormat", refactorOutputContract())
+                .put("sourceText", rawText)
+                .put("answerText", answerText)
+                .put("currentQuestionCount", currentQuestions.size)
+                .put("currentQuestions", questionsToJson(currentQuestions))
+                .put("warnings", JSONArray().also { array -> warnings.forEach { array.put(it) } })
+                .toString(),
+            timeoutSeconds = timeoutSeconds.coerceIn(15, 180)
+        )
+        return parseRefactorResult(content)
     }
 
     private fun requestChatCompletion(
@@ -320,6 +360,67 @@ object ShirohaAiClient {
         }
     }
 
+    private fun parseRefactorResult(content: String): AiRefactorResult {
+        val root = JSONObject(extractJsonObject(content))
+        val questionsJson = root.optJSONArray("questions") ?: root.optJSONArray("items") ?: JSONArray()
+        val notesJson = root.optJSONArray("notes") ?: JSONArray()
+        val notes = (0 until notesJson.length())
+            .map { notesJson.optString(it).trim() }
+            .filter { it.isNotBlank() }
+        val questions = (0 until questionsJson.length()).mapNotNull { index ->
+            val item = questionsJson.optJSONObject(index) ?: return@mapNotNull null
+            val questionText = item.optString("question").trim()
+            if (questionText.isBlank()) return@mapNotNull null
+            val optionsJson = item.optJSONArray("options") ?: JSONArray()
+            val options = (0 until optionsJson.length()).mapNotNull { optionIndex ->
+                val option = optionsJson.optJSONObject(optionIndex) ?: return@mapNotNull null
+                val key = option.optString("key").trim().uppercase()
+                val text = option.optString("text").trim()
+                if (key.isBlank() && text.isBlank()) null else Option(key, text)
+            }
+            val answerJson = item.optJSONArray("answer")
+            val answers = if (answerJson != null) {
+                (0 until answerJson.length()).map { answerJson.optString(it).trim().uppercase() }.filter { it.isNotBlank() }
+            } else {
+                item.optString("answer").split(Regex("[,，、\\s]+"))
+                    .map { it.trim().uppercase() }
+                    .filter { it.isNotBlank() }
+            }
+            Question(
+                number = item.optString("number", (index + 1).toString()).trim().ifBlank { (index + 1).toString() },
+                type = parseQuestionType(item.optString("type")),
+                question = questionText,
+                options = options,
+                answer = answers,
+                analysis = item.optString("analysis").trim(),
+                category = item.optString("category").trim()
+            )
+        }
+        val cleanedText = root.optString("cleanedText").nullIfBlankOrLiteralNull()
+        val cleanedAnswerText = root.optString("cleanedAnswerText").nullIfBlankOrLiteralNull()
+        val mode = root.optString("mode").trim().ifBlank {
+            if (!cleanedText.isNullOrBlank()) "clean_text" else "direct_questions"
+        }
+        return AiRefactorResult(
+            mode = mode,
+            cleanedText = cleanedText,
+            cleanedAnswerText = cleanedAnswerText,
+            questions = questions,
+            notes = notes
+        )
+    }
+
+    private fun parseQuestionType(value: String): QuestionType {
+        return when (value.trim().lowercase()) {
+            "single", "single_choice", "choice", "单选", "单选题" -> QuestionType.SINGLE
+            "multiple", "multiple_choice", "multi", "多选", "多选题" -> QuestionType.MULTIPLE
+            "judge", "true_false", "判断", "判断题" -> QuestionType.JUDGE
+            "blank", "fill_blank", "填空", "填空题" -> QuestionType.BLANK
+            "short", "essay", "subjective", "简答", "简答题", "问答", "问答题", "面试题" -> QuestionType.SHORT
+            else -> QuestionType.SHORT
+        }
+    }
+
     private fun String.nullIfBlankOrLiteralNull(): String? {
         val clean = trim()
         return clean.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
@@ -378,5 +479,26 @@ object ShirohaAiClient {
                         .put("confidence", 0.86)
                 )
             )
+    }
+
+    private fun refactorOutputContract(): JSONObject {
+        return JSONObject()
+            .put("mode", "clean_text / direct_questions")
+            .put("cleanedText", "优先返回清洗后的标准题库文本；direct_questions 模式可为空")
+            .put("cleanedAnswerText", "如仍需双文件解析，可返回清洗后的答案文本；否则为空")
+            .put(
+                "questions",
+                JSONArray().put(
+                    JSONObject()
+                        .put("number", "1")
+                        .put("type", "single / multiple / judge / blank / short")
+                        .put("question", "题干")
+                        .put("options", JSONArray().put(JSONObject().put("key", "A").put("text", "选项文本")))
+                        .put("answer", JSONArray().put("A"))
+                        .put("analysis", "解析；没有可靠来源时可为空")
+                        .put("category", "分区或来源；没有可为空")
+                )
+            )
+            .put("notes", JSONArray().put("重构说明和需要人工确认的点"))
     }
 }

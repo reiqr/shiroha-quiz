@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Delete
@@ -57,6 +58,7 @@ import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
 import com.yiqiu.shirohaquiz.state.QuizBank
 import com.yiqiu.shirohaquiz.state.QuizRepository
+import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.IllustrationHeroCard
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
@@ -77,40 +79,12 @@ fun MeScreen(
     onOpenWrongBook: () -> Unit,
     onOpenRecords: () -> Unit,
     onOpenPreference: () -> Unit,
+    onOpenAiSettings: () -> Unit,
+    onOpenDataManagement: () -> Unit,
     onOpenStandardFormat: () -> Unit,
     onOpenAbout: () -> Unit
 ) {
     val context = LocalContext.current
-    var statusText by remember { mutableStateOf<String?>(null) }
-    var pendingExportBytes by remember { mutableStateOf<ByteArray?>(null) }
-    var showBankExportDialog by remember { mutableStateOf(false) }
-    var showClearDialog by remember { mutableStateOf(false) }
-    var selectedBankIds by remember { mutableStateOf(QuizRepository.banks.map { it.id }.toSet()) }
-
-    val createDocumentLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/zip")
-    ) { uri ->
-        val bytes = pendingExportBytes
-        if (uri != null && bytes != null) {
-            val ok = writeBytesToUri(context, uri, bytes)
-            statusText = if (ok) "已导出 ZIP 备份到所选位置。" else "导出失败：无法写入文件。"
-        }
-        pendingExportBytes = null
-    }
-
-    val importBackupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val bytes = readBytesFromUri(context, uri)
-        val fileName = uri.lastPathSegment.orEmpty()
-        statusText = if (bytes == null || bytes.isEmpty()) {
-            "导入失败：没有读取到有效内容。"
-        } else {
-            QuizRepository.importBackupBytes(context, fileName, bytes)
-        }
-        selectedBankIds = QuizRepository.banks.map { it.id }.toSet()
-    }
 
     Column(
         modifier = Modifier
@@ -160,19 +134,111 @@ fun MeScreen(
             imageSize = ShirohaDimens.HeroImageSize
         )
 
-        statusText?.let { message ->
-            NoticeCard(text = message, warning = message.contains("失败") || message.contains("清除"))
-        }
-
         GlassCard {
             Text(
-                text = "数据管理",
+                text = "功能与档案",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
+            FeaturePlanStrip(
+                icon = Icons.Rounded.Settings,
+                title = "个人偏好",
+                desc = "外观、开屏和练习行为。",
+                onClick = onOpenPreference
+            )
+            Spacer(Modifier.height(10.dp))
+            FeaturePlanStrip(
+                icon = Icons.Rounded.AutoAwesome,
+                title = "AI 设置",
+                desc = "接口、AI重构、AI核对、AI解析和处理限制。",
+                onClick = onOpenAiSettings
+            )
+            Spacer(Modifier.height(10.dp))
+            FeaturePlanStrip(
+                icon = Icons.Rounded.Save,
+                title = "数据管理",
+                desc = "导入、导出、备份和清除本地数据。",
+                onClick = onOpenDataManagement
+            )
+            Spacer(Modifier.height(10.dp))
+            FeaturePlanStrip(
+                icon = Icons.Rounded.AutoStories,
+                title = "标准导入格式",
+                desc = "查看题库文本、答案和解析的推荐写法。",
+                onClick = onOpenStandardFormat
+            )
+            Spacer(Modifier.height(10.dp))
+            FeaturePlanStrip(
+                icon = Icons.Rounded.Description,
+                title = "关于 Shiroha Quiz",
+                desc = "项目地址、版本说明和开源信息。",
+                onClick = onOpenAbout
+            )
+        }
+    }
+}
+
+
+@Composable
+fun DataManagementScreen(
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    var statusText by remember { mutableStateOf<String?>(null) }
+    var pendingExportBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var showBankExportDialog by remember { mutableStateOf(false) }
+    var showClearDialog by remember { mutableStateOf(false) }
+    var selectedBankIds by remember { mutableStateOf(QuizRepository.banks.map { it.id }.toSet()) }
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        val bytes = pendingExportBytes
+        if (uri != null && bytes != null) {
+            val ok = writeBytesToUri(context, uri, bytes)
+            statusText = if (ok) "已导出 ZIP 备份到所选位置。" else "导出失败：无法写入文件。"
+        }
+        pendingExportBytes = null
+    }
+
+    val importBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val bytes = readBytesFromUri(context, uri)
+        val fileName = uri.lastPathSegment.orEmpty()
+        statusText = if (bytes == null || bytes.isEmpty()) {
+            "导入失败：没有读取到有效内容。"
+        } else {
+            QuizRepository.importBackupBytes(context, fileName, bytes)
+        }
+        selectedBankIds = QuizRepository.banks.map { it.id }.toSet()
+    }
+
+    Column(
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
+    ) {
+        ShirohaHeader(
+            kicker = "Data",
+            title = "数据管理",
+            subtitle = "管理本地题库导入、导出、备份和清除。"
+        )
+
+        GlassCard {
+            Text(
+                text = "题库与备份",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DataActionTile(
                     icon = Icons.Rounded.FileOpen,
@@ -213,38 +279,14 @@ fun MeScreen(
                     onClick = { showClearDialog = true }
                 )
             }
+
+            statusText?.let { message ->
+                Spacer(Modifier.height(10.dp))
+                NoticeCard(text = message, warning = message.contains("失败") || message.contains("清除"))
+            }
         }
 
-        GlassCard {
-            Text(
-                text = "功能与档案",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(12.dp))
-            FeaturePlanStrip(
-                icon = Icons.Rounded.Settings,
-                title = "个人偏好",
-                desc = "外观、开屏、练习和 AI 设置。",
-                onClick = onOpenPreference
-            )
-            Spacer(Modifier.height(10.dp))
-            FeaturePlanStrip(
-                icon = Icons.Rounded.AutoStories,
-                title = "标准导入格式",
-                desc = "查看题库文本、答案和解析的推荐写法。",
-                onClick = onOpenStandardFormat
-            )
-            Spacer(Modifier.height(10.dp))
-            FeaturePlanStrip(
-                icon = Icons.Rounded.Description,
-                title = "关于 Shiroha Quiz",
-                desc = "项目地址、版本说明和开源信息。",
-                onClick = onOpenAbout
-            )
-        }
+        BackToSettingsButton(onBack = onBack)
     }
 
     if (showBankExportDialog) {
@@ -464,14 +506,32 @@ fun PersonalPreferenceScreen(
             )
         }
 
+        BackToSettingsButton(onBack = onBack)
+    }
+}
+
+
+@Composable
+fun AiSettingsScreen(
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
+    ) {
+        ShirohaHeader(
+            kicker = "AI",
+            title = "AI 设置",
+            subtitle = "管理 AI重构、AI核对、AI解析和接口配置"
+        )
+
         AiSettingsPanel(context = context)
 
-        TextButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        ) {
-            Text("返回设置页")
-        }
+        BackToSettingsButton(onBack = onBack)
     }
 }
 
@@ -488,31 +548,13 @@ private fun AiSettingsPanel(context: Context) {
     }
     var maxQuestions by remember { mutableStateOf(QuizRepository.aiMaxQuestions.toString()) }
     var timeoutSeconds by remember { mutableStateOf(QuizRepository.aiTimeoutSeconds.toString()) }
+    var refactorMaxChars by remember { mutableStateOf(QuizRepository.aiRefactorMaxChars.toString()) }
     var statusText by remember { mutableStateOf<String?>(null) }
     var statusWarning by remember { mutableStateOf(false) }
     var isTestingConnection by remember { mutableStateOf(false) }
     val aiScope = rememberCoroutineScope()
 
     GlassCard {
-        Text(
-            text = "AI 设置",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = if (QuizRepository.isAiConfigured()) {
-                "AI 辅助已配置，后续可用于二次核对与解析生成。"
-            } else {
-                "配置接口后，可用于题库二次核对与解析生成。"
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(14.dp))
-
         Text(
             text = "接口配置",
             style = MaterialTheme.typography.titleMedium,
@@ -653,6 +695,13 @@ private fun AiSettingsPanel(context: Context) {
         )
         Spacer(Modifier.height(10.dp))
         PreferenceSwitchRow(
+            title = "启用 AI 重构",
+            desc = "题量异常、切题混乱时，根据原文重整待核对结果。",
+            checked = QuizRepository.aiRefactorEnabled,
+            onCheckedChange = { enabled -> QuizRepository.setAiRefactorEnabled(context, enabled) }
+        )
+        Spacer(Modifier.height(10.dp))
+        PreferenceSwitchRow(
             title = "启用 AI 核对",
             desc = "检查题型、答案、选项和解析异常。",
             checked = QuizRepository.aiReviewEnabled,
@@ -704,6 +753,15 @@ private fun AiSettingsPanel(context: Context) {
             )
         }
         Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            value = refactorMaxChars,
+            onValueChange = { value -> refactorMaxChars = value.filter { it.isDigit() }.take(5) },
+            label = { Text("AI重构原文上限") },
+            placeholder = { Text("30000") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(10.dp))
         TextButton(
             onClick = {
                 QuizRepository.setAiProcessingLimits(
@@ -711,8 +769,13 @@ private fun AiSettingsPanel(context: Context) {
                     maxQuestions = maxQuestions.toIntOrNull() ?: QuizRepository.aiMaxQuestions,
                     timeoutSeconds = timeoutSeconds.toIntOrNull() ?: QuizRepository.aiTimeoutSeconds
                 )
+                QuizRepository.setAiRefactorMaxChars(
+                    context = context,
+                    maxChars = refactorMaxChars.toIntOrNull() ?: QuizRepository.aiRefactorMaxChars
+                )
                 maxQuestions = QuizRepository.aiMaxQuestions.toString()
                 timeoutSeconds = QuizRepository.aiTimeoutSeconds.toString()
+                refactorMaxChars = QuizRepository.aiRefactorMaxChars.toString()
                 statusText = "AI 处理限制已保存。"
                 statusWarning = false
             }
@@ -721,7 +784,7 @@ private fun AiSettingsPanel(context: Context) {
         }
         Spacer(Modifier.height(8.dp))
         NoticeCard(
-            text = "AI 功能会消耗接口额度。AI 核对只生成核对提示；AI 解析会写入待核对解析，最终仍需手动保存题库。",
+            text = "AI 功能会消耗接口额度。AI 重构会优先清洗原文并重新本地解析，必要时才使用 AI 直接重构题目；原文不足上限时会全部发送。AI 核对只生成核对提示；AI 解析会写入待核对解析，最终仍需手动保存题库。",
             warning = false
         )
     }
@@ -980,6 +1043,20 @@ private fun FeaturePlanStrip(
             )
         }
     }
+}
+
+
+@Composable
+private fun BackToSettingsButton(
+    onBack: () -> Unit
+) {
+    ActionPillButton(
+        icon = Icons.AutoMirrored.Rounded.ArrowBack,
+        text = "返回设置",
+        primary = false,
+        modifier = Modifier.height(42.dp),
+        onClick = onBack
+    )
 }
 
 private fun readBytesFromUri(context: Context, uri: Uri): ByteArray? {

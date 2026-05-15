@@ -107,12 +107,14 @@ object QuizRepository {
     private const val KEY_AI_API_BASE_URL = "ai_api_base_url"
     private const val KEY_AI_API_KEY = "ai_api_key"
     private const val KEY_AI_MODEL_NAME = "ai_model_name"
+    private const val KEY_AI_REFACTOR_ENABLED = "ai_refactor_enabled"
     private const val KEY_AI_REVIEW_ENABLED = "ai_review_enabled"
     private const val KEY_AI_ANALYSIS_ENABLED = "ai_analysis_enabled"
     private const val KEY_AI_ONLY_ANOMALY = "ai_only_anomaly"
     private const val KEY_AI_REQUIRE_CONFIRM = "ai_require_confirm"
     private const val KEY_AI_MAX_QUESTIONS = "ai_max_questions"
     private const val KEY_AI_TIMEOUT_SECONDS = "ai_timeout_seconds"
+    private const val KEY_AI_REFACTOR_MAX_CHARS = "ai_refactor_max_chars"
 
     val banks = mutableStateListOf<QuizBank>()
     val wrongBook = mutableStateListOf<WrongQuestionEntry>()
@@ -141,6 +143,8 @@ object QuizRepository {
         private set
     var aiModelName by mutableStateOf("")
         private set
+    var aiRefactorEnabled by mutableStateOf(false)
+        private set
     var aiReviewEnabled by mutableStateOf(false)
         private set
     var aiAnalysisEnabled by mutableStateOf(false)
@@ -152,6 +156,8 @@ object QuizRepository {
     var aiMaxQuestions by mutableStateOf(20)
         private set
     var aiTimeoutSeconds by mutableStateOf(60)
+        private set
+    var aiRefactorMaxChars by mutableStateOf(30000)
         private set
     val practiceSessionResults = mutableStateMapOf<String, Boolean>()
     val practiceAnswerResults = mutableStateMapOf<String, StudyQuestionResult>()
@@ -209,12 +215,14 @@ object QuizRepository {
         aiApiBaseUrl = prefs.getString(KEY_AI_API_BASE_URL, "") ?: ""
         aiApiKey = prefs.getString(KEY_AI_API_KEY, "") ?: ""
         aiModelName = prefs.getString(KEY_AI_MODEL_NAME, "") ?: ""
+        aiRefactorEnabled = prefs.getBoolean(KEY_AI_REFACTOR_ENABLED, false)
         aiReviewEnabled = prefs.getBoolean(KEY_AI_REVIEW_ENABLED, false)
         aiAnalysisEnabled = prefs.getBoolean(KEY_AI_ANALYSIS_ENABLED, false)
         aiOnlyAnomaly = prefs.getBoolean(KEY_AI_ONLY_ANOMALY, true)
         aiRequireConfirm = prefs.getBoolean(KEY_AI_REQUIRE_CONFIRM, true)
         aiMaxQuestions = prefs.getInt(KEY_AI_MAX_QUESTIONS, 20).coerceIn(5, 100)
         aiTimeoutSeconds = prefs.getInt(KEY_AI_TIMEOUT_SECONDS, 60).coerceIn(15, 180)
+        aiRefactorMaxChars = prefs.getInt(KEY_AI_REFACTOR_MAX_CHARS, 30000).coerceIn(5000, 80000)
 
         wrongBook.addAll(restoredWrongBook.map(::sanitizeWrongEntry))
         studyRecords.addAll(restoredStudyRecords)
@@ -518,6 +526,12 @@ object QuizRepository {
         persist()
     }
 
+    fun setAiRefactorEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        aiRefactorEnabled = enabled
+        persist()
+    }
+
     fun setAiReviewEnabled(context: Context, enabled: Boolean) {
         appContext = context.applicationContext
         aiReviewEnabled = enabled
@@ -549,11 +563,18 @@ object QuizRepository {
         persist()
     }
 
+    fun setAiRefactorMaxChars(context: Context, maxChars: Int) {
+        appContext = context.applicationContext
+        aiRefactorMaxChars = maxChars.coerceIn(5000, 80000)
+        persist()
+    }
+
     fun clearAiConfig(context: Context) {
         appContext = context.applicationContext
         aiApiBaseUrl = ""
         aiApiKey = ""
         aiModelName = ""
+        aiRefactorEnabled = false
         aiReviewEnabled = false
         aiAnalysisEnabled = false
         persist()
@@ -1307,12 +1328,14 @@ object QuizRepository {
             .putString(KEY_AI_API_BASE_URL, aiApiBaseUrl)
             .putString(KEY_AI_API_KEY, aiApiKey)
             .putString(KEY_AI_MODEL_NAME, aiModelName)
+            .putBoolean(KEY_AI_REFACTOR_ENABLED, aiRefactorEnabled)
             .putBoolean(KEY_AI_REVIEW_ENABLED, aiReviewEnabled)
             .putBoolean(KEY_AI_ANALYSIS_ENABLED, aiAnalysisEnabled)
             .putBoolean(KEY_AI_ONLY_ANOMALY, aiOnlyAnomaly)
             .putBoolean(KEY_AI_REQUIRE_CONFIRM, aiRequireConfirm)
             .putInt(KEY_AI_MAX_QUESTIONS, aiMaxQuestions)
             .putInt(KEY_AI_TIMEOUT_SECONDS, aiTimeoutSeconds)
+            .putInt(KEY_AI_REFACTOR_MAX_CHARS, aiRefactorMaxChars)
             .apply()
     }
 

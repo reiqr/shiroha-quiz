@@ -5,9 +5,9 @@ import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 
 object StandardQuestionParser {
-    private val answerLineRegex = Regex("""^\s*\[?\s*(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)\s*[:：]\s*(.+?)\s*\]?$""")
-    private val analysisLineRegex = Regex("""^\s*\[?\s*(?:解析|答案解析|说明|解题思路)\s*\]?\s*[:：]?\s*(.*)$""")
-    private val bracketAnswerRegex = Regex("""[\[\(]\s*(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答)\s*[:：]\s*([^\]\)]+)\s*[\]\)]""")
+    private val answerLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)\s*[\]】]\s*)|(?:(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)\s*[:：]\s*))(.+?)\s*$""")
+    private val analysisLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:解析|答案解析|说明|解题思路)\s*[\]】]\s*)|(?:(?:解析|答案解析|说明|解题思路)\s*[:：]\s*))(.*)$""")
+    private val bracketAnswerRegex = Regex("""[\[【\(]\s*(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答)\s*[:：]\s*([^\]】\)]+)\s*[\]】\)]""")
     private val embeddedChoiceAnswerRegex = Regex("""[\(]\s*([A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False)\s*[\)]""", RegexOption.IGNORE_CASE)
     private val shortKeywords = Regex("""(简答|问答|面试|结构化面试|公考面试|公务员面试|名词解释|论述|说明原因|谈谈|请谈|分析|阐述|为什么|如何|哪些|什么是|怎么看|怎么办|怎么处理|请回答|组织一次|群众反映|领导安排|突发|应急|人际|协调|沟通)""")
     private val blankKeywords = Regex("""(填空|填入|补全|补充完整|_{2,}|[\(]\s*[\)]|空白处)""")
@@ -18,7 +18,7 @@ object StandardQuestionParser {
         RegexOption.IGNORE_CASE
     )
     private val subjectiveAnswerLineRegex = Regex(
-        """^\s*(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)\s*[:：]\s*(.*)$"""
+        """^\s*(?:(?:[\[【]\s*(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)\s*[\]】]\s*)|(?:(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)\s*[:：]\s*))(.*)$"""
     )
 
     private data class OptionMarker(val key: String, val markerStart: Int, val contentStart: Int)
@@ -171,7 +171,7 @@ object StandardQuestionParser {
         }
 
         val answerWithAnalysis = Regex(
-            """^\s*\[?\s*(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)\s*[:：]\s*(.+?)(?:\s*(?:解析|说明|解题思路)\s*[:：]\s*(.*))?\s*\]?$"""
+            """^\s*(?:(?:[\[【]\s*(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)\s*[\]】]\s*)|(?:(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)\s*[:：]\s*))(.+?)(?:\s*(?:解析|说明|解题思路)\s*[:：]\s*(.*))?\s*$"""
         ).find(clean)
         if (answerWithAnalysis != null) {
             answer = answer ?: answerWithAnalysis.groupValues[1].trim()

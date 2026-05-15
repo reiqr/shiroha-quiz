@@ -50,9 +50,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.ui.screens.AboutScreen
+import com.yiqiu.shirohaquiz.ui.screens.AiSettingsScreen
 import com.yiqiu.shirohaquiz.ui.screens.BankDetailScreen
 import com.yiqiu.shirohaquiz.ui.screens.BankListScreen
 import com.yiqiu.shirohaquiz.ui.screens.BankReviewScreen
+import com.yiqiu.shirohaquiz.ui.screens.DataManagementScreen
 import com.yiqiu.shirohaquiz.ui.screens.ExamScreen
 import com.yiqiu.shirohaquiz.ui.screens.HomeScreen
 import com.yiqiu.shirohaquiz.ui.screens.ImportScreen
@@ -87,6 +89,8 @@ private enum class MainTab(
     Records("记录", Icons.Rounded.Dashboard, showInBottomBar = false),
     RecordDetail("记录详情", Icons.Rounded.Dashboard, showInBottomBar = false),
     Preference("个人偏好", Icons.Rounded.Settings, showInBottomBar = false),
+    AiSettings("AI 设置", Icons.Rounded.Settings, showInBottomBar = false),
+    DataManagement("数据管理", Icons.Rounded.Settings, showInBottomBar = false),
     StandardFormat("标准格式", Icons.Rounded.ImportExport, showInBottomBar = false),
     About("关于", Icons.Rounded.Settings, showInBottomBar = false)
 }
@@ -181,6 +185,8 @@ fun ShirohaAppShell() {
                         onOpenWrongBook = { currentTab = MainTab.WrongBook },
                         onOpenRecords = { currentTab = MainTab.Records },
                         onOpenPreference = { currentTab = MainTab.Preference },
+                        onOpenAiSettings = { currentTab = MainTab.AiSettings },
+                        onOpenDataManagement = { currentTab = MainTab.DataManagement },
                         onOpenStandardFormat = { currentTab = MainTab.StandardFormat },
                         onOpenAbout = { currentTab = MainTab.About }
                     )
@@ -222,6 +228,12 @@ fun ShirohaAppShell() {
                         onBack = { currentTab = MainTab.Records }
                     )
                     MainTab.Preference -> PersonalPreferenceScreen(
+                        onBack = { currentTab = MainTab.Me }
+                    )
+                    MainTab.AiSettings -> AiSettingsScreen(
+                        onBack = { currentTab = MainTab.Me }
+                    )
+                    MainTab.DataManagement -> DataManagementScreen(
                         onBack = { currentTab = MainTab.Me }
                     )
                     MainTab.StandardFormat -> StandardImportFormatScreen(

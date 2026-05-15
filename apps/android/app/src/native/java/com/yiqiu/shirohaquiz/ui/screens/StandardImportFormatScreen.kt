@@ -39,13 +39,6 @@ fun StandardImportFormatScreen(
             subtitle = "按这个格式整理题库，识别会更稳定。"
         )
 
-        ActionPillButton(
-            icon = Icons.AutoMirrored.Rounded.ArrowBack,
-            text = "返回设置",
-            primary = false,
-            modifier = Modifier.height(42.dp),
-            onClick = onBack
-        )
 
         FormatSection(
             title = "一、单文件标准格式",
@@ -132,6 +125,14 @@ C. 选项三
 下面是原始文本：
 【把需要清洗的题库粘贴到这里】
             """.trimIndent()
+        )
+
+        ActionPillButton(
+            icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            text = "返回设置",
+            primary = false,
+            modifier = Modifier.height(42.dp),
+            onClick = onBack
         )
     }
 }

@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.yiqiu.shirohaquiz.ai.AiRefactorResult
 import com.yiqiu.shirohaquiz.ai.AiReviewSuggestion
 import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
 import com.yiqiu.shirohaquiz.importer.model.ImportResult
@@ -134,6 +135,7 @@ fun ImportScreen(
     var answerFullEditorMode by rememberSaveable { mutableStateOf(false) }
     var aiReviewedQuestionIds by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var aiAnalyzedQuestionIds by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var aiAnalysisAppliedQuestionIds by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var aiReviewSuggestions by remember { mutableStateOf<List<AiReviewSuggestion>>(emptyList()) }
 
     fun clearParsedResult(clearImages: Boolean = false) {
@@ -145,13 +147,14 @@ fun ImportScreen(
         previewOnlyAnomaly = false
         aiReviewedQuestionIds = emptyList()
         aiAnalyzedQuestionIds = emptyList()
+        aiAnalysisAppliedQuestionIds = emptyList()
         aiReviewSuggestions = emptyList()
         if (clearImages) importedImages = emptyList()
     }
 
     fun applyParsedResult(result: ImportResult) {
         val resultWithExtraWarnings = result.copy(
-            warnings = result.warnings + duplicateQuestionNumberWarnings(result.questions)
+            warnings = dedupeImportWarnings(result.warnings + duplicateQuestionNumberWarnings(result.questions))
         )
         importResult = resultWithExtraWarnings
         editableQuestions = resultWithExtraWarnings.questions
@@ -159,6 +162,7 @@ fun ImportScreen(
         reviewFilterName = ReviewFilter.ALL.name
         aiReviewedQuestionIds = emptyList()
         aiAnalyzedQuestionIds = emptyList()
+        aiAnalysisAppliedQuestionIds = emptyList()
         aiReviewSuggestions = emptyList()
         val hardCount = resultWithExtraWarnings.warnings.count { it.level == WarningLevel.ERROR }
         val softCount = resultWithExtraWarnings.warnings.count { it.level == WarningLevel.WARNING }
@@ -312,11 +316,22 @@ fun ImportScreen(
             questions = editableQuestions,
             warnings = warnings,
             aiSuggestions = aiReviewSuggestions,
+            aiReviewedQuestionIds = aiReviewedQuestionIds,
+            aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+            aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
             filter = reviewFilter,
             currentIndex = reviewIndex.coerceIn(0, (editableQuestions.size - 1).coerceAtLeast(0)),
             onFilterChange = { filter ->
                 reviewFilterName = filter.name
-                firstMatchingQuestionIndex(editableQuestions, warnings, filter)?.let { reviewIndex = it }
+                firstMatchingQuestionIndex(
+                    questions = editableQuestions,
+                    warnings = warnings,
+                    aiSuggestions = aiReviewSuggestions,
+                    aiReviewedQuestionIds = aiReviewedQuestionIds,
+                    aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                    aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
+                    filter = filter
+                )?.let { reviewIndex = it }
             },
             onIndexChange = { index ->
                 if (editableQuestions.isNotEmpty()) {
@@ -353,9 +368,20 @@ fun ImportScreen(
                 editableQuestions = nextQuestions
                 if (deletedQuestionId != null) {
                     aiReviewSuggestions = aiReviewSuggestions.filterNot { it.questionId == deletedQuestionId }
+                    aiReviewedQuestionIds = aiReviewedQuestionIds.filterNot { it == deletedQuestionId }
+                    aiAnalyzedQuestionIds = aiAnalyzedQuestionIds.filterNot { it == deletedQuestionId }
+                    aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds.filterNot { it == deletedQuestionId }
                 }
                 reviewIndex = index.coerceAtMost((nextQuestions.size - 1).coerceAtLeast(0))
-                firstMatchingQuestionIndex(nextQuestions, warnings, reviewFilterFromName(reviewFilterName))?.let { reviewIndex = it }
+                firstMatchingQuestionIndex(
+                    questions = nextQuestions,
+                    warnings = warnings,
+                    aiSuggestions = aiReviewSuggestions,
+                    aiReviewedQuestionIds = aiReviewedQuestionIds,
+                    aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                    aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
+                    filter = reviewFilterFromName(reviewFilterName)
+                )?.let { reviewIndex = it }
                 statusText = "已从核对列表中移除 1 题。保存题库时会使用当前核对后的题目。"
                 isStatusWarn = false
             },
@@ -661,12 +687,26 @@ fun ImportScreen(
 
             importResult?.let { result ->
                 val displayResult = result.copy(questions = editableQuestions)
-                NativeImportSummary(displayResult)
+                NativeImportSummary(
+                    result = displayResult,
+                    aiSuggestions = aiReviewSuggestions,
+                    aiReviewedQuestionIds = aiReviewedQuestionIds,
+                    aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                    aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
+                )
 
                 val warnings = importResult?.warnings.orEmpty()
                 val anomalyQuestions = editableQuestions.filter { question ->
                     questionMatchesFilter(question, warningsForQuestion(question, warnings), ReviewFilter.ANOMALY)
                 }
+                val aiSuggestionCount = editableQuestions.count { question ->
+                    aiSuggestionsForQuestion(question, aiReviewSuggestions).any(::isActionableAiSuggestion)
+                }
+                val aiApplicableCount = editableQuestions.count { question ->
+                    aiSuggestionsForQuestion(question, aiReviewSuggestions).any(::canApplyAiSuggestion)
+                }
+                val missingAnalysisCount = editableQuestions.count(::shouldApplyAiAnalysis)
+                val aiAnalysisAppliedCount = editableQuestions.count { it.id in aiAnalysisAppliedQuestionIds.toSet() }
                 val previewQuestions = if (previewOnlyAnomaly) anomalyQuestions else editableQuestions
 
                 GlassCard {
@@ -719,6 +759,25 @@ fun ImportScreen(
                                 isStatusWarn = false
                             }
                         )
+                        ActionPillButton(
+                            icon = Icons.Rounded.Description,
+                            text = "看缺解析 $missingAnalysisCount",
+                            primary = false,
+                            enabled = missingAnalysisCount > 0,
+                            onClick = {
+                                reviewFilterName = ReviewFilter.MISSING_ANALYSIS.name
+                                firstMatchingQuestionIndex(
+                                    questions = editableQuestions,
+                                    warnings = warnings,
+                                    aiSuggestions = aiReviewSuggestions,
+                                    aiReviewedQuestionIds = aiReviewedQuestionIds,
+                                    aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                                    aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
+                                    filter = ReviewFilter.MISSING_ANALYSIS
+                                )?.let { reviewIndex = it }
+                                reviewMode = true
+                            }
+                        )
                     }
                     Spacer(Modifier.height(14.dp))
                     Text(
@@ -733,7 +792,151 @@ fun ImportScreen(
                     ) {
                         ActionPillButton(
                             icon = Icons.Rounded.AutoAwesome,
-                            text = "AI 核对",
+                            text = "AI重构",
+                            primary = QuizRepository.isAiConfigured() && QuizRepository.aiRefactorEnabled,
+                            modifier = Modifier.alpha(if (QuizRepository.isAiConfigured() && QuizRepository.aiRefactorEnabled) 1f else ShirohaDimens.DisabledAlpha),
+                            enabled = editableQuestions.isNotEmpty() && rawText.isNotBlank() && !isImportBusy,
+                            onClick = {
+                                if (!QuizRepository.isAiConfigured()) {
+                                    showAiConfigPrompt = true
+                                    statusText = "AI 重构：请先在个人偏好 → AI 设置中配置接口。"
+                                    isStatusWarn = true
+                                    return@ActionPillButton
+                                }
+                                if (!QuizRepository.aiRefactorEnabled) {
+                                    statusText = "AI 重构未启用，请先在个人偏好 → AI 设置中开启。"
+                                    isStatusWarn = true
+                                    return@ActionPillButton
+                                }
+                                val sourceText = rawText.trim()
+                                val answerSourceText = answerText.trim()
+                                if (sourceText.isBlank()) {
+                                    statusText = "AI 重构需要原始文本，请先导入或粘贴题库文本。"
+                                    isStatusWarn = true
+                                    return@ActionPillButton
+                                }
+                                val sourceLength = sourceText.length + answerSourceText.length
+                                if (sourceLength > QuizRepository.aiRefactorMaxChars) {
+                                    statusText = "AI 重构：原文约 ${sourceLength} 字，超过当前上限 ${QuizRepository.aiRefactorMaxChars} 字。请在 AI 设置中调大上限，或拆分题库后处理。"
+                                    isStatusWarn = true
+                                    return@ActionPillButton
+                                }
+                                val warningTexts = displayResult.warnings.map { warning ->
+                                    val numberText = warning.questionNumber?.takeIf { it.isNotBlank() }?.let { "题号$it：" }.orEmpty()
+                                    "${warning.level.name}：$numberText${warning.message}"
+                                }.distinct().take(120)
+                                val beforeCount = editableQuestions.size
+                                statusText = "AI 重构中：优先清洗原文并重新本地解析，必要时再使用 AI 直接重构结果。"
+                                isStatusWarn = false
+                                importScope.launch {
+                                    isImportBusy = true
+                                    busyText = "AI 重构中……"
+                                    runCatching {
+                                        withContext(Dispatchers.IO) {
+                                            val refactorResult = ShirohaAiClient.refactorQuestions(
+                                                apiBaseUrl = QuizRepository.aiApiBaseUrl,
+                                                apiKey = QuizRepository.aiApiKey,
+                                                modelName = QuizRepository.aiModelName,
+                                                rawText = sourceText,
+                                                answerText = answerSourceText,
+                                                currentQuestions = editableQuestions,
+                                                warnings = warningTexts,
+                                                timeoutSeconds = QuizRepository.aiTimeoutSeconds
+                                            )
+                                            val cleanedText = refactorResult.cleanedText.orEmpty().trim()
+                                            val cleanedAnswerText = refactorResult.cleanedAnswerText.orEmpty().trim()
+                                            val reparsedResult = if (cleanedText.isNotBlank()) {
+                                                val parsed = if (cleanedAnswerText.isNotBlank()) {
+                                                    QuizImportParser.parseDualText(cleanedText, cleanedAnswerText)
+                                                } else {
+                                                    QuizImportParser.parseStandardText(cleanedText)
+                                                }
+                                                if (cleanedAnswerText.isBlank() && importedImages.isNotEmpty()) {
+                                                    QuestionImageBinder.attach(parsed, importedImages)
+                                                } else {
+                                                    parsed
+                                                }
+                                            } else {
+                                                null
+                                            }
+                                            AiRefactorApplyResult(refactorResult = refactorResult, reparsedResult = reparsedResult)
+                                        }
+                                    }.onSuccess { applyResult ->
+                                        val refactorResult = applyResult.refactorResult
+                                        val reparsedResult = applyResult.reparsedResult
+                                        val directQuestions = refactorResult.questions
+                                        val shouldUseReparsed = reparsedResult != null && reparsedResult.questions.isNotEmpty() &&
+                                            (directQuestions.isEmpty() || reparsedResult.questions.size >= directQuestions.size || reparsedResult.questions.size >= beforeCount)
+
+                                        if (shouldUseReparsed && reparsedResult != null) {
+                                            val refactoredQuestions = reparsedResult.questions
+                                            val nextWarnings = dedupeImportWarnings(
+                                                aiRefactorImportWarnings(refactorResult.notes, "AI重构已清洗原文并重新本地解析，请人工确认题量、题干、选项、答案和解析后再保存。") +
+                                                    reparsedResult.warnings +
+                                                    duplicateQuestionNumberWarnings(refactoredQuestions)
+                                            )
+                                            val nextResult = reparsedResult.copy(
+                                                strategyName = "AI重构重解析 + ${reparsedResult.strategyName}",
+                                                warnings = nextWarnings,
+                                                diagnostics = reparsedResult.diagnostics.copy(
+                                                    notes = (reparsedResult.diagnostics.notes + "AI重构：已清洗原文并重新本地解析，由 $beforeCount 题解析为 ${refactoredQuestions.size} 题。" + refactorResult.notes).distinct()
+                                                )
+                                            )
+                                            importResult = nextResult
+                                            editableQuestions = refactoredQuestions
+                                            reviewIndex = 0
+                                            reviewFilterName = ReviewFilter.ALL.name
+                                            previewOnlyAnomaly = false
+                                            aiReviewedQuestionIds = emptyList()
+                                            aiAnalyzedQuestionIds = emptyList()
+                                            aiAnalysisAppliedQuestionIds = emptyList()
+                                            aiReviewSuggestions = emptyList()
+                                            statusText = "AI 重构完成：已清洗原文并重新本地解析，由 $beforeCount 题得到 ${refactoredQuestions.size} 题。请先人工核对，再继续 AI 核对或 AI 解析。"
+                                            isStatusWarn = nextWarnings.isNotEmpty()
+                                        } else if (directQuestions.isNotEmpty()) {
+                                            val refactoredQuestions = directQuestions
+                                            val nextWarnings = dedupeImportWarnings(
+                                                aiRefactorImportWarnings(refactorResult.notes, "AI重构已生成新的待核对结果，请人工确认题量、题干、选项、答案和解析后再保存。") +
+                                                    duplicateQuestionNumberWarnings(refactoredQuestions)
+                                            )
+                                            val nextResult = displayResult.copy(
+                                                questions = refactoredQuestions,
+                                                strategyName = "${displayResult.strategyName} + AI重构",
+                                                warnings = nextWarnings,
+                                                diagnostics = displayResult.diagnostics.copy(
+                                                    notes = (displayResult.diagnostics.notes + "AI重构：由 $beforeCount 题重整为 ${refactoredQuestions.size} 题。" + refactorResult.notes).distinct()
+                                                )
+                                            )
+                                            importResult = nextResult
+                                            editableQuestions = refactoredQuestions
+                                            reviewIndex = 0
+                                            reviewFilterName = ReviewFilter.ALL.name
+                                            previewOnlyAnomaly = false
+                                            aiReviewedQuestionIds = emptyList()
+                                            aiAnalyzedQuestionIds = emptyList()
+                                            aiAnalysisAppliedQuestionIds = emptyList()
+                                            aiReviewSuggestions = emptyList()
+                                            statusText = "AI 重构完成：由 $beforeCount 题重整为 ${refactoredQuestions.size} 题。请先人工核对，再继续 AI 核对或 AI 解析。"
+                                            isStatusWarn = nextWarnings.isNotEmpty()
+                                        } else if (reparsedResult != null) {
+                                            statusText = "AI 重构已返回清洗文本，但本地重解析未得到可用题目，当前待核对结果未改动。"
+                                            isStatusWarn = true
+                                        } else {
+                                            statusText = "AI 重构完成但没有返回可用清洗文本或题目，当前待核对结果未改动。"
+                                            isStatusWarn = true
+                                        }
+                                    }.onFailure { error ->
+                                        statusText = "AI 重构失败：${error.message ?: "请检查接口配置"}"
+                                        isStatusWarn = true
+                                    }
+                                    isImportBusy = false
+                                    busyText = ""
+                                }
+                            }
+                        )
+                        ActionPillButton(
+                            icon = Icons.Rounded.AutoAwesome,
+                            text = "AI核对",
                             primary = QuizRepository.isAiConfigured() && QuizRepository.aiReviewEnabled,
                             modifier = Modifier.alpha(if (QuizRepository.isAiConfigured() && QuizRepository.aiReviewEnabled) 1f else ShirohaDimens.DisabledAlpha),
                             enabled = editableQuestions.isNotEmpty() && !isImportBusy,
@@ -814,7 +1017,7 @@ fun ImportScreen(
                         )
                         ActionPillButton(
                             icon = Icons.Rounded.AutoAwesome,
-                            text = "AI 解析",
+                            text = "AI解析",
                             primary = QuizRepository.isAiConfigured() && QuizRepository.aiAnalysisEnabled,
                             modifier = Modifier.alpha(if (QuizRepository.isAiConfigured() && QuizRepository.aiAnalysisEnabled) 1f else ShirohaDimens.DisabledAlpha),
                             enabled = editableQuestions.isNotEmpty() && !isImportBusy,
@@ -872,20 +1075,24 @@ fun ImportScreen(
                                         }
                                     }.onSuccess { suggestions ->
                                         val suggestionMap = suggestions.associateBy { it.questionId }
-                                        val changedIds = suggestionMap.keys
+                                        val appliedIds = mutableListOf<String>()
                                         val nextAnalyzedIds = (aiAnalyzedQuestionIds + aiTargetQuestions.map { it.id }).distinct()
-                                        editableQuestions = editableQuestions.map { question ->
+                                        val nextQuestions = editableQuestions.map { question ->
                                             val suggestion = suggestionMap[question.id]
-                                            if (suggestion != null && shouldApplyAiAnalysis(question)) {
+                                            if (suggestion != null && shouldApplyAiAnalysis(question) && suggestion.analysis.trim().isNotBlank()) {
+                                                appliedIds += question.id
                                                 applyAiAnalysisSuggestion(question, suggestion.analysis)
                                             } else {
                                                 question
                                             }
                                         }
-                                        importResult = displayResult.copy(questions = editableQuestions)
+                                        editableQuestions = nextQuestions
+                                        importResult = displayResult.copy(questions = nextQuestions)
                                         aiAnalyzedQuestionIds = nextAnalyzedIds
+                                        aiAnalysisAppliedQuestionIds = (aiAnalysisAppliedQuestionIds + appliedIds).distinct()
+                                        val changedIds = appliedIds.toSet()
                                         val nextAnalyzedIdSet = nextAnalyzedIds.toSet()
-                                        val skippedCount = (aiTargetQuestions.size - changedIds.size).coerceAtLeast(0)
+                                        val skippedCount = (aiTargetQuestions.size - suggestionMap.keys.size).coerceAtLeast(0)
                                         val remainingAnalysisCount = editableQuestions.count { question ->
                                             shouldApplyAiAnalysis(question) && question.id !in nextAnalyzedIdSet
                                         }
@@ -910,6 +1117,64 @@ fun ImportScreen(
                                     isImportBusy = false
                                     busyText = ""
                                 }
+                            }
+                        )
+
+                        ActionPillButton(
+                            icon = Icons.Rounded.CheckCircle,
+                            text = "看AI建议 $aiSuggestionCount",
+                            primary = aiSuggestionCount > 0,
+                            enabled = aiSuggestionCount > 0,
+                            onClick = {
+                                reviewFilterName = ReviewFilter.AI_SUGGESTION.name
+                                firstMatchingQuestionIndex(
+                                    questions = editableQuestions,
+                                    warnings = warnings,
+                                    aiSuggestions = aiReviewSuggestions,
+                                    aiReviewedQuestionIds = aiReviewedQuestionIds,
+                                    aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                                    aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
+                                    filter = ReviewFilter.AI_SUGGESTION
+                                )?.let { reviewIndex = it }
+                                reviewMode = true
+                            }
+                        )
+                        ActionPillButton(
+                            icon = Icons.Rounded.CheckCircle,
+                            text = "看可采纳 $aiApplicableCount",
+                            primary = aiApplicableCount > 0,
+                            enabled = aiApplicableCount > 0,
+                            onClick = {
+                                reviewFilterName = ReviewFilter.AI_APPLICABLE.name
+                                firstMatchingQuestionIndex(
+                                    questions = editableQuestions,
+                                    warnings = warnings,
+                                    aiSuggestions = aiReviewSuggestions,
+                                    aiReviewedQuestionIds = aiReviewedQuestionIds,
+                                    aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                                    aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
+                                    filter = ReviewFilter.AI_APPLICABLE
+                                )?.let { reviewIndex = it }
+                                reviewMode = true
+                            }
+                        )
+                        ActionPillButton(
+                            icon = Icons.Rounded.Description,
+                            text = "看AI补解析 $aiAnalysisAppliedCount",
+                            primary = aiAnalysisAppliedCount > 0,
+                            enabled = aiAnalysisAppliedCount > 0,
+                            onClick = {
+                                reviewFilterName = ReviewFilter.AI_ANALYZED.name
+                                firstMatchingQuestionIndex(
+                                    questions = editableQuestions,
+                                    warnings = warnings,
+                                    aiSuggestions = aiReviewSuggestions,
+                                    aiReviewedQuestionIds = aiReviewedQuestionIds,
+                                    aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                                    aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
+                                    filter = ReviewFilter.AI_ANALYZED
+                                )?.let { reviewIndex = it }
+                                reviewMode = true
                             }
                         )
                     }
@@ -942,7 +1207,11 @@ fun ImportScreen(
                 NativeImportPreview(
                     questions = previewQuestions,
                     totalQuestionCount = editableQuestions.size,
-                    onlyShowAnomaly = previewOnlyAnomaly
+                    onlyShowAnomaly = previewOnlyAnomaly,
+                    aiSuggestions = aiReviewSuggestions,
+                    aiReviewedQuestionIds = aiReviewedQuestionIds,
+                    aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                    aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
                 )
             }
 
@@ -1193,11 +1462,36 @@ private fun ReviewCompactButton(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NativeImportSummary(result: ImportResult) {
+private fun NativeImportSummary(
+    result: ImportResult,
+    aiSuggestions: List<AiReviewSuggestion>,
+    aiReviewedQuestionIds: List<String>,
+    aiAnalyzedQuestionIds: List<String>,
+    aiAnalysisAppliedQuestionIds: List<String>
+) {
     val hardCount = result.warnings.count { it.level == WarningLevel.ERROR }
     val softCount = result.warnings.count { it.level == WarningLevel.WARNING }
     val answeredCount = result.questions.count { it.answer.isNotEmpty() }
     val imageQuestionCount = result.questions.count { it.images.isNotEmpty() }
+    val missingAnalysisCount = result.questions.count(::shouldApplyAiAnalysis)
+    val aiReviewedIdSet = aiReviewedQuestionIds.toSet()
+    val aiAnalyzedIdSet = aiAnalyzedQuestionIds.toSet()
+    val aiAnalysisAppliedIdSet = aiAnalysisAppliedQuestionIds.toSet()
+    val aiReviewSuggestionCount = result.questions.count { question ->
+        aiSuggestionsForQuestion(question, aiSuggestions).any(::isActionableAiSuggestion)
+    }
+    val aiApplicableCount = result.questions.count { question ->
+        aiSuggestionsForQuestion(question, aiSuggestions).any(::canApplyAiSuggestion)
+    }
+    val aiNeedConfirmCount = result.questions.count { question ->
+        aiSuggestionsForQuestion(question, aiSuggestions).any(::isNeedHumanReviewAiSuggestion)
+    }
+    val aiHardErrorCount = result.questions.count { question ->
+        aiSuggestionsForQuestion(question, aiSuggestions).any(::isHardErrorAiSuggestion)
+    }
+    val aiReviewedCount = result.questions.count { it.id in aiReviewedIdSet }
+    val aiAnalyzedCount = result.questions.count { it.id in aiAnalyzedIdSet }
+    val aiAnalysisAppliedCount = result.questions.count { it.id in aiAnalysisAppliedIdSet }
 
     GlassCard {
         Text(
@@ -1216,6 +1510,14 @@ private fun NativeImportSummary(result: ImportResult) {
             if (imageQuestionCount > 0) StatusChip("图片题：$imageQuestionCount", selected = true)
             StatusChip("硬错误：$hardCount", selected = hardCount == 0)
             StatusChip("提示：$softCount", selected = softCount == 0)
+            StatusChip("缺/短解析：$missingAnalysisCount", selected = missingAnalysisCount == 0)
+            if (aiReviewedCount > 0) StatusChip("AI已核对：$aiReviewedCount", selected = true)
+            if (aiReviewSuggestionCount > 0) StatusChip("AI建议：$aiReviewSuggestionCount", selected = true)
+            if (aiApplicableCount > 0) StatusChip("可采纳：$aiApplicableCount", selected = true)
+            if (aiNeedConfirmCount > 0) StatusChip("需确认：$aiNeedConfirmCount", selected = false)
+            if (aiHardErrorCount > 0) StatusChip("AI硬错误：$aiHardErrorCount", selected = false)
+            if (aiAnalyzedCount > 0) StatusChip("AI已尝试解析：$aiAnalyzedCount", selected = true)
+            if (aiAnalysisAppliedCount > 0) StatusChip("AI已补解析：$aiAnalysisAppliedCount", selected = true)
         }
         if (result.warnings.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
@@ -1248,7 +1550,11 @@ private fun NativeImportSummary(result: ImportResult) {
 private fun NativeImportPreview(
     questions: List<Question>,
     totalQuestionCount: Int,
-    onlyShowAnomaly: Boolean
+    onlyShowAnomaly: Boolean,
+    aiSuggestions: List<AiReviewSuggestion>,
+    aiReviewedQuestionIds: List<String>,
+    aiAnalyzedQuestionIds: List<String>,
+    aiAnalysisAppliedQuestionIds: List<String>
 ) {
     GlassCard {
         Text(
@@ -1300,6 +1606,22 @@ private fun NativeImportPreview(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            val questionTags = importPreviewQuestionTags(
+                question = question,
+                aiSuggestions = aiSuggestionsForQuestion(question, aiSuggestions),
+                aiReviewedQuestionIds = aiReviewedQuestionIds,
+                aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
+            )
+            if (questionTags.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = questionTags,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             if (question.analysis.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -1324,6 +1646,9 @@ private fun NativeQuestionReviewScreen(
     questions: List<Question>,
     warnings: List<ImportWarning>,
     aiSuggestions: List<AiReviewSuggestion>,
+    aiReviewedQuestionIds: List<String>,
+    aiAnalyzedQuestionIds: List<String>,
+    aiAnalysisAppliedQuestionIds: List<String>,
     filter: ReviewFilter,
     currentIndex: Int,
     onFilterChange: (ReviewFilter) -> Unit,
@@ -1357,7 +1682,16 @@ private fun NativeQuestionReviewScreen(
 
     val allIndices = questions.indices.toList()
     val filteredIndices = questions.indices.filter { index ->
-        questionMatchesFilter(questions[index], warningsForQuestion(questions[index], warnings), filter)
+        val candidate = questions[index]
+        questionMatchesFilter(
+            question = candidate,
+            warnings = warningsForQuestion(candidate, warnings),
+            filter = filter,
+            aiSuggestions = aiSuggestionsForQuestion(candidate, aiSuggestions),
+            aiReviewedQuestionIds = aiReviewedQuestionIds,
+            aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+            aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
+        )
     }
     val visibleIndices = if (filter == ReviewFilter.ALL) allIndices else filteredIndices
     val safeIndex = when {
@@ -1371,9 +1705,6 @@ private fun NativeQuestionReviewScreen(
     val questionWarnings = warningsForQuestion(question, warnings)
     val questionAiSuggestions = aiSuggestions.filter { it.questionId == question.id && isActionableAiSuggestion(it) }
     val visiblePosition = visibleIndices.indexOf(safeIndex).takeIf { it >= 0 } ?: 0
-    val anomalyIndices = questions.indices.filter { index ->
-        questionMatchesFilter(questions[index], warningsForQuestion(questions[index], warnings), ReviewFilter.ANOMALY)
-    }
 
     Column(
         modifier = Modifier
@@ -1400,7 +1731,15 @@ private fun NativeQuestionReviewScreen(
             ) {
                 ReviewFilter.values().forEach { item ->
                     ReviewTypeChip(
-                        text = "${reviewFilterLabel(item)} ${reviewFilterCount(questions, warnings, item)}",
+                        text = "${reviewFilterLabel(item)} ${reviewFilterCount(
+                            questions = questions,
+                            warnings = warnings,
+                            aiSuggestions = aiSuggestions,
+                            aiReviewedQuestionIds = aiReviewedQuestionIds,
+                            aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                            aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
+                            filter = item
+                        )}",
                         selected = filter == item,
                         onClick = { onFilterChange(item) }
                     )
@@ -1487,26 +1826,6 @@ private fun NativeQuestionReviewScreen(
                     }
                 )
             }
-            if (anomalyIndices.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ReviewCompactButton(
-                        icon = Icons.Rounded.ArrowBack,
-                        text = "上一异常",
-                        modifier = Modifier.weight(1f),
-                        onClick = { previousIndexInList(anomalyIndices, safeIndex)?.let(onIndexChange) }
-                    )
-                    ReviewCompactButton(
-                        icon = Icons.Rounded.ArrowForward,
-                        text = "下一异常",
-                        modifier = Modifier.weight(1f),
-                        onClick = { nextIndexInList(anomalyIndices, safeIndex)?.let(onIndexChange) }
-                    )
-                }
-            }
         }
 
         if (filter != ReviewFilter.ALL && visibleIndices.size > 1) {
@@ -1531,6 +1850,37 @@ private fun NativeQuestionReviewScreen(
                     NoticeCard(displayImportWarningMessage(warning.message), warning = warning.level != WarningLevel.NORMAL)
                     Spacer(Modifier.height(8.dp))
                 }
+            }
+        }
+
+        if (question.id in aiReviewedQuestionIds.toSet() && questionAiSuggestions.isEmpty()) {
+            GlassCard {
+                Text(
+                    text = "AI 核对状态",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(10.dp))
+                NoticeCard("AI 已核对本题：未发现需要显示的重点问题。", warning = false)
+            }
+        }
+
+        if (shouldApplyAiAnalysis(question) || question.id in aiAnalyzedQuestionIds.toSet() || question.id in aiAnalysisAppliedQuestionIds.toSet()) {
+            GlassCard {
+                Text(
+                    text = "AI 解析状态",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(10.dp))
+                NoticeCard(
+                    text = analysisStatusText(
+                        question = question,
+                        aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                        aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
+                    ),
+                    warning = shouldApplyAiAnalysis(question) && question.id !in aiAnalysisAppliedQuestionIds.toSet()
+                )
             }
         }
 
@@ -1841,12 +2191,92 @@ private fun AiReviewSuggestionCard(
 }
 
 
+private data class AiRefactorApplyResult(
+    val refactorResult: AiRefactorResult,
+    val reparsedResult: ImportResult?
+)
+
 private fun shouldShowAiStatusInImport(text: String): Boolean {
     return text.startsWith("AI ") ||
         text.startsWith("AI核对") ||
         text.startsWith("AI解析") ||
+        text.contains("AI 重构") ||
         text.contains("AI 核对") ||
         text.contains("AI 解析")
+}
+
+
+private fun aiRefactorImportWarnings(
+    notes: List<String>,
+    baseMessage: String = "AI重构已生成新的待核对结果，请人工确认题量、题干、选项、答案和解析后再保存。"
+): List<ImportWarning> {
+    val base = listOf(
+        ImportWarning(
+            level = WarningLevel.WARNING,
+            questionNumber = null,
+            message = baseMessage
+        )
+    )
+    val noteWarnings = notes.take(10).map { note ->
+        ImportWarning(
+            level = WarningLevel.WARNING,
+            questionNumber = null,
+            message = "AI重构提示：$note"
+        )
+    }
+    return dedupeImportWarnings(base + noteWarnings)
+}
+
+private fun aiSuggestionsForQuestion(
+    question: Question,
+    suggestions: List<AiReviewSuggestion>
+): List<AiReviewSuggestion> {
+    return suggestions.filter { it.questionId == question.id && isActionableAiSuggestion(it) }
+}
+
+private fun isHardErrorAiSuggestion(suggestion: AiReviewSuggestion): Boolean {
+    return suggestion.riskLevel.equals("hard_error", ignoreCase = true)
+}
+
+private fun isNeedHumanReviewAiSuggestion(suggestion: AiReviewSuggestion): Boolean {
+    return isActionableAiSuggestion(suggestion) && (
+        suggestion.needHumanReview ||
+            !canApplyAiSuggestion(suggestion) ||
+            (suggestion.riskLevel.equals("needs_confirm", ignoreCase = true) || suggestion.riskLevel.equals("needs_review", ignoreCase = true))
+        )
+}
+
+private fun importPreviewQuestionTags(
+    question: Question,
+    aiSuggestions: List<AiReviewSuggestion>,
+    aiReviewedQuestionIds: List<String>,
+    aiAnalyzedQuestionIds: List<String>,
+    aiAnalysisAppliedQuestionIds: List<String>
+): String {
+    val tags = mutableListOf<String>()
+    if (shouldApplyAiAnalysis(question)) tags += "缺/短解析"
+    if (question.id in aiReviewedQuestionIds.toSet()) tags += "AI已核对"
+    if (question.id in aiReviewedQuestionIds.toSet() && aiSuggestions.isEmpty()) tags += "未发现重点问题"
+    if (question.id in aiAnalyzedQuestionIds.toSet()) tags += "AI已尝试解析"
+    if (question.id in aiAnalysisAppliedQuestionIds.toSet()) tags += "AI已补解析"
+    if (aiSuggestions.isNotEmpty()) tags += "AI建议"
+    if (aiSuggestions.any(::canApplyAiSuggestion)) tags += "可采纳"
+    if (aiSuggestions.any(::isNeedHumanReviewAiSuggestion)) tags += "需确认"
+    if (aiSuggestions.any(::isHardErrorAiSuggestion)) tags += "AI硬错误"
+    return tags.distinct().joinToString(" · ")
+}
+
+private fun analysisStatusText(
+    question: Question,
+    aiAnalyzedQuestionIds: List<String>,
+    aiAnalysisAppliedQuestionIds: List<String>
+): String {
+    val parts = mutableListOf<String>()
+    if (shouldApplyAiAnalysis(question)) parts += "当前仍缺少有效解析或解析偏短"
+    if (question.id in aiAnalyzedQuestionIds.toSet()) parts += "AI 已尝试解析本题"
+    if (question.id in aiAnalysisAppliedQuestionIds.toSet()) parts += "AI 已写入补充解析，保存前请人工确认"
+    if (parts.isEmpty()) parts += "当前解析长度基本正常"
+    return parts.joinToString("；")
 }
 
 private fun suggestionsToImportWarnings(
@@ -1894,7 +2324,25 @@ private fun mergeAiWarnings(
         if (warningQuestionId != null) warningQuestionId in processedIds
         else normalizeQuestionNumber(warning.questionNumber.orEmpty()) in processedNumbers
     }
-    return keptWarnings + aiWarnings
+    return dedupeImportWarnings(keptWarnings + aiWarnings)
+}
+
+private fun dedupeImportWarnings(warnings: List<ImportWarning>): List<ImportWarning> {
+    val seen = mutableSetOf<String>()
+    return warnings.filter { warning ->
+        val key = listOf(
+            warning.level.name,
+            normalizeQuestionNumber(warning.questionNumber.orEmpty()),
+            normalizeImportWarningForDedupe(warning.message)
+        ).joinToString("|")
+        seen.add(key)
+    }
+}
+
+private fun normalizeImportWarningForDedupe(message: String): String {
+    return displayImportWarningMessage(message)
+        .replace(Regex("\\s+"), "")
+        .trim('；', ';', '。', ' ', '\n', '\t')
 }
 
 private fun isAiImportWarning(warning: ImportWarning): Boolean {
@@ -2084,8 +2532,15 @@ private enum class ReviewFilter {
     ALL,
     ANOMALY,
     NO_ANSWER,
+    MISSING_ANALYSIS,
     IMAGE,
-    HARD_ERROR
+    HARD_ERROR,
+    AI_REVIEWED,
+    AI_SUGGESTION,
+    AI_APPLICABLE,
+    AI_NEED_REVIEW,
+    AI_HARD_ERROR,
+    AI_ANALYZED
 }
 
 private fun reviewFilterFromName(name: String): ReviewFilter {
@@ -2096,53 +2551,99 @@ private fun reviewFilterLabel(filter: ReviewFilter): String = when (filter) {
     ReviewFilter.ALL -> "全部"
     ReviewFilter.ANOMALY -> "仅异常"
     ReviewFilter.NO_ANSWER -> "仅无答案"
+    ReviewFilter.MISSING_ANALYSIS -> "缺/短解析"
     ReviewFilter.IMAGE -> "仅图片题"
     ReviewFilter.HARD_ERROR -> "仅硬错误"
+    ReviewFilter.AI_REVIEWED -> "AI已核对"
+    ReviewFilter.AI_SUGGESTION -> "仅AI建议"
+    ReviewFilter.AI_APPLICABLE -> "仅可采纳"
+    ReviewFilter.AI_NEED_REVIEW -> "仅需确认"
+    ReviewFilter.AI_HARD_ERROR -> "AI硬错误"
+    ReviewFilter.AI_ANALYZED -> "AI已补解析"
 }
 
 private fun reviewFilterCount(
     questions: List<Question>,
     warnings: List<ImportWarning>,
+    aiSuggestions: List<AiReviewSuggestion> = emptyList(),
+    aiReviewedQuestionIds: List<String> = emptyList(),
+    aiAnalyzedQuestionIds: List<String> = emptyList(),
+    aiAnalysisAppliedQuestionIds: List<String> = emptyList(),
     filter: ReviewFilter
 ): Int {
     if (filter == ReviewFilter.ALL) return questions.size
     return questions.indices.count { index ->
-        questionMatchesFilter(questions[index], warningsForQuestion(questions[index], warnings), filter)
+        val question = questions[index]
+        questionMatchesFilter(
+            question = question,
+            warnings = warningsForQuestion(question, warnings),
+            filter = filter,
+            aiSuggestions = aiSuggestionsForQuestion(question, aiSuggestions),
+            aiReviewedQuestionIds = aiReviewedQuestionIds,
+            aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+            aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
+        )
     }
 }
 
 private fun firstMatchingQuestionIndex(
     questions: List<Question>,
     warnings: List<ImportWarning>,
+    aiSuggestions: List<AiReviewSuggestion> = emptyList(),
+    aiReviewedQuestionIds: List<String> = emptyList(),
+    aiAnalyzedQuestionIds: List<String> = emptyList(),
+    aiAnalysisAppliedQuestionIds: List<String> = emptyList(),
     filter: ReviewFilter
 ): Int? {
     if (filter == ReviewFilter.ALL) return questions.indices.firstOrNull()
     return questions.indices.firstOrNull { index ->
-        questionMatchesFilter(questions[index], warningsForQuestion(questions[index], warnings), filter)
+        val question = questions[index]
+        questionMatchesFilter(
+            question = question,
+            warnings = warningsForQuestion(question, warnings),
+            filter = filter,
+            aiSuggestions = aiSuggestionsForQuestion(question, aiSuggestions),
+            aiReviewedQuestionIds = aiReviewedQuestionIds,
+            aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+            aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
+        )
     }
 }
 
 private fun warningsForQuestion(question: Question, warnings: List<ImportWarning>): List<ImportWarning> {
-    return warnings.filter { warning ->
-        if (isAiImportWarning(warning)) {
-            aiWarningBelongsToQuestion(warning, question)
-        } else {
-            normalizeQuestionNumber(warning.questionNumber.orEmpty()) == normalizeQuestionNumber(question.number)
+    return dedupeImportWarnings(
+        warnings.filter { warning ->
+            if (isAiImportWarning(warning)) {
+                aiWarningBelongsToQuestion(warning, question)
+            } else {
+                normalizeQuestionNumber(warning.questionNumber.orEmpty()) == normalizeQuestionNumber(question.number)
+            }
         }
-    }
+    )
 }
 
 private fun questionMatchesFilter(
     question: Question,
     warnings: List<ImportWarning>,
-    filter: ReviewFilter
+    filter: ReviewFilter,
+    aiSuggestions: List<AiReviewSuggestion> = emptyList(),
+    aiReviewedQuestionIds: List<String> = emptyList(),
+    aiAnalyzedQuestionIds: List<String> = emptyList(),
+    aiAnalysisAppliedQuestionIds: List<String> = emptyList()
 ): Boolean {
     return when (filter) {
         ReviewFilter.ALL -> true
         ReviewFilter.ANOMALY -> hasReviewAnomaly(question, warnings)
         ReviewFilter.NO_ANSWER -> question.answer.isEmpty()
+        ReviewFilter.MISSING_ANALYSIS -> shouldApplyAiAnalysis(question)
         ReviewFilter.IMAGE -> question.images.isNotEmpty()
         ReviewFilter.HARD_ERROR -> hasHardReviewError(question, warnings)
+        ReviewFilter.AI_REVIEWED -> question.id in aiReviewedQuestionIds.toSet()
+        ReviewFilter.AI_SUGGESTION -> aiSuggestions.any(::isActionableAiSuggestion)
+        ReviewFilter.AI_APPLICABLE -> aiSuggestions.any(::canApplyAiSuggestion)
+        ReviewFilter.AI_NEED_REVIEW -> aiSuggestions.any(::isNeedHumanReviewAiSuggestion)
+        ReviewFilter.AI_HARD_ERROR -> aiSuggestions.any(::isHardErrorAiSuggestion)
+        ReviewFilter.AI_ANALYZED -> question.id in aiAnalysisAppliedQuestionIds.toSet()
     }
 }
 
