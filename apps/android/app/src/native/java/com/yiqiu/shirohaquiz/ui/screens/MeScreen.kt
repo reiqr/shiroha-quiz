@@ -479,9 +479,13 @@ fun PersonalPreferenceScreen(
 @Composable
 private fun AiSettingsPanel(context: Context) {
     var provider by remember { mutableStateOf(QuizRepository.aiProvider) }
-    var apiBaseUrl by remember { mutableStateOf(QuizRepository.aiApiBaseUrl) }
+    var apiBaseUrl by remember {
+        mutableStateOf(QuizRepository.aiApiBaseUrl.ifBlank { aiProviderPreset(QuizRepository.aiProvider)?.apiBaseUrl.orEmpty() })
+    }
     var apiKey by remember { mutableStateOf(QuizRepository.aiApiKey) }
-    var modelName by remember { mutableStateOf(QuizRepository.aiModelName) }
+    var modelName by remember {
+        mutableStateOf(QuizRepository.aiModelName.ifBlank { aiProviderPreset(QuizRepository.aiProvider)?.modelName.orEmpty() })
+    }
     var maxQuestions by remember { mutableStateOf(QuizRepository.aiMaxQuestions.toString()) }
     var timeoutSeconds by remember { mutableStateOf(QuizRepository.aiTimeoutSeconds.toString()) }
     var statusText by remember { mutableStateOf<String?>(null) }
@@ -517,8 +521,27 @@ private fun AiSettingsPanel(context: Context) {
         Spacer(Modifier.height(10.dp))
         AiProviderChoiceRow(
             selectedProvider = provider,
-            onProviderChange = { selected -> provider = selected }
+            onProviderChange = { selected ->
+                provider = selected
+                aiProviderPreset(selected)?.let { preset ->
+                    if (shouldReplaceAiEndpoint(apiBaseUrl)) apiBaseUrl = preset.apiBaseUrl
+                    if (shouldReplaceAiModel(modelName)) modelName = preset.modelName
+                    statusText = "已切换到 $selected，并填入推荐地址和模型；如使用代理或兼容服务，可继续手动修改。"
+                    statusWarning = false
+                } ?: run {
+                    statusText = "已切换到自定义接口，请按服务商要求填写 API 地址和模型名称。"
+                    statusWarning = false
+                }
+            }
         )
+        aiProviderPreset(provider)?.let { preset ->
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = preset.hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             value = apiBaseUrl,
@@ -730,6 +753,41 @@ private fun AiProviderChoiceRow(
             onClick = { onProviderChange(providers.last()) }
         )
     }
+}
+
+private data class AiProviderPreset(
+    val apiBaseUrl: String,
+    val modelName: String,
+    val hint: String
+)
+
+private fun aiProviderPreset(provider: String): AiProviderPreset? = when (provider) {
+    "DeepSeek" -> AiProviderPreset(
+        apiBaseUrl = "https://api.deepseek.com",
+        modelName = "deepseek-chat",
+        hint = "DeepSeek 推荐地址：https://api.deepseek.com；默认模型：deepseek-chat。"
+    )
+    "OpenAI 兼容" -> AiProviderPreset(
+        apiBaseUrl = "https://api.openai.com/v1",
+        modelName = "gpt-4o-mini",
+        hint = "OpenAI 兼容接口通常填写到 /v1，程序会自动拼接 /chat/completions。"
+    )
+    else -> null
+}
+
+private fun shouldReplaceAiEndpoint(value: String): Boolean {
+    val clean = value.trim().trimEnd('/')
+    return clean.isBlank() || clean in setOf(
+        "https://api.example.com/v1",
+        "https://api.deepseek.com",
+        "https://api.deepseek.com/v1",
+        "https://api.openai.com/v1"
+    )
+}
+
+private fun shouldReplaceAiModel(value: String): Boolean {
+    val clean = value.trim()
+    return clean.isBlank() || clean in setOf("deepseek-chat", "gpt-4o-mini")
 }
 
 
