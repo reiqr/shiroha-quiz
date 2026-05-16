@@ -8,7 +8,7 @@
 
 <img src="assets/shiroha_quiz_ui_assets_v2_cutout/illus_home_welcome.png" width="160" align="right" alt="看板娘" />
 
-Shiroha Quiz 是一个轻量、开源的通用刷题工具，支持自导入题库、练习、考试、错题复习与多端使用。
+Shiroha Quiz 是一个轻量、开源的通用刷题工具，支持自导入题库、练习、考试、与多端使用。
 
 Shiroha Quiz 解决一个很实际的问题：
 
