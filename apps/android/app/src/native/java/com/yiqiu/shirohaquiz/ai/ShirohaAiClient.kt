@@ -231,8 +231,8 @@ object ShirohaAiClient {
 
     private fun normalizeChatEndpoint(apiBaseUrl: String): String {
         val clean = apiBaseUrl.trim().trimEnd('/')
-        require(clean.startsWith("http://") || clean.startsWith("https://")) {
-            "API 地址必须以 http:// 或 https:// 开头。"
+        require(clean.startsWith("https://")) {
+            "API 地址必须以 https:// 开头，不支持明文 HTTP。"
         }
         return if (clean.endsWith("/chat/completions")) clean else "$clean/chat/completions"
     }
