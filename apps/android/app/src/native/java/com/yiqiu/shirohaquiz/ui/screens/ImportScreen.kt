@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.RemoveCircle
 import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -1309,17 +1310,41 @@ private fun FullImportTextEditorScreen(
     onValueChange: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    var showFindReplaceDialog by rememberSaveable { mutableStateOf(false) }
+    var findText by rememberSaveable { mutableStateOf("") }
+    var replaceText by rememberSaveable { mutableStateOf("") }
+    var useRegexFind by rememberSaveable { mutableStateOf(false) }
+    var findReplaceError by rememberSaveable { mutableStateOf<String?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
         verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
     ) {
-        ShirohaHeader(
-            kicker = "Edit",
-            title = title,
-            subtitle = ""
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Sm)) {
+            Text(
+                text = "Edit",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelLarge
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(12.dp))
+                EditorSaveButton(onClick = onBack)
+            }
+        }
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1344,14 +1369,10 @@ private fun FullImportTextEditorScreen(
                         modifier = Modifier.weight(1f)
                     )
                     ActionPillButton(
-                        icon = Icons.Rounded.CheckCircle,
-                        text = "完成",
-                        primary = true,
-                        modifier = Modifier
-                            .width(128.dp)
-                            .height(ShirohaDimens.ActionButtonMinHeight),
-                        fillWidthContent = true,
-                        onClick = onBack
+                        icon = Icons.Rounded.Search,
+                        text = "查找",
+                        primary = false,
+                        onClick = { showFindReplaceDialog = true }
                     )
                 }
                 Spacer(Modifier.height(12.dp))
@@ -1366,6 +1387,127 @@ private fun FullImportTextEditorScreen(
                     placeholder = { Text(placeholder) }
                 )
             }
+        }
+    }
+
+    if (showFindReplaceDialog) {
+        AlertDialog(
+            onDismissRequest = { showFindReplaceDialog = false },
+            title = { Text("查找 / 替换") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = findText,
+                        onValueChange = { findText = it },
+                        label = { Text("查找内容") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = replaceText,
+                        onValueChange = { replaceText = it },
+                        label = { Text("替换内容（留空则删除）") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (useRegexFind) "正则模式已开启" else "普通文本匹配",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = {
+                            useRegexFind = !useRegexFind
+                            findReplaceError = null
+                        }) {
+                            Text(if (useRegexFind) "关闭正则" else "使用正则")
+                        }
+                    }
+                    Text(
+                        text = if (useRegexFind) {
+                            "会按正则表达式替换全部匹配内容；替换内容不填时，将直接删除匹配文本。"
+                        } else {
+                            "会替换全部匹配内容；替换内容不填时，将直接删除匹配文本。"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    findReplaceError?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = findText.isNotBlank(),
+                    onClick = {
+                        val updatedText = if (useRegexFind) {
+                            runCatching { Regex(findText).replace(value, replaceText) }
+                                .onFailure { error ->
+                                    findReplaceError = "正则表达式无效：${error.message ?: "请检查语法"}"
+                                }
+                                .getOrNull()
+                        } else {
+                            value.replace(findText, replaceText)
+                        }
+                        if (updatedText != null) {
+                            onValueChange(updatedText)
+                            findReplaceError = null
+                            showFindReplaceDialog = false
+                        }
+                    }
+                ) {
+                    Text(if (replaceText.isBlank()) "删除" else "全部替换")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFindReplaceDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun EditorSaveButton(onClick: () -> Unit) {
+    val shape = RoundedCornerShape(ShirohaRadius.Pill)
+    Surface(
+        modifier = Modifier
+            .height(38.dp)
+            .clickable(onClick = onClick),
+        shape = shape,
+        color = MaterialTheme.colorScheme.primary,
+        border = BorderStroke(ShirohaDimens.Hairline, MaterialTheme.colorScheme.primary)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 0.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Save,
+                contentDescription = "保存更改",
+                modifier = Modifier.size(16.dp),
+                tint = ShirohaColors.TextOnBrand
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                text = "保存更改",
+                color = ShirohaColors.TextOnBrand,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -1680,23 +1822,33 @@ private fun NativeQuestionReviewScreen(
         return
     }
 
+    val activeFilterCount = reviewFilterCount(
+        questions = questions,
+        warnings = warnings,
+        aiSuggestions = aiSuggestions,
+        aiReviewedQuestionIds = aiReviewedQuestionIds,
+        aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+        aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
+        filter = filter
+    )
+    val activeFilter = if (filter != ReviewFilter.ALL && activeFilterCount <= 0) ReviewFilter.ALL else filter
     val allIndices = questions.indices.toList()
     val filteredIndices = questions.indices.filter { index ->
         val candidate = questions[index]
         questionMatchesFilter(
             question = candidate,
             warnings = warningsForQuestion(candidate, warnings),
-            filter = filter,
+            filter = activeFilter,
             aiSuggestions = aiSuggestionsForQuestion(candidate, aiSuggestions),
             aiReviewedQuestionIds = aiReviewedQuestionIds,
             aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
             aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
         )
     }
-    val visibleIndices = if (filter == ReviewFilter.ALL) allIndices else filteredIndices
+    val visibleIndices = if (activeFilter == ReviewFilter.ALL) allIndices else filteredIndices
     val safeIndex = when {
         questions.isEmpty() -> 0
-        filter == ReviewFilter.ALL -> currentIndex.coerceIn(0, questions.lastIndex)
+        activeFilter == ReviewFilter.ALL -> currentIndex.coerceIn(0, questions.lastIndex)
         currentIndex in visibleIndices -> currentIndex
         visibleIndices.isNotEmpty() -> visibleIndices.first()
         else -> currentIndex.coerceIn(0, questions.lastIndex)
@@ -1730,28 +1882,31 @@ private fun NativeQuestionReviewScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ReviewFilter.values().forEach { item ->
-                    ReviewTypeChip(
-                        text = "${reviewFilterLabel(item)} ${reviewFilterCount(
-                            questions = questions,
-                            warnings = warnings,
-                            aiSuggestions = aiSuggestions,
-                            aiReviewedQuestionIds = aiReviewedQuestionIds,
-                            aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
-                            aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
-                            filter = item
-                        )}",
-                        selected = filter == item,
-                        onClick = { onFilterChange(item) }
+                    val count = reviewFilterCount(
+                        questions = questions,
+                        warnings = warnings,
+                        aiSuggestions = aiSuggestions,
+                        aiReviewedQuestionIds = aiReviewedQuestionIds,
+                        aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                        aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds,
+                        filter = item
                     )
+                    if (item == ReviewFilter.ALL || count > 0) {
+                        ReviewTypeChip(
+                            text = "${reviewFilterLabel(item)} $count",
+                            selected = activeFilter == item,
+                            onClick = { onFilterChange(item) }
+                        )
+                    }
                 }
             }
-            if (filter != ReviewFilter.ALL && visibleIndices.isEmpty()) {
+            if (activeFilter != ReviewFilter.ALL && visibleIndices.isEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 NoticeCard("当前筛选下没有需要核对的题目，可以切换到“全部”继续浏览。", warning = false)
             }
         }
 
-        if (filter != ReviewFilter.ALL && visibleIndices.isEmpty()) {
+        if (activeFilter != ReviewFilter.ALL && visibleIndices.isEmpty()) {
             ActionPillButton(
                 icon = Icons.Rounded.ArrowBack,
                 text = "返回导入页",
@@ -1779,8 +1934,8 @@ private fun NativeQuestionReviewScreen(
                             append(typeLabel(question.type))
                             append(" · 答案：")
                             append(answerDisplayText(question))
-                            if (filter != ReviewFilter.ALL) {
-                                append(" · ${reviewFilterLabel(filter)} ${visiblePosition + 1}/${visibleIndices.size}")
+                            if (activeFilter != ReviewFilter.ALL) {
+                                append(" · ${reviewFilterLabel(activeFilter)} ${visiblePosition + 1}/${visibleIndices.size}")
                             }
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -1809,7 +1964,7 @@ private fun NativeQuestionReviewScreen(
                 )
                 ReviewCompactButton(
                     icon = Icons.Rounded.ArrowBack,
-                    text = if (filter == ReviewFilter.ALL) "上一题" else "上一条",
+                    text = if (activeFilter == ReviewFilter.ALL) "上一题" else "上一条",
                     modifier = Modifier.weight(1f),
                     onClick = {
                         val target = previousIndexInList(visibleIndices, safeIndex) ?: (safeIndex - 1)
@@ -1818,7 +1973,7 @@ private fun NativeQuestionReviewScreen(
                 )
                 ReviewCompactButton(
                     icon = Icons.Rounded.ArrowForward,
-                    text = if (filter == ReviewFilter.ALL) "下一题" else "下一条",
+                    text = if (activeFilter == ReviewFilter.ALL) "下一题" else "下一条",
                     modifier = Modifier.weight(1f),
                     onClick = {
                         val target = nextIndexInList(visibleIndices, safeIndex) ?: (safeIndex + 1)
@@ -1828,7 +1983,7 @@ private fun NativeQuestionReviewScreen(
             }
         }
 
-        if (filter != ReviewFilter.ALL && visibleIndices.size > 1) {
+        if (activeFilter != ReviewFilter.ALL && visibleIndices.size > 1) {
             ReviewFilteredJumpList(
                 questions = questions,
                 indices = visibleIndices,

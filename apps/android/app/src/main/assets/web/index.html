@@ -117,7 +117,7 @@
             <label>题库名称<input id="import-bank-name" placeholder="例如：安全培训题库" /></label>
             <label>识别模式<select id="import-mode"><option value="auto">自动识别</option><option value="wenjuanxing">问卷星/考试星</option><option value="normal">普通题库</option><option value="json">JSON</option></select></label>
             <label>解析策略<select id="import-strategy"><option value="auto" selected>自动推荐</option><option value="standard">标准逐行解析</option><option value="volume">分卷分区三层解析</option><option value="compact">紧凑格式解析</option></select></label>
-            <label>上传文件<input id="import-file" type="file" accept=".txt,.json,.csv,.docx,.doc,.pdf" /></label>
+            <label>上传文件<input id="import-file" type="file" accept=".txt,.json,.csv,.xlsx,.xls,.xlsm,.docx,.doc,.pdf" /></label>
           </div>
           <textarea id="import-text" placeholder="把题库文本粘贴到这里，或上传 Word .docx / 文字型 PDF 后自动提取文本。支持：A、选项(正确答案)、答案：D、答案：A/B/C、解析：……"></textarea>
           <div class="actions"><button id="parse-import-btn" class="primary">开始识别</button><button id="confirm-import-btn" class="primary" disabled>确认导入</button><button id="clear-import-btn" class="ghost">清空</button></div>
@@ -162,10 +162,11 @@ C. 判断题
           </div>
         </details>
         <div class="card import-preview-card">
-          <div class="section-head"><div><h2>识别结果预览</h2><p class="muted">核对题型、答案和异常提示后再导入。</p></div><div class="row-actions"><button id="import-preview-focus-btn" class="ghost">沉浸核对</button><label class="inline-filter">筛选<select id="import-preview-filter"><option value="priority">异常优先</option><option value="problem">仅异常</option><option value="normal">仅正常</option><option value="all">全部</option></select></label><button id="batch-delete-import-btn" class="ghost danger" disabled>删除选中</button><button id="clear-import-selection-btn" class="ghost" disabled>清空选择</button><button id="revalidate-import-btn" class="ghost">重新校验</button></div></div>
+          <div class="section-head"><div><h2>识别结果预览</h2><p class="muted">核对题型、答案和异常提示后再导入。</p></div><div class="row-actions import-review-toolbar"><label class="inline-filter">筛选<select id="import-preview-filter"><option value="priority">异常优先</option><option value="problem">仅异常</option><option value="normal">仅正常</option><option value="all">全部</option></select></label><button id="batch-delete-import-btn" class="ghost danger" disabled>删除选中</button><button id="clear-import-selection-btn" class="ghost" disabled>清空选择</button><button id="import-preview-focus-btn" class="ghost">沉浸核对</button><button id="revalidate-import-btn" class="ghost">重新校验</button></div></div>
           <div id="import-summary" class="notice">尚未识别到题目。</div>
           <div id="import-report-panel" class="report-panel hidden"></div>
           <div class="table-wrap"><table id="import-preview"><thead><tr><th><input type="checkbox" id="import-select-all-visible" title="选择当前显示"></th><th>序号</th><th>题型</th><th>题干</th><th>选项数</th><th>答案</th><th>状态</th><th>操作</th></tr></thead><tbody></tbody></table></div>
+          <div id="import-preview-mobile" class="import-preview-mobile-list"></div>
         </div>
       </section>
 

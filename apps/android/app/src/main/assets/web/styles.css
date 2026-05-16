@@ -7687,3 +7687,169 @@ body.exam-focus .exam-q{
     line-height:29px!important;
   }
 }
+
+/* SHIROHA_WEBVIEW_V20_IMPORT_REVIEW_MOBILE_CARDS_START
+   WebView App：导入识别结果移动端沉浸核对改为卡片式列表，并调整顶部操作顺序。 */
+.import-preview-mobile-list{
+  display:none;
+}
+
+@media(max-width:720px){
+  #import .import-preview-card .import-review-toolbar{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:8px !important;
+    width:100% !important;
+    margin:0 !important;
+  }
+  #import .import-preview-card .import-review-toolbar .inline-filter{
+    grid-column:1/-1 !important;
+    display:grid !important;
+    grid-template-columns:auto minmax(0,1fr) !important;
+    align-items:center !important;
+    gap:8px !important;
+  }
+  #import .import-preview-card .import-review-toolbar button,
+  #import .import-preview-card .import-review-toolbar select{
+    width:100% !important;
+    min-height:40px !important;
+    height:40px !important;
+    border-radius:16px !important;
+    font-size:13px !important;
+    padding:0 10px !important;
+    white-space:nowrap !important;
+  }
+
+  body.import-preview-focus #import .import-preview-card .import-review-toolbar{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:7px !important;
+  }
+  body.import-preview-focus #import .import-preview-card .import-review-toolbar .inline-filter{
+    grid-column:1/-1 !important;
+  }
+  body.import-preview-focus #import .import-preview-card .import-review-toolbar button,
+  body.import-preview-focus #import .import-preview-card .import-review-toolbar select{
+    min-height:38px !important;
+    height:38px !important;
+    font-size:12px !important;
+    border-radius:14px !important;
+    padding:0 8px !important;
+  }
+
+  body.import-preview-focus #import .import-preview-card .table-wrap{
+    display:none !important;
+  }
+  body.import-preview-focus #import .import-preview-mobile-list{
+    display:flex !important;
+    flex:1 1 auto !important;
+    min-height:0 !important;
+    overflow:auto !important;
+    -webkit-overflow-scrolling:touch !important;
+    flex-direction:column !important;
+    gap:10px !important;
+    padding:2px 0 6px !important;
+  }
+  .import-preview-item{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    gap:10px;
+    padding:12px;
+    border:1px solid rgba(47,111,237,.13);
+    border-radius:18px;
+    background:rgba(255,255,255,.94);
+    box-shadow:0 8px 22px rgba(24,58,108,.07);
+  }
+  .import-preview-item.issue-card{
+    border-color:rgba(245,158,11,.24);
+    background:linear-gradient(180deg,rgba(255,251,235,.95),rgba(255,255,255,.96));
+  }
+  .import-preview-item.error-card{
+    border-color:rgba(239,68,68,.24);
+    background:linear-gradient(180deg,rgba(255,241,242,.95),rgba(255,255,255,.96));
+  }
+  .import-preview-check{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:5px;
+    color:#6b7b91;
+    font-size:11px;
+    font-weight:800;
+    line-height:1;
+    padding-top:2px;
+  }
+  .import-preview-check input{
+    width:18px;
+    height:18px;
+    margin:0;
+    accent-color:#2f6fed;
+  }
+  .import-preview-item-main{
+    min-width:0;
+  }
+  .import-preview-item-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:8px;
+    margin-bottom:6px;
+  }
+  .import-preview-item-head b{
+    min-width:0;
+    color:#11253f;
+    font-size:14px;
+    line-height:1.35;
+  }
+  .import-preview-item-head span{
+    flex:0 0 auto;
+    font-size:12px;
+    font-weight:900;
+    white-space:nowrap;
+  }
+  .import-preview-meta{
+    margin-bottom:5px;
+    color:#6b7b91;
+    font-size:12px;
+    line-height:1.35;
+  }
+  .import-preview-question{
+    color:#172033;
+    font-size:13px;
+    line-height:1.55;
+    word-break:break-word;
+    overflow-wrap:anywhere;
+  }
+  .import-preview-meta-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;
+    margin-top:9px;
+    color:#526174;
+    font-size:12px;
+    line-height:1.35;
+  }
+  .import-preview-meta-grid span{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    padding:7px 9px;
+    border-radius:12px;
+    background:rgba(47,111,237,.06);
+  }
+  .import-card-actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin-top:10px;
+  }
+  .import-card-actions button{
+    min-height:34px !important;
+    height:34px !important;
+    width:100% !important;
+    border-radius:14px !important;
+    padding:0 10px !important;
+    font-size:12px !important;
+  }
+}
+/* SHIROHA_WEBVIEW_V20_IMPORT_REVIEW_MOBILE_CARDS_END */

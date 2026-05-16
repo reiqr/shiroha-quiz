@@ -6,7 +6,7 @@ const LEGACY_KEYS=[];
 const CLEAR_STORAGE_KEYS=['shiroha_quiz_state','uquiz_state_v8_c1'];
 const TYPE_LABEL={single:'单选题',multiple:'多选题',multi:'多选题',judge:'判断题',blank:'填空题',short:'简答题',short_answer:'简答题'};
 const state=loadState();
-let importCache=[];let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let bankEditContext=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};
+let importCache=[];let tableImportResultV49=null;let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let bankEditContext=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 init();
 function init(){upgradeState();ensureDefaultBank();bindNav();bindEvents();bindDashboardStudyPanel();setupQuestionImageViewerV302();renderBankSelect();renderAll();setupEnhancedDataToolsV23();}
@@ -88,7 +88,7 @@ function bindNav(){ $$('.nav').forEach(btn=>btn.onclick=()=>{
 });}
 function bindEvents(){
 $('#active-bank-select').onchange=e=>{state.activeBankId=e.target.value;saveSilent();renderAll()};const importNameInput=$('#import-bank-name');if(importNameInput)importNameInput.addEventListener('input',()=>{importNameInput.dataset.autoName='0'});$('#save-all-btn').onclick=saveState;
-$('#load-sample-btn').onclick=loadSample;$('#import-file').onchange=readImportFile;$('#parse-import-btn').onclick=parseImport;$('#confirm-import-btn').onclick=confirmImport;const dualConfirmBtn=$('#dual-confirm-import-btn');if(dualConfirmBtn)dualConfirmBtn.onclick=confirmImport;$('#clear-import-btn').onclick=clearImportWorkspace;
+$('#load-sample-btn').onclick=loadSample;$('#import-file').onchange=readImportFile;$('#parse-import-btn').onclick=parseImport;$('#confirm-import-btn').onclick=confirmImport;const dualConfirmBtn=$('#dual-confirm-import-btn');if(dualConfirmBtn)dualConfirmBtn.onclick=confirmImport;const importTextAreaV49=$('#import-text');if(importTextAreaV49)importTextAreaV49.addEventListener('input',()=>{if(importTextAreaV49.dataset.tableImportV49==='1'){tableImportResultV49=null;delete importTextAreaV49.dataset.tableImportV49;}});$('#clear-import-btn').onclick=clearImportWorkspace;
 $('#dual-question-file').onchange=e=>readDualFile(e,'question');$('#dual-answer-file').onchange=e=>readDualFile(e,'answer');$('#parse-dual-import-btn').onclick=parseDualImport;$('#clear-dual-import-btn').onclick=clearDualImportWorkspace;$('#dual-load-sample-btn').onclick=loadDualSample;$('#revalidate-import-btn').onclick=()=>renderImportPreview(importCache);
 $('#edit-close-btn').onclick=closeEditModal;$('#edit-save-btn').onclick=saveEditQuestion;$('#edit-delete-btn').onclick=deleteEditQuestion;const pf=$('#import-preview-filter');if(pf)pf.onchange=e=>{importPreviewFilter=e.target.value;renderImportPreview(importCache)};const bid=$('#batch-delete-import-btn');if(bid)bid.onclick=batchDeleteImportSelected;const cis=$('#clear-import-selection-btn');if(cis)cis.onclick=()=>{importSelected.clear();renderImportPreview(importCache)};const ipfBtn=$('#import-preview-focus-btn');if(ipfBtn)ipfBtn.onclick=toggleImportPreviewFocus;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('import-preview-focus'))toggleImportPreviewFocus(false)});
 $('#dedupe-btn').onclick=dedupeActiveBank;$('#rename-bank-btn').onclick=renameActiveBank;$('#duplicate-bank-btn').onclick=duplicateActiveBank;$('#new-empty-bank-btn').onclick=newEmptyBank;$('#merge-bank-btn').onclick=mergeBankIntoActive;$('#bank-sort-mode').onchange=renderBankList;$('#start-practice-btn').onclick=startPractice;$('#reset-practice-btn').onclick=()=>{exitPracticeFocus();$('#practice-card').innerHTML='<div class="empty">选择条件后点击“开始练习”。</div>';practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};$('#practice-progress').textContent='0 / 0'};
@@ -371,8 +371,16 @@ async function readImportFile(e){
   setImportBankNameFromFile(file.name);
   try{
     toast('正在读取文件，请稍候……','warn');
+    if(isUnsupportedSpreadsheetFileV49(file))throw new Error('暂不支持 .xls / .xlsm，请在 Excel 或 WPS 中另存为 .xlsx 或 .csv 后导入');
+    if(isTableImportFileV49(file)){
+      const result=await readTableImportFileV49(file);
+      applyTableImportResultV49(result,file.name);
+      return;
+    }
+    tableImportResultV49=null;
     const text=await readFileToText(file);
-    $('#import-text').value=text;
+    const textEl=$('#import-text');
+    if(textEl){textEl.value=text;delete textEl.dataset.tableImportV49;}
     toast(`文件读取完成：提取到 ${text.split(/\n+/).filter(Boolean).length} 行文本。请点击“开始识别”。`,'ok');
   }catch(err){
     toast('文件读取失败：'+err.message+'。可尝试复制文件内容粘贴到文本框。');
@@ -399,13 +407,316 @@ async function readFileToText(file){
   const lower=file.name.toLowerCase();
   if(lower.endsWith('.docx'))return await extractDocxText(file);
   if(lower.endsWith('.doc'))throw new Error('暂不支持旧版 .doc，请先在 Word/WPS 中另存为 .docx 后导入');
+  if(isUnsupportedSpreadsheetFileV49(file))throw new Error('暂不支持 .xls / .xlsm，请在 Excel 或 WPS 中另存为 .xlsx 或 .csv 后导入');
   if(lower.endsWith('.pdf'))return await extractPdfText(file);
+  return await readPlainTextFileV49(file);
+}
+
+function isTableImportFileV49(file){
+  const lower=String(file?.name||'').toLowerCase();
+  return lower.endsWith('.xlsx')||lower.endsWith('.csv');
+}
+function isUnsupportedSpreadsheetFileV49(file){
+  const lower=String(file?.name||'').toLowerCase();
+  return lower.endsWith('.xls')||lower.endsWith('.xlsm');
+}
+async function readPlainTextFileV49(file){
+  if(file&&typeof file.text==='function')return await file.text();
   return await new Promise((resolve,reject)=>{
     const reader=new FileReader();
     reader.onload=()=>resolve(String(reader.result||''));
     reader.onerror=()=>reject(new Error('文本读取失败'));
     reader.readAsText(file,'UTF-8');
   });
+}
+async function readTableImportFileV49(file){
+  const lower=String(file.name||'').toLowerCase();
+  let sheets=[];
+  if(lower.endsWith('.csv')){
+    const text=await readPlainTextFileV49(file);
+    sheets=[{sheetName:'CSV',rows:parseDelimitedTextRowsV49(text)}];
+  }else if(lower.endsWith('.xlsx')){
+    sheets=await extractXlsxSheetsV49(file);
+  }else throw new Error('暂不支持该表格格式，请使用 .xlsx 或 .csv');
+  return tableSheetsToQuestionsV49(sheets,file.name||'表格题库');
+}
+function applyTableImportResultV49(result,fileName){
+  tableImportResultV49=result;
+  importCache=(result.questions||[]).map((q,i)=>normalizeQuestion(q,i)).filter(q=>q.question);
+  importWarnings=[];
+  importReport=result.report||`解析策略：Excel/CSV 表格题库解析。`;
+  importDiagnostics={mode:'Excel/CSV 表格题库解析',strategy:'表格题库解析',profile:{tableImport:true},candidates:[{name:'表格题库解析',questions:importCache.length,score:importCache.length*12,warnings:collectImportWarnings(importCache)}],expected:{total:importCache.length,types:{}},stats:countTypes(importCache),warnings:result.warnings||[]};
+  importSelected.clear();
+  importPreviewFilter='priority';
+  const textEl=$('#import-text');
+  if(textEl){
+    textEl.dataset.tableImportV49='1';
+    textEl.value=tableImportPreviewTextV49(result,fileName);
+  }
+  renderImportPreview(importCache);
+  $('#confirm-import-btn').disabled=!importCache.length;
+  const warnings=collectSoftRiskWarnings(importCache, importDiagnostics.profile||{});
+  if(importCache.length)showNotice('表格识别完成',summarizeImportResult(importCache,warnings),warnings.length?'warn':'ok');
+  else showNotice('表格识别失败','没有从表格中识别到有效题目，请检查表头是否包含题干、答案、选项等字段。','danger');
+}
+function tableImportPreviewTextV49(result,fileName){
+  const sheets=(result.sheets||[]).map(s=>`${s.sheetName||'Sheet'}：${s.rows||0} 行`).join('；');
+  const sample=(result.questions||[]).slice(0,5).map((q,i)=>`${i+1}. ${q.question||''}`).join('\n');
+  return `已从表格文件解析题库：${fileName||''}\n${sheets||''}\n识别题数：${(result.questions||[]).length}\n\n预览：\n${sample}`.trim();
+}
+function parseDelimitedTextRowsV49(text){
+  text=String(text||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
+  const delimiter=detectDelimitedSeparatorV49(text);
+  const rows=[];let row=[],cell='',inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){
+      if(inQuotes&&text[i+1]==='"'){cell+='"';i++;}
+      else inQuotes=!inQuotes;
+    }else if(ch===delimiter&&!inQuotes){row.push(normalizeTableCellTextV49(cell));cell='';}
+    else if(ch==='\n'&&!inQuotes){row.push(normalizeTableCellTextV49(cell));rows.push(row);row=[];cell='';}
+    else cell+=ch;
+  }
+  row.push(normalizeTableCellTextV49(cell));
+  if(row.some(x=>String(x||'').trim()))rows.push(row);
+  return rows;
+}
+function countDelimiterOutsideQuotesV49(line,delimiter){
+  let n=0,inQuotes=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){
+      if(inQuotes&&line[i+1]==='"')i++;
+      else inQuotes=!inQuotes;
+    }else if(ch===delimiter&&!inQuotes)n++;
+  }
+  return n;
+}
+function detectDelimitedSeparatorV49(text){
+  const lines=String(text||'').split(/\n/).filter(x=>x.trim()).slice(0,20);
+  const candidates=['\t',',',';'];
+  let best=',',bestScore=-1;
+  for(const d of candidates){
+    const counts=lines.map(l=>countDelimiterOutsideQuotesV49(l,d)).filter(n=>n>0);
+    const score=counts.length*4 + counts.reduce((a,b)=>a+b,0) - (d===';'?1:0);
+    if(score>bestScore){bestScore=score;best=d;}
+  }
+  return bestScore>0?best:',';
+}
+function normalizeTableCellTextV49(s){
+  return String(s??'').replace(/\u00A0/g,' ').replace(/\r\n?/g,'\n').replace(/[ \t]+\n/g,'\n').replace(/\n[ \t]+/g,'\n').trim();
+}
+async function extractXlsxSheetsV49(file){
+  const buf=await file.arrayBuffer();
+  const entries=parseZipEntries(buf);
+  const get=async name=>{
+    const entry=entries.find(e=>e.name===name);
+    return entry?await unzipEntry(buf,entry):'';
+  };
+  const workbook=await get('xl/workbook.xml');
+  if(!workbook)throw new Error('未找到 xl/workbook.xml，可能不是有效 .xlsx 文件');
+  const rels=await get('xl/_rels/workbook.xml.rels');
+  const shared=await get('xl/sharedStrings.xml');
+  const sharedStrings=parseXlsxSharedStringsV49(shared);
+  const relMap=parseXlsxWorkbookRelsV49(rels);
+  const sheets=[];let m;
+  const sheetRe=/<sheet\b[^>]*>/g;
+  while((m=sheetRe.exec(workbook))){
+    const tag=m[0];
+    const name=decodeXml((tag.match(/name="([^"]*)"/)||[])[1]||'Sheet');
+    const rid=(tag.match(/r:id="([^"]+)"/)||[])[1]||'';
+    let target=relMap[rid]||'';
+    if(!target)continue;
+    target=target.replace(/^\//,'');
+    if(!target.startsWith('xl/'))target='xl/'+target.replace(/^\.\//,'');
+    const xml=await get(target);
+    if(!xml)continue;
+    sheets.push({sheetName:name,rows:parseXlsxSheetRowsV49(xml,sharedStrings)});
+  }
+  if(!sheets.length){
+    const fallback=entries.filter(e=>/^xl\/worksheets\/sheet\d+\.xml$/.test(e.name));
+    for(const e of fallback){
+      const xml=await unzipEntry(buf,e);
+      sheets.push({sheetName:e.name.split('/').pop().replace(/\.xml$/,''),rows:parseXlsxSheetRowsV49(xml,sharedStrings)});
+    }
+  }
+  return sheets;
+}
+function parseXlsxSharedStringsV49(xml){
+  const out=[];if(!xml)return out;
+  let m;const siRe=/<si\b[\s\S]*?<\/si>/g;
+  while((m=siRe.exec(xml))){
+    const si=m[0];const parts=[];let tm;const tRe=/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g;
+    while((tm=tRe.exec(si)))parts.push(decodeXml(tm[1]));
+    out.push(normalizeTableCellTextV49(parts.join('')));
+  }
+  return out;
+}
+function parseXlsxWorkbookRelsV49(xml){
+  const out={};let m;const re=/<Relationship\b[^>]*>/g;
+  while((m=re.exec(String(xml||'')))){
+    const tag=m[0];const id=(tag.match(/Id="([^"]+)"/)||[])[1];const target=(tag.match(/Target="([^"]+)"/)||[])[1];
+    if(id&&target)out[id]=decodeXml(target);
+  }
+  return out;
+}
+function parseXlsxSheetRowsV49(xml,sharedStrings=[]){
+  const rows=[];let rm;const rowRe=/<row\b[^>]*>[\s\S]*?<\/row>/g;
+  while((rm=rowRe.exec(String(xml||'')))){
+    const rowXml=rm[0];const row=[];let cm;const cRe=/<c\b([^>]*)>([\s\S]*?)<\/c>/g;
+    while((cm=cRe.exec(rowXml))){
+      const attrs=cm[1]||'',body=cm[2]||'';
+      const ref=(attrs.match(/r="([A-Z]+)\d+"/)||[])[1]||'';
+      const idx=ref?xlsxColToIndexV49(ref):row.length;
+      row[idx]=xlsxCellValueV49(attrs,body,sharedStrings);
+    }
+    if(row.some(x=>String(x||'').trim()))rows.push(row.map(x=>normalizeTableCellTextV49(x||'')));
+  }
+  return rows;
+}
+function xlsxColToIndexV49(col){let n=0;for(const ch of String(col||'')){n=n*26+(ch.charCodeAt(0)-64)}return Math.max(0,n-1)}
+function xlsxCellValueV49(attrs,body,sharedStrings){
+  const type=(attrs.match(/t="([^"]+)"/)||[])[1]||'';
+  if(type==='inlineStr'){
+    const parts=[];let tm;const tRe=/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g;
+    while((tm=tRe.exec(body)))parts.push(decodeXml(tm[1]));
+    return parts.join('');
+  }
+  const v=(body.match(/<v>([\s\S]*?)<\/v>/)||[])[1];
+  if(v==null)return '';
+  const raw=decodeXml(v);
+  if(type==='s')return sharedStrings[Number(raw)]||'';
+  if(type==='b')return raw==='1'?'TRUE':'FALSE';
+  return raw;
+}
+function tableSheetsToQuestionsV49(sheets,fileName){
+  const questions=[];const warnings=[];const sheetSummary=[];
+  for(const sheet of (sheets||[])){
+    const rows=(sheet.rows||[]).filter(r=>(r||[]).some(c=>String(c||'').trim()));
+    sheetSummary.push({sheetName:sheet.sheetName||'Sheet',rows:rows.length});
+    if(!rows.length)continue;
+    const parsed=parseTableRowsWithHeaderV49(rows,sheet.sheetName||'');
+    if(parsed.questions.length)questions.push(...parsed.questions);
+    else{
+      const text=rows.map(r=>r.map(c=>String(c||'').trim()).filter(Boolean).join('\n')).filter(Boolean).join('\n');
+      const fallback=parseTextQuestionsBase(text).map((q,i)=>({...q,group:q.group||sheet.sheetName||'',number:q.number||questions.length+i+1}));
+      if(fallback.length)questions.push(...fallback);
+      else warnings.push(`${sheet.sheetName||'Sheet'}：未识别到有效题目`);
+    }
+  }
+  const normalized=questions.map((q,i)=>normalizeQuestion(q,i)).filter(q=>q.question);
+  const stats=countTypes(normalized);
+  return {questions:normalized,warnings,sheets:sheetSummary,report:`解析策略：Excel/CSV 表格题库解析；来源：${fileName||'表格文件'}；识别 ${normalized.length} 题（单选${stats.single||0}、多选${(stats.multiple||0)+(stats.multi||0)}、判断${stats.judge||0}、填空${stats.blank||0}、简答${stats.short||0}）。`};
+}
+function parseTableRowsWithHeaderV49(rows,sheetName=''){
+  const headerIndex=findTableHeaderRowV49(rows);
+  if(headerIndex<0)return {questions:[]};
+  let map=buildTableHeaderMapV49(rows[headerIndex]);
+  const questions=[];
+  for(let r=headerIndex+1;r<rows.length;r++){
+    const row=rows[r]||[];
+    if(!row.some(c=>String(c||'').trim()))continue;
+    const nextMap=buildTableHeaderMapV49(row);
+    if(nextMap.score>=map.score&&nextMap.question!=null){map=nextMap;continue;}
+    const q=tableRowToQuestionV49(row,map,questions.length,sheetName);
+    if(q&&q.question)questions.push(q);
+  }
+  return {questions};
+}
+function findTableHeaderRowV49(rows){
+  let best=-1,bestScore=0;
+  const max=Math.min(rows.length,12);
+  for(let i=0;i<max;i++){
+    const map=buildTableHeaderMapV49(rows[i]||[]);
+    if(map.score>bestScore){best=i;bestScore=map.score;}
+  }
+  return bestScore>=5?best:-1;
+}
+function buildTableHeaderMapV49(row){
+  const map={optionCols:{},score:0};
+  (row||[]).forEach((cell,idx)=>{
+    const field=tableHeaderFieldV49(cell);
+    if(!field)return;
+    if(/^opt[A-G]$/.test(field)){map.optionCols[field.slice(3)]=idx;map.score+=2;return;}
+    if(field==='options'){map.options=idx;map.score+=2;return;}
+    if(map[field]==null){map[field]=idx;map.score+=field==='question'?5:(field==='answer'?3:1);}
+  });
+  if(Object.keys(map.optionCols).length>=2)map.score+=2;
+  return map;
+}
+function compactHeaderV49(s){return String(s||'').trim().replace(/\s+/g,'').replace(/[：:\-_/（）()\[\]【】]/g,'').toLowerCase()}
+function tableHeaderFieldV49(cell){
+  const raw=String(cell||'').trim();if(!raw)return '';
+  const h=compactHeaderV49(raw);
+  const opt=raw.match(/^\s*(?:选项\s*([A-Ga-g])|([A-Ga-g])\s*选项|option\s*([A-Ga-g])|choice\s*([A-Ga-g])|([A-Ga-g]))\s*$/i);
+  if(opt)return 'opt'+String(opt[1]||opt[2]||opt[3]||opt[4]||opt[5]).toUpperCase();
+  if(['题型','类型','questiontype','type','kind'].includes(h))return 'type';
+  if(['题号','序号','编号','no','number','num','id'].includes(h))return 'number';
+  if(['题干','题目','问题','question','stem','title','题目内容'].includes(h))return 'question';
+  if(['选项','选项内容','choices','options','choice','option'].includes(h))return 'options';
+  if(['答案','正确答案','参考答案','标准答案','答','answer','correctanswer','rightanswer','standardanswer'].includes(h))return 'answer';
+  if(['解析','答案解析','说明','解题思路','analysis','explanation','explain'].includes(h))return 'analysis';
+  if(['分类','分组','章节','标签','来源','category','group','topic','section'].includes(h))return 'category';
+  if(['分值','score','points','point'].includes(h))return 'score';
+  if(['难度','difficulty','level'].includes(h))return 'difficulty';
+  return '';
+}
+function tableCellV49(row,idx){return idx==null?'':normalizeTableCellTextV49(row[idx]||'')}
+function tableRowToQuestionV49(row,map,idx,sheetName=''){
+  const rawType=tableCellV49(row,map.type);
+  const rawNumber=tableCellV49(row,map.number);
+  let question=tableCellV49(row,map.question);
+  const answerCell=tableCellV49(row,map.answer);
+  let analysis=tableCellV49(row,map.analysis);
+  const category=tableCellV49(row,map.category)||sheetName||'';
+  if(!question)return null;
+  const options=[];
+  const optionCols=map.optionCols||{};
+  'ABCDEFG'.split('').forEach(k=>{
+    const v=tableCellV49(row,optionCols[k]);
+    if(v)options.push({key:k,text:stripLeadingOptionLabelV49(v,k)});
+  });
+  const optionsCell=tableCellV49(row,map.options);
+  if(optionsCell)options.push(...parseTableOptionsCellV49(optionsCell));
+  if(!options.length){
+    const rich=extractInlineOptionsRich(question);
+    if(rich&&rich.options&&rich.options.length>=2){
+      question=rich.prefix||question;
+      options.push(...rich.options.map(o=>({key:normalizeOptionKey(o.key),text:o.text||'',correct:!!o.correct})));
+    }
+  }
+  const aa=extractTableAnswerAnalysisV49(answerCell);
+  let rawAnswer=aa.answer||answerCell;
+  if(!analysis&&aa.analysis)analysis=aa.analysis;
+  const type=normalizeType(rawType)||mapType(rawType)||'';
+  const answer=isTextType(type)?splitTextAnswer(rawAnswer):splitAnswerByType(rawAnswer,type);
+  const correctFromOptions=options.filter(o=>o.correct).map(o=>o.key);
+  const num=Number(String(rawNumber||'').match(/\d+/)?.[0]||0)||undefined;
+  return {id:'tbl_'+Date.now()+'_'+idx,type,number:num||idx+1,question,options:options.filter(o=>o.text),answer:answer.length?answer:correctFromOptions,analysis,category,group:category,score:tableCellV49(row,map.score)};
+}
+function stripLeadingOptionLabelV49(text,key=''){
+  const k=String(key||'').toUpperCase();
+  return String(text||'').trim().replace(new RegExp('^\\s*(?:[（(]\\s*'+k+'\\s*[）)]|'+k+'\\s*[、.．:：])\\s*','i'),'').trim();
+}
+function parseTableOptionsCellV49(text){
+  const s=String(text||'').trim();if(!s)return[];
+  const lines=s.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  let out=[];
+  if(lines.length>=2){
+    out=lines.flatMap(line=>parseOptionsText(line));
+    if(out.length>=2)return mergeDuplicateOptions(repairEmbeddedOptions(out));
+  }
+  const rich=extractInlineOptionsRich(s);
+  if(rich&&rich.options&&rich.options.length>=2)return mergeDuplicateOptions(repairEmbeddedOptions(rich.options.map(o=>({key:normalizeOptionKey(o.key),text:o.text||'',correct:!!o.correct}))));
+  const sem=splitSemicolonOptionsFromLine(s,[]);
+  if(sem&&sem.length>=2)return mergeDuplicateOptions(repairEmbeddedOptions(sem));
+  return parseOptionsText(s);
+}
+function extractTableAnswerAnalysisV49(text){
+  let s=String(text||'').trim();if(!s)return {answer:'',analysis:''};
+  const m=s.match(/([\s\S]*?)(?:\s*(?:解析|答案解析|说明|解题思路)\s*[:：]\s*)([\s\S]+)$/);
+  if(m)return {answer:m[1].trim(),analysis:m[2].trim()};
+  return {answer:s,analysis:''};
 }
 async function extractDocxText(file){
   const buf=await file.arrayBuffer();
@@ -565,32 +876,72 @@ function bytesToBase64(bytes){
 }
 function utf8(u8){return new TextDecoder('utf-8').decode(u8)}
 function docxXmlToText(xml,imageMap={}){
-  xml=String(xml||'').replace(/<w:tab\/>/g,'\t').replace(/<w:br\/>/g,'\n');
+  // v50: 保留原有 DOCX 图片提取能力，并识别 Word run 里的上标/下标样式。
+  // 只有在 w:vertAlign 明确标记为 superscript/subscript 时才转换，避免误伤 C1、B2、2026 等普通编号。
+  xml=String(xml||'').replace(/<w:tab\b[^>]*\/>/g,'\t').replace(/<w:br\b[^>]*\/>/g,'\n');
   const paras=xml.match(/<w:p\b[\s\S]*?<\/w:p>/g)||[];
   const lines=[];
   for(const p of paras){
     const parts=[];
-    const re=/<w:t(?:\s[^>]*)?>[\s\S]*?<\/w:t>|<w:tab\/>|<w:br\/>|<w:drawing\b[\s\S]*?<\/w:drawing>|<w:pict\b[\s\S]*?<\/w:pict>/g;
+    const re=/<w:r\b[\s\S]*?<\/w:r>|<w:t(?:\s[^>]*)?>[\s\S]*?<\/w:t>|<w:tab\b[^>]*\/>|<w:br\b[^>]*\/>|<w:drawing\b[\s\S]*?<\/w:drawing>|<w:pict\b[\s\S]*?<\/w:pict>/g;
     let m;
     while((m=re.exec(p))){
       const token=m[0];
-      if(token.startsWith('<w:t')){
+      if(token.startsWith('<w:r')){
+        parts.push(docxRunToText(token,imageMap));
+      }else if(token.startsWith('<w:t')){
         const tm=token.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/);
         if(tm)parts.push(decodeXml(tm[1]));
-      }else if(token.startsWith('<w:tab'))parts.push('\t');
-      else if(token.startsWith('<w:br'))parts.push('\n');
-      else{
-        const ids=[];let im;const idRe=/(?:r:embed|r:id|r:link)="([^"]+)"/g;
-        while((im=idRe.exec(token)))ids.push(im[1]);
-        [...new Set(ids)].forEach(id=>{if(imageMap[id])parts.push('\n'+imageMap[id]+'\n')});
-      }
+      }else if(/^<w:tab/i.test(token))parts.push('\t');
+      else if(/^<w:br/i.test(token))parts.push('\n');
+      else parts.push(docxImageRefsToText(token,imageMap));
     }
     const text=parts.join('').replace(/[\t ]+/g,' ').replace(/\n[ \t]+/g,'\n').replace(/[ \t]+\n/g,'\n').trim();
     if(text)lines.push(text);
   }
   return lines.join('\n');
 }
-function decodeXml(s){return String(s).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&apos;/g,"'")}
+
+function docxRunToText(run,imageMap={}){
+  const mode=getDocxRunVerticalMode(run);
+  const parts=[];
+  const re=/<w:t(?:\s[^>]*)?>[\s\S]*?<\/w:t>|<w:tab\b[^>]*\/>|<w:br\b[^>]*\/>|<w:drawing\b[\s\S]*?<\/w:drawing>|<w:pict\b[\s\S]*?<\/w:pict>/g;
+  let m;
+  while((m=re.exec(String(run||'')))){
+    const token=m[0];
+    if(token.startsWith('<w:t')){
+      const tm=token.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/);
+      if(tm)parts.push(convertDocxScriptText(decodeXml(tm[1]),mode));
+    }else if(/^<w:tab/i.test(token))parts.push('\t');
+    else if(/^<w:br/i.test(token))parts.push('\n');
+    else parts.push(docxImageRefsToText(token,imageMap));
+  }
+  return parts.join('');
+}
+
+function getDocxRunVerticalMode(run){
+  const rpr=(String(run||'').match(/<w:rPr\b[\s\S]*?<\/w:rPr>/)||[])[0]||'';
+  const tag=(rpr.match(/<w:vertAlign\b[^>]*>/)||[])[0]||'';
+  const val=((tag.match(/w:val=["']([^"']+)["']/i)||[])[1]||'').toLowerCase();
+  if(val==='superscript')return 'sup';
+  if(val==='subscript')return 'sub';
+  return '';
+}
+
+function convertDocxScriptText(text,mode){
+  if(!mode)return String(text||'');
+  const sup={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','=':'⁼','(':'⁽',')':'⁾','n':'ⁿ','i':'ⁱ'};
+  const sub={'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','+':'₊','-':'₋','=':'₌','(':'₍',')':'₎'};
+  const map=mode==='sup'?sup:sub;
+  return String(text||'').replace(/[0-9+\-=()ni]/g,ch=>map[ch]||ch);
+}
+
+function docxImageRefsToText(token,imageMap={}){
+  const ids=[];let im;const idRe=/(?:r:embed|r:id|r:link)=["']([^"']+)["']/g;
+  while((im=idRe.exec(String(token||''))))ids.push(im[1]);
+  return [...new Set(ids)].map(id=>imageMap[id]?'\n'+imageMap[id]+'\n':'').join('');
+}
+function decodeXml(s){return String(s).replace(/&#x([0-9a-fA-F]+);/g,(_,n)=>String.fromCodePoint(parseInt(n,16))).replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(parseInt(n,10))).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&apos;/g,"'")}
 
 async function extractPdfText(file){
   const data=new Uint8Array(await file.arrayBuffer());
@@ -768,9 +1119,13 @@ function joinPdfText(acc,cur){
 }
 
 function parseImport(){
-  if(bankEditContext){toast('请先保存或退出题库编辑，再开始新的识别。','warn');return}
-  const text=$('#import-text').value.trim();
+  const textEl=$('#import-text');
+  const text=textEl.value.trim();
   const strategy=$('#import-strategy')?.value||'auto';
+  if(tableImportResultV49&&textEl?.dataset.tableImportV49==='1'){
+    applyTableImportResultV49(tableImportResultV49,$('#import-bank-name')?.value||'表格题库');
+    return;
+  }
   if(!text){toast('请先粘贴或上传题库文本。','warn','导入未开始');return}
   try{
     importWarnings=[];importReport='';importDiagnostics=null;
@@ -818,7 +1173,6 @@ D. 高速通过积水路段`;
   toast('已填入C1双文件示例，请点击“识别并合并双文件”。','ok');
 }
 function parseDualImport(){
-  if(bankEditContext){toast('请先保存或退出题库编辑，再开始新的识别。','warn');return}
   const qText=$('#dual-question-text').value.trim();
   const aText=$('#dual-answer-text').value.trim();
   if(!qText||!aText){toast('请先提供题目文本和答案文本。','warn','双文件导入未开始');return}
@@ -2321,47 +2675,19 @@ function extractInlineAnswerTag(line,type){
   s=s.replace(/[（(]\s*(?:正确答案|参考答案|标准答案|答案)\s*[:：]?\s*([^）)]{1,100})\s*[）)]/gi,(m,a)=>{answers.push(...splitAnswerByType(a,type));return ' '});
   return {text:s.replace(/\s+/g,' ').trim(),answer:answers};
 }
-function lineHasKeyedChoiceSequence(line){
-  const s=String(line||'');
-  if(!s)return false;
-  const hits=[];let m;
-  const marked=/(^|[\s;；,，、])([A-Ga-g])\s*(?:[、.．:：，,]|\s+)\s*/g;
-  while((m=marked.exec(s)))hits.push({idx:m.index+(m[1]?m[1].length:0),len:m[0].length-(m[1]?m[1].length:0),key:m[2],correct:false});
-  const tightMarked=/([A-Ga-g])\s*[、.．:：，,]\s*/g;
-  while((m=tightMarked.exec(s))){
-    const idx=m.index;const prev=idx>0?s[idx-1]:'';
-    if(prev&&/[A-Za-z0-9]/.test(prev))continue;
-    hits.push({idx,len:m[0].length,key:m[1],correct:false});
-  }
-  // OCR/复制文本有时会丢掉 A/B/C/D 后面的点号和空格，如 “A人民；经济B人民；生命”。
-  // 这里仅把 A-D 后面直接接中文的情况视为候选，避免把普通英文缩写误当选项。
-  const noSep=/([A-Da-d])(?=[\u4e00-\u9fa5])/g;
-  while((m=noSep.exec(s))){
-    const idx=m.index;const prev=idx>0?s[idx-1]:'';const next=s[idx+1]||'';
-    if(prev&&/[A-Za-z0-9]/.test(prev))continue;
-    if(/[级型类款层]/.test(next))continue;
-    hits.push({idx,len:1,key:m[1],correct:false});
-  }
-  const seq=selectOrderedOptionHits(hits);
-  if(seq.length<2)return false;
-  const keys=seq.map(h=>normalizeOptionKey(h.key)).join('');
-  return /AB|BC|CD/.test(keys) || (seq.some(h=>normalizeOptionKey(h.key)==='A')&&seq.some(h=>normalizeOptionKey(h.key)==='D'));
-}
 function splitSemicolonOptionsFromLine(line,answer=[]){
   const raw=String(line||'').trim();
   if(!raw || !/[;；]/.test(raw))return null;
-  // v14: 如果同一行已经出现 A/B/C/D 选项标记，必须优先按选项标记切分，
-  // 不能再把中文分号当作选项边界。否则 “A. 人民；经济 B. 人民；生命”
-  // 会被错拆成 A=人民、B=经济 B.人民、C=生命 C.经济……
-  if(lineHasKeyedChoiceSequence(raw)){
-    const rich=extractInlineOptionsRich(raw);
-    if(rich&&rich.options&&rich.options.length>=2){
-      return rich.options.map(o=>({key:normalizeOptionKey(o.key),text:String(o.text||'').trim()})).filter(o=>o.text);
-    }
-    return null;
-  }
   let parts=raw.split(/[;；]/).map(x=>x.trim()).filter(Boolean);
   if(parts.length<2||parts.length>8)return null;
+  // 显式标号选项里的分号属于选项内容，不能再按分号兜底拆选项。
+  // 例如：A. 人民；经济 / B. 人民；生命，应保持为完整 A/B 选项。
+  // 只有 A...；B...；C... 这类每段都带选项标号的紧凑写法，才允许继续拆。
+  const startsWithExplicitOption=/^\s*(?:[oOxXuUyYvV√✔✓]\s*)?(?:[（(]\s*[A-Ga-g1-9]\s*[）)]|[A-Ga-g]\s*(?:[、.．:：，,]|\s+|(?=[\u4e00-\u9fa5])))/.test(raw);
+  if(startsWithExplicitOption){
+    const labeledCount=parts.filter(part=>/^\s*(?:[oOxXuUyYvV√✔✓]\s*)?(?:[（(]\s*[A-Ga-g1-9]\s*[）)]|[A-Ga-g]\s*[、.．:：，,])/.test(part)).length;
+    if(labeledCount<2)return null;
+  }
   const opts=[];
   for(let i=0;i<parts.length;i++){
     let part=parts[i];
@@ -2370,6 +2696,8 @@ function splitSemicolonOptionsFromLine(line,answer=[]){
     else if(i===0)opts.push({key:'A',text:part});
     else opts.push({key:String.fromCharCode(65+i),text:part});
   }
+  // 如果答案写成 B.20mm，而选项中有 “20mm”，优先映射到 B。
+  const ansText=(answer||[]).map(x=>String(x||'')).join(' ');
   return opts.some(o=>o.text)?opts:null;
 }
 
@@ -2456,7 +2784,7 @@ function isQuestionStart(line){
   return hasStrongQuestionNo(line)||!!detectType(line)||/[（(]\s*[）)]/.test(line)&&/[。？?]?\s*\*?$/.test(line)||/[。？?]\s*\*?$/.test(line)&&line.length>8||/\*\s*$/.test(line)&&line.length>8;
 }
 function isOptionLine(line){return /^\s*(?:[oOxXuUyYvV√✔✓]\s*)?(?:[（(]\s*[A-Ga-g1-9]\s*[）)]|[A-Ga-g]\s*(?:[、.．:：，,]|\s+|(?=[\u4e00-\u9fa5]))|0\s*[.．、:：]\s+(?=\S))(?![+＋])/.test(line)}
-function isAnswerLine(line){return /^(?:【|\[)?\s*(?:正确答案|参考答案|标准答案|答案解析|答案|参考要点|答题要点|Answer|Correct\s*answer)\s*(?:】|\])?\s*[:：]?\s*\S+/i.test(line)}
+function isAnswerLine(line){return /^\s*(?:【|\[)?\s*(?:正确答案|参考答案|标准答案|答案|答|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|Answer|Correct\s*answer)\s*(?:】|\])?\s*(?:[:：,，、.．;；]|\s+|[（(])\s*\S+/i.test(line)}
 function isAnalysisLine(line){return /^(?:【|\[)?\s*(?:解析|答案解析|试题解析|说明|考点)\s*(?:】|\])?\s*[:：]?/i.test(line)}
 function detectType(text){
   const s=String(text||'').trim();
@@ -2750,24 +3078,28 @@ function guessType(question,options,answer,group=''){
 function hasCorrectMark(s){return /(?:正确答案|答案正确|参考答案|标准答案|√|✔|✓)/.test(String(s||''))}
 function removeCorrectMark(s){return String(s||'').replace(/[（(【\[]\s*(?:正确答案|答案正确|参考答案|标准答案)\s*[）)】\]]/g,'').replace(/(?:正确答案|答案正确|参考答案|标准答案)/g,'').replace(/[√✔✓]/g,'').replace(/\s+/g,' ').trim()}
 function splitAnswer(s){
+  if(Array.isArray(s))return s.flatMap(x=>splitAnswer(x));
   s=String(s??'').trim();
-  s=s.replace(/^(?:\u3010|\[)?\s*(?:\u6b63\u786e\u7b54\u6848|\u53c2\u8003\u7b54\u6848|\u6807\u51c6\u7b54\u6848|\u7b54\u6848|\u53c2\u8003\u8981\u70b9|\u7b54\u9898\u8981\u70b9|Answer|Correct\s*answer)\s*(?:\u3011|\])?\s*(?:\:|\uFF1A)?\s*/i,'').trim();
-  s=s.replace(/[?.!??;?,?\s]+$/,'').trim();
+  s=s.replace(/\s*(?:解析|答案解析|说明|解题思路)\s*[:：][\s\S]*$/,'').trim();
+  s=stripAnswerPrefix(s);
+  s=s.replace(/^[（(]\s*([\s\S]{1,80})\s*[）)]$/,'$1').trim();
+  s=s.replace(/^[【\[]\s*([\s\S]{1,80})\s*[】\]]$/,'$1').trim();
+  s=s.replace(/[。．.、，,；;：:\s]+$/,'').trim();
   if(!s)return[];
-  const numeric=s.match(/^[\uFF08(]?\s*([1-9])\s*[\uFF09)]?$/);if(numeric)return[numeric[1]];
-  const numericMulti=s.match(/^(?:[\uFF08(]?\s*[1-9]\s*[\uFF09)]?\s*[,??;?/\\\s]*){2,9}$/);if(numericMulti)return s.match(/[1-9]/g)||[];
-  const letterCompact=s.replace(/[\s,??;?/\\??()]+/g,'').toUpperCase();
-  if(/^[A-G]{2,7}$/.test(letterCompact))return letterCompact.split('');
-  if(/^[A-Ga-g](?:\s*[,??;?/\\\s]+\s*[A-Ga-g])+(?:\s*)$/.test(s))return s.toUpperCase().split(/[,??;?/\\\s]+/).filter(Boolean);
-  if(/^[A-Ga-g]{2,7}$/.test(s))return s.toUpperCase().split('');
+  const numeric=s.match(/^[（(]?\s*([1-9])\s*[）)]?$/);if(numeric)return[numeric[1]];
+  const numericCompact=s.replace(/[\s,，、;；/\\()（）]+/g,'');
+  if(/^[1-9]{2,9}$/.test(numericCompact))return numericCompact.split('');
+  const letterCompact=s.replace(/[\s,，、;；/\\()（）]+/g,'').toUpperCase();
+  if(/^[A-G]{1,7}$/.test(letterCompact))return letterCompact.split('');
+  const separatedLetters=s.match(/[A-Ga-g]/g);
+  if(separatedLetters&&separatedLetters.length>=2&&s.replace(/[A-Ga-g\s,，、;；/\\()（）]+/g,'').trim()==='')return separatedLetters.map(x=>x.toUpperCase());
   const leadOpt=s.match(/^([A-Ga-g])\s*[、.．:：]\s*.+$/);if(leadOpt)return [leadOpt[1].toUpperCase()];
-  if(/^[A-Ga-g]$/.test(s))return [s.toUpperCase()];
-  if(/^(?:\u5bf9|\u6b63\u786e|\u662f|\u221A|\u2713|\u2714|v|V|T|True)$/i.test(s))return ['正确'];
-  if(/^(?:\u9519|\u9519\u8bef|\u5426|\u00D7|X|F|False)$/i.test(s))return ['错误'];
+  if(/^(?:对|正确|是|√|✓|✔|v|V|T|True)$/i.test(s))return ['正确'];
+  if(/^(?:错|错误|否|×|X|x|F|False)$/i.test(s))return ['错误'];
   if(looksLikeTextualAnswer(s))return [];
-  const parts=s.split(/[,??;?/\\]+/).map(x=>x.trim()).filter(Boolean);
+  const parts=s.split(/[\s,，、;；/\\]+/).map(x=>x.trim()).filter(Boolean);
   if(parts.length>1){
-    const parsed=parts.flatMap(x=>x===s?[]:splitAnswer(x));
+    const parsed=parts.flatMap(x=>splitAnswer(x));
     return parsed.length&&parsed.length===parts.length?parsed:[];
   }
   return [];
@@ -3053,14 +3385,13 @@ function extractInlineOptionsRich(line){
   return {prefix,options};
 }
 
-
 function clearImportWorkspace(){
   if(bankEditContext){exitBankEditor(false);return}
-  $('#import-text').value='';importCache=[];importSelected.clear();importWarnings=[];importReport='';importDiagnostics=null;renderImportPreview([]);
+  const textEl=$('#import-text');if(textEl){textEl.value='';delete textEl.dataset.tableImportV49;}tableImportResultV49=null;importCache=[];importSelected.clear();importWarnings=[];importReport='';importDiagnostics=null;renderImportPreview([]);
 }
 function clearDualImportWorkspace(){
   if(bankEditContext){exitBankEditor(false);return}
-  $('#dual-question-text').value='';$('#dual-answer-text').value='';importCache=[];importSelected.clear();importWarnings=[];importReport='';importDiagnostics=null;renderImportPreview([]);
+  $('#dual-question-text').value='';$('#dual-answer-text').value='';tableImportResultV49=null;importCache=[];importSelected.clear();importWarnings=[];importReport='';importDiagnostics=null;renderImportPreview([]);
 }
 function activateViewV13(id){
   const view=$('#'+id);if(!view)return;
@@ -3188,14 +3519,39 @@ function renderImportPreview(arr){
   else if(importPreviewFilter==='normal')shown=shown.filter(r=>r.status==='正常');
   else if(importPreviewFilter==='priority')shown.sort((a,b)=>{const aw=a.status==='正常'?1:0,bw=b.status==='正常'?1:0;return aw-bw||a.i-b.i});
   const shownIdx=shown.map(r=>r.i);
-  $('#import-preview tbody').innerHTML=shown.map(({q,i,status})=>{
+  const previewRowsHtml=shown.map(({q,i,status})=>{
     const severity=importStatusSeverity(status);
     const cls=severity==='ok'?'status-ok':severity==='error'?'status-error':'status-warn';
     const rowCls=severity==='ok'?'':severity==='error'?'error-row':'issue-row';
     const seqInfo=[q.volume,q.group,q.number?`原${q.number}`:''].filter(Boolean).join(' · ');
     const checked=importSelected.has(i)?'checked':'';
-    return `<tr class="${rowCls}"><td class="select-cell"><input type="checkbox" class="import-row-check" data-select-import="${i}" ${checked}></td><td class="seq-cell"><b>${i+1}</b>${seqInfo?`<small>${esc(seqInfo)}</small>`:''}</td><td>${label(q.type)}</td><td>${esc(short(q.question,72))}</td><td>${q.options.length}</td><td>${esc(q.answer.join(''))}</td><td class="${cls}">${esc(status)}</td><td><div class="row-actions"><button class="ghost mini-btn" data-edit-import="${i}">编辑</button><button class="ghost danger mini-btn" data-delete-import="${i}">删除</button></div></td></tr>`
+    const answerText=Array.isArray(q.answer)?q.answer.join(''):String(q.answer||'');
+    const optionCount=Array.isArray(q.options)?q.options.length:0;
+    return `<tr class="${rowCls}"><td class="select-cell"><input type="checkbox" class="import-row-check" data-select-import="${i}" ${checked}></td><td class="seq-cell"><b>${i+1}</b>${seqInfo?`<small>${esc(seqInfo)}</small>`:''}</td><td>${label(q.type)}</td><td>${esc(short(q.question,72))}</td><td>${optionCount}</td><td>${esc(answerText)}</td><td class="${cls}">${esc(status)}</td><td><div class="row-actions"><button class="ghost mini-btn" data-edit-import="${i}">编辑</button><button class="ghost danger mini-btn" data-delete-import="${i}">删除</button></div></td></tr>`
   }).join('');
+  $('#import-preview tbody').innerHTML=previewRowsHtml;
+  const mobileList=$('#import-preview-mobile');
+  if(mobileList){
+    mobileList.innerHTML=shown.map(({q,i,status})=>{
+      const severity=importStatusSeverity(status);
+      const statusCls=severity==='ok'?'status-ok':severity==='error'?'status-error':'status-warn';
+      const cardCls=severity==='ok'?'':severity==='error'?'error-card':'issue-card';
+      const seqInfo=[q.volume,q.group,q.number?`原${q.number}`:''].filter(Boolean).join(' · ');
+      const checked=importSelected.has(i)?'checked':'';
+      const answerText=Array.isArray(q.answer)?q.answer.join(''):String(q.answer||'');
+      const optionCount=Array.isArray(q.options)?q.options.length:0;
+      return `<article class="import-preview-item ${cardCls}">
+        <label class="import-preview-check"><input type="checkbox" class="import-row-check" data-select-import="${i}" ${checked}><span>选择</span></label>
+        <div class="import-preview-item-main">
+          <div class="import-preview-item-head"><b>第 ${i+1} 题 · ${label(q.type)}</b><span class="${statusCls}">${esc(status)}</span></div>
+          ${seqInfo?`<div class="import-preview-meta">${esc(seqInfo)}</div>`:''}
+          <div class="import-preview-question">${esc(short(q.question,120))}</div>
+          <div class="import-preview-meta-grid"><span>选项数：${optionCount}</span><span>答案：${esc(answerText||'未识别')}</span></div>
+          <div class="import-card-actions"><button class="ghost mini-btn" data-edit-import="${i}">编辑</button><button class="ghost danger mini-btn" data-delete-import="${i}">删除</button></div>
+        </div>
+      </article>`
+    }).join('');
+  }
   const filterLabel={priority:'异常优先',problem:'仅异常',normal:'仅正常',all:'全部'}[importPreviewFilter]||'异常优先';
   const report=importReport?`<div class="import-report">${esc(importReport)}</div>`:'';
   renderImportReportPanel(arr, rows, warnings);
@@ -3702,7 +4058,6 @@ function startPractice(){
   if(!practice.items.length){$('#practice-card').innerHTML='<div class="empty">当前条件下没有题目。</div>';showNotice('无法开始练习','当前筛选条件下没有题目。','warn');return}
   if((limit==='all'||limit==='half')&&practice.items.length>200){const msg=practice.items.length>500?`本轮将练习 ${practice.items.length} 道题，题量很大，手机 WebView 可能明显卡顿，建议减少题量或使用电脑端。是否继续？`:`本轮将练习 ${practice.items.length} 道题，手机 WebView 可能出现轻微卡顿，是否继续？`;if(!confirm(msg)){practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0,details:[],answerState:{}};return}}
   enterPracticeFocus();showNotice('练习开始',`本轮共 ${practice.items.length} 道题。`,'ok');renderPracticeQuestion();
-  resetViewScrollV282();
 }
 function renderPracticeQuestion(done=false){
   $('#practice-progress').textContent=`${Math.min(practice.idx+1,practice.items.length)} / ${practice.items.length}`;
@@ -3867,7 +4222,6 @@ function startExam(){
   document.body.classList.add('exam-focus');
   updateShellLayoutByView('exam');
   renderExamPaper();
-  resetViewScrollV282();
 }
 function updateTimer(){
   if(!exam.deadline)return;
@@ -4033,6 +4387,257 @@ function setupQuestionImageViewerV302(){
   },true);
 }
 /* SHIROHA_APP_V30_2_MOBILE_IMAGE_VIEWER_END */
+
+
+/* SHIROHA_WEB_JSON_NATIVE_STANDARD_V82_15_START */
+function nativeTypeForExportV8215(type){
+  const t=normalizeType(type||'single')||'single';
+  if(t==='multiple'||t==='multi')return'MULTIPLE';
+  if(t==='judge')return'JUDGE';
+  if(t==='blank')return'BLANK';
+  if(t==='short'||t==='short_answer')return'SHORT';
+  return'SINGLE';
+}
+function epochMillisV8215(value){
+  if(value==null||value==='')return Date.now();
+  if(typeof value==='number'&&Number.isFinite(value))return value>100000000000?Math.round(value):Math.round(value*1000);
+  const parsed=Date.parse(String(value));
+  return Number.isFinite(parsed)?parsed:Date.now();
+}
+function scoreValueV8215(value){
+  const n=Number(value);
+  return Number.isFinite(n)&&n>0?n:undefined;
+}
+function arrayFromV8215(value){return Array.isArray(value)?value.filter(x=>x!=null).map(x=>String(x)):[]}
+function nativeOptionForExportV8215(option,index){
+  if(typeof option==='string')return{key:String.fromCharCode(65+index),text:option};
+  return{key:normalizeOptionKey(option?.key||option?.label||option?.value||String.fromCharCode(65+index)),text:String(option?.text||option?.content||option?.label||'')};
+}
+function nativeQuestionForExportV8215(question,index=0){
+  const q=normalizeQuestion(question||{},index);
+  const out={
+    id:String(q.id||question?.id||('q_'+Date.now()+'_'+index)),
+    number:String(q.number||question?.number||index+1),
+    type:nativeTypeForExportV8215(q.type||question?.type),
+    question:String(q.question||''),
+    analysis:String(q.analysis||''),
+    category:String(q.category||''),
+    options:(q.options||[]).map(nativeOptionForExportV8215).filter(o=>o.text),
+    answer:arrayFromV8215(q.answer),
+    images:Array.isArray(q.images)?q.images:[]
+  };
+  const score=scoreValueV8215(q.score??question?.score);
+  if(score!==undefined)out.score=score;
+  return out;
+}
+function nativeBankForExportV8215(bank,index=0){
+  const questions=Array.isArray(bank?.questions)?bank.questions:[];
+  return{
+    id:String(bank?.id||('bank_'+Date.now()+'_'+index)),
+    name:String(bank?.name||bank?.title||('题库_'+(index+1))),
+    questions:questions.map((q,i)=>nativeQuestionForExportV8215(q,i)).filter(q=>q.question)
+  };
+}
+function findQuestionForExportV8215(bankId,questionId){
+  const bank=(state.banks||[]).find(b=>b.id===bankId)||activeBank();
+  return bank?.questions?.find(q=>q.id===questionId)||null;
+}
+function nativeWrongBookForExportV8215(bankIds,includeAll=false){
+  const entries=[];
+  const ids=bankIds||new Set();
+  Object.entries(state.wrongBook||{}).forEach(([bankId,list])=>{
+    if(!includeAll&&!ids.has(bankId))return;
+    const bank=(state.banks||[]).find(b=>b.id===bankId);
+    (Array.isArray(list)?list:[]).forEach((entry,idx)=>{
+      const q=findQuestionForExportV8215(bankId,entry?.id||entry?.questionId);
+      if(!q)return;
+      const timestamp=epochMillisV8215(entry.lastWrongAt||entry.timestamp||entry.time||now());
+      const item={
+        bankId:String(bankId),
+        bankName:String(bank?.name||''),
+        source:'Web',
+        timestamp,
+        lastAnswer:arrayFromV8215(entry.lastAnswer||entry.chosen||entry.answer),
+        wrongCount:Number(entry.wrongCount||1)||1,
+        rightCount:Number(entry.rightCount||0)||0,
+        lastWrongAt:epochMillisV8215(entry.lastWrongAt||timestamp),
+        status:String(entry.status||'未掌握'),
+        question:nativeQuestionForExportV8215(q,idx)
+      };
+      if(entry.lastCorrectAt)item.lastCorrectAt=epochMillisV8215(entry.lastCorrectAt);
+      entries.push(item);
+    });
+  });
+  return entries;
+}
+function nativeStudyRecordsForExportV8215(includeAll=false){
+  if(!includeAll)return[];
+  return (state.records||[]).map((record,idx)=>{
+    const bank=(state.banks||[]).find(b=>b.id===record.bankId)||activeBank();
+    const timestamp=epochMillisV8215(record.date||record.timestamp||now());
+    const duration=Number(record.duration||record.durationSeconds||0)||0;
+    return{
+      id:String(record.id||('rec_'+Date.now()+'_'+idx)),
+      bankId:record.bankId?String(record.bankId):null,
+      bankName:String(record.bankName||bank?.name||''),
+      source:String(record.mode||record.source||'Web'),
+      title:String(record.name||record.title||record.mode||'学习记录'),
+      total:Number(record.total||0)||0,
+      correct:Number(record.correct||0)||0,
+      timestamp,
+      durationSeconds:duration,
+      autoSubmitted:!!record.autoSubmitted,
+      startedAt:record.startedAt?epochMillisV8215(record.startedAt):timestamp-duration*1000,
+      earnedScore:record.score!=null?Number(record.score):undefined,
+      totalScore:record.totalScore!=null?Number(record.totalScore):undefined,
+      questionResults:(record.details||record.questionResults||[]).map((detail,i)=>{
+        const q=(bank?.questions||[]).find(item=>item.id===(detail.questionId||detail.id))||null;
+        const fallback=q||{id:detail.questionId||('record_q_'+idx+'_'+i),number:String(i+1),type:detail.type||'single',question:detail.question||'',options:[],answer:detail.answer||[],analysis:'',category:detail.category||''};
+        return{
+          question:nativeQuestionForExportV8215(fallback,i),
+          userAnswer:arrayFromV8215(detail.chosen||detail.userAnswer),
+          correct:!!detail.correct,
+          answerText:String(detail.answerText||''),
+          earnedScore:detail.score!=null?Number(detail.score):undefined,
+          maxScore:detail.fullScore!=null?Number(detail.fullScore):undefined
+        };
+      })
+    };
+  });
+}
+function stripUndefinedV8215(value){
+  if(Array.isArray(value))return value.map(stripUndefinedV8215);
+  if(value&&typeof value==='object'){
+    const out={};
+    Object.entries(value).forEach(([k,v])=>{if(v!==undefined)out[k]=stripUndefinedV8215(v)});
+    return out;
+  }
+  return value;
+}
+function buildBackupPayloadV23(banks,exportType='selected_banks',includeAll=false){
+  const selected=(banks||[]).map(nativeBankForExportV8215);
+  const bankIds=new Set((banks||[]).map(b=>b.id));
+  const payload={
+    kind:includeAll?'shiroha_quiz_full_backup':'shiroha_quiz_selected_banks',
+    version:2,
+    exportedAt:Date.now(),
+    activeBankId:includeAll?String(state.activeBankId||''):String((banks&&banks[0]&&banks[0].id)||state.activeBankId||''),
+    banks:selected
+  };
+  if(includeAll){
+    payload.wrongBook=nativeWrongBookForExportV8215(bankIds,true);
+    payload.studyRecords=nativeStudyRecordsForExportV8215(true);
+  }
+  return stripUndefinedV8215(payload);
+}
+function exportBankById(id){
+  const b=state.banks.find(x=>x.id===id);if(!b)return;
+  const payload=buildBackupPayloadV23([b],'single_bank',false);
+  const text=JSON.stringify(payload,null,2);setBackupPreviewV23(text);download(`shiroha-quiz-bank-${cleanFileNameV23(b.name)}-${todayV23()}.json`,text);
+}
+function exportCurrentBank(){
+  const b=activeBank();const payload=buildBackupPayloadV23([b],'single_bank',false);
+  const text=JSON.stringify(payload,null,2);$('#export-output')&&($('#export-output').value=text);download(`shiroha-quiz-bank-${cleanFileNameV23(b.name||'题库')}-${todayV23()}.json`,text);
+}
+function exportAll(){
+  const payload=buildBackupPayloadV23(state.banks||[],'all_data',true);
+  const text=JSON.stringify(payload,null,2);$('#export-output')&&($('#export-output').value=text);download(`shiroha-quiz-all-data-${todayV23()}.json`,text);
+}
+function extractBanksFromJsonImportV8215(data,fileName){
+  if(Array.isArray(data)){
+    if(data.some(x=>x&&typeof x==='object'&&Array.isArray(x.questions)))return data;
+    return[{id:'bank_'+Date.now(),name:cleanFileNameV23(fileName).replace(/\.json$/i,'')||'导入题库',createdAt:now(),updatedAt:now(),questions:data}];
+  }
+  if(!data||typeof data!=='object')return[];
+  if(Array.isArray(data.banks))return data.banks;
+  if(Array.isArray(data.questions))return[{id:data.id||('bank_'+Date.now()),name:data.name||data.title||cleanFileNameV23(fileName).replace(/\.json$/i,'')||'导入题库',createdAt:data.createdAt||now(),updatedAt:now(),questions:data.questions}];
+  if(data.bank&&Array.isArray(data.bank.questions))return[data.bank];
+  if(data.questionBank&&Array.isArray(data.questionBank.questions))return[data.questionBank];
+  return[];
+}
+function webWrongBookFromNativeV8215(rawWrongBook){
+  if(!Array.isArray(rawWrongBook))return rawWrongBook&&typeof rawWrongBook==='object'?rawWrongBook:{};
+  const out={};
+  rawWrongBook.forEach(item=>{
+    if(!item||typeof item!=='object')return;
+    const bankId=String(item.bankId||'');if(!bankId)return;
+    const q=item.question||{};const qid=String(q.id||item.questionId||'');if(!qid)return;
+    if(!out[bankId])out[bankId]=[];
+    out[bankId].push({id:qid,wrongCount:Number(item.wrongCount||1)||1,rightCount:Number(item.rightCount||0)||0,lastWrongAt:item.lastWrongAt?new Date(epochMillisV8215(item.lastWrongAt)).toISOString():'',lastCorrectAt:item.lastCorrectAt?new Date(epochMillisV8215(item.lastCorrectAt)).toISOString():'',status:item.status||'未掌握',lastAnswer:arrayFromV8215(item.lastAnswer)});
+  });
+  return out;
+}
+function webRecordsFromNativeV8215(data){
+  const nativeRecords=Array.isArray(data?.studyRecords)?data.studyRecords:null;
+  if(!nativeRecords)return Array.isArray(data?.records)?data.records:[];
+  return nativeRecords.map((r,idx)=>({
+    id:String(r.id||('rec_import_'+Date.now()+'_'+idx)),
+    name:r.title||r.source||'学习记录',
+    mode:r.source||'记录',
+    bankId:r.bankId||'',
+    bankName:r.bankName||'',
+    total:Number(r.total||0)||0,
+    answered:Number(r.total||0)||0,
+    correct:Number(r.correct||0)||0,
+    wrong:Math.max(0,(Number(r.total||0)||0)-(Number(r.correct||0)||0)),
+    accuracy:r.total?Math.round((Number(r.correct||0)||0)/(Number(r.total||1)||1)*100):0,
+    score:r.earnedScore??null,
+    totalScore:r.totalScore??null,
+    autoSubmitted:!!r.autoSubmitted,
+    date:new Date(epochMillisV8215(r.timestamp)).toISOString(),
+    duration:Number(r.durationSeconds||0)||0,
+    details:(r.questionResults||[]).map((res,i)=>({questionId:res.question?.id||('q_'+i),question:res.question?.question||'',type:normalizeType(res.question?.type||'single')||'single',category:res.question?.category||'',chosen:arrayFromV8215(res.userAnswer),answer:arrayFromV8215(res.question?.answer),correct:!!res.correct,score:res.earnedScore??0,fullScore:res.maxScore??0,time:new Date(epochMillisV8215(r.timestamp)).toISOString()}))
+  }));
+}
+function normalizeBackupPayloadV23(data,fileName){
+  if(!data||typeof data!=='object')throw new Error('JSON 根节点不是对象');
+  const rawBanks=extractBanksFromJsonImportV8215(data,fileName);
+  if(!rawBanks.length)throw new Error('不是 Shiroha Quiz 备份，也不是单题库 JSON');
+  const banks=rawBanks.map((b,i)=>({
+    id:String(b.id||('bank_import_'+Date.now()+'_'+i)),
+    name:String(b.name||b.title||('导入题库_'+(i+1))),
+    createdAt:b.createdAt||now(),
+    updatedAt:now(),
+    questions:(b.questions||[]).map((q,j)=>normalizeQuestion(q,j)).filter(q=>q.question)
+  })).filter(b=>b.questions.length||b.name);
+  return{
+    banks,
+    wrongBook:webWrongBookFromNativeV8215(data.wrongBook),
+    favorites:data.favorites&&typeof data.favorites==='object'?data.favorites:{},
+    records:webRecordsFromNativeV8215(data),
+    settings:data.settings&&typeof data.settings==='object'?data.settings:{},
+    activeBankId:data.activeBankId||''
+  };
+}
+function jsonQuestionsForImportV8215(data){
+  const banks=extractBanksFromJsonImportV8215(data,'导入题库.json');
+  return banks.flatMap(b=>Array.isArray(b.questions)?b.questions:[]);
+}
+function parseImport(){
+  if(typeof bankEditContext!=='undefined'&&bankEditContext){toast('请先保存或退出题库编辑，再开始新的识别。','warn');return}
+  const textEl=$('#import-text');
+  const text=textEl.value.trim();
+  const strategy=$('#import-strategy')?.value||'auto';
+  if(tableImportResultV49&&textEl?.dataset.tableImportV49==='1'){
+    applyTableImportResultV49(tableImportResultV49,$('#import-bank-name')?.value||'表格题库');
+    return;
+  }
+  if(!text){toast('请先粘贴或上传题库文本。','warn','导入未开始');return}
+  try{
+    importWarnings=[];importReport='';importDiagnostics=null;
+    if($('#import-mode').value==='json'||text.startsWith('[')||text.startsWith('{')){
+      const data=JSON.parse(text);const arr=jsonQuestionsForImportV8215(data);
+      importCache=arr.map(normalizeQuestion).filter(q=>q.question);importReport='解析策略：JSON结构化导入。';importDiagnostics={mode:'JSON结构化导入',strategy:'JSON结构化导入',profile:{},candidates:[{name:'JSON结构化导入',questions:importCache.length,score:importCache.length*10,warnings:collectImportWarnings(importCache)}],expected:{total:0,types:{}},stats:countTypes(importCache)};
+    }else importCache=parseTextQuestions(text,strategy);
+    importSelected.clear();
+    renderImportPreview(importCache);
+    $('#confirm-import-btn').disabled=!importCache.length;
+    const warnings=collectSoftRiskWarnings(importCache, importDiagnostics?.profile||{});
+    if(importCache.length)showNotice('识别完成',summarizeImportResult(importCache,warnings),warnings.length?'warn':'ok');
+    else showNotice('识别失败','没有识别到有效题目。请检查题号、选项或答案格式，也可以先粘贴纯文本后再试。','danger');
+  }catch(e){toast('识别失败：'+e.message,'danger','识别失败')}
+}
+/* SHIROHA_WEB_JSON_NATIVE_STANDARD_V82_15_END */
 
 function resetData(){if(confirm('确定清除全部本地数据？默认题库也会重新初始化。')){clearStoredState();location.reload()}}
 })();

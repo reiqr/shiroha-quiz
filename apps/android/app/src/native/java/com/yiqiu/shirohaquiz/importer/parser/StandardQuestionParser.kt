@@ -13,8 +13,7 @@ object StandardQuestionParser {
     private val analysisLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$analysisLabelPattern)\s*[\]】]\s*)|(?:(?:$analysisLabelPattern)\s*[:：]\s*))(.*)$""")
     private val bracketAnswerRegex = Regex("""[\[【\(（]\s*(?:$answerLabelPattern)$answerSeparatorPattern([^\]】\)）]+)\s*[\]】\)）]""")
     private val embeddedChoiceAnswerRegex = Regex("""[\(（]\s*([A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False)\s*[\)）]""", RegexOption.IGNORE_CASE)
-    private val shortKeywords = Regex("""(简答|问答|面试|结构化面试|公考面试|公务员面试|名词解释|论述|说明原因|谈谈|请谈|分析|阐述|为什么|如何|哪些|什么是|怎么看|怎么办|怎么处理|请回答|组织一次|群众反映|领导安排|突发|应急|人际|协调|沟通)""")
-    private val blankKeywords = Regex("""(填空|填入|补全|补充完整|_{2,}|[\(（]\s*[\)）]|空白处)""")
+    private val blankKeywords = Regex("""(填空|填入|补全|补充完整|空白处|空白|空格|横线|横线上|括号内|括号里|_{2,}|[\(（]\s*[\)）])""")
     private val judgeKeywords = Regex("""(判断|正确|错误|对错|是非|是否|√|×)""")
     private val shirohaImageMarkerRegex = Regex("""\[\[SHIROHA_IMAGE:img_\d{4}]]""")
     private val solutionChoiceRegex = Regex(
@@ -348,9 +347,7 @@ object StandardQuestionParser {
                 return if (blankKeywords.containsMatchIn(stem)) QuestionType.BLANK else QuestionType.SHORT
             }
             return when {
-                shortKeywords.containsMatchIn(stem) -> QuestionType.SHORT
                 blankKeywords.containsMatchIn(stem) -> QuestionType.BLANK
-                answerText.length in 1..20 -> QuestionType.BLANK
                 else -> QuestionType.SHORT
             }
         }
