@@ -13,6 +13,8 @@ object StandardQuestionParser {
     private val analysisLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$ANALYSIS_LABEL_PATTERN)\s*[\]】]\s*)|(?:(?:$ANALYSIS_LABEL_PATTERN)\s*[:：]\s*))(.*)$""")
     private val bracketAnswerRegex = Regex("""[\[【\(（]\s*(?:$ANSWER_LABEL_PATTERN)$ANSWER_SEPARATOR_PATTERN([^\]】\)）]+)\s*[\]】\)）]""")
     private val embeddedChoiceAnswerRegex = Regex("""[\(（]\s*([A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False)\s*[\)）]""", RegexOption.IGNORE_CASE)
+    private val JUDGE_TRUE_REGEX = Regex("""^(对|正确|是|√|true|t)$""", RegexOption.IGNORE_CASE)
+    private val JUDGE_FALSE_REGEX = Regex("""^(错|错误|否|×|x|false|f)$""", RegexOption.IGNORE_CASE)
     private val blankKeywords = Regex("""(填空|填入|补全|补充完整|空白处|空白|空格|横线|横线上|括号内|括号里|_{2,}|[\(（]\s*[\)）])""")
     private val judgeKeywords = Regex("""(判断|正确|错误|对错|是非|是否|√|×)""")
     private val shirohaImageMarkerRegex = Regex("""\[\[SHIROHA_IMAGE:img_\d{4}]]""")
@@ -382,8 +384,8 @@ object StandardQuestionParser {
                 val normalized = AnswerTokenParser.parseObjectiveAnswers(answerText)
                 when {
                     normalized.isNotEmpty() -> normalized
-                    Regex("""^(对|正确|是|√|true|t)$""", RegexOption.IGNORE_CASE).matches(answerText.trim()) -> listOf("A")
-                    Regex("""^(错|错误|否|×|x|false|f)$""", RegexOption.IGNORE_CASE).matches(answerText.trim()) -> listOf("B")
+                    JUDGE_TRUE_REGEX.matches(answerText.trim()) -> listOf("A")
+                    JUDGE_FALSE_REGEX.matches(answerText.trim()) -> listOf("B")
                     else -> emptyList()
                 }
             }
