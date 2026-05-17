@@ -6,7 +6,7 @@
 
 # Shiroha Quiz
 
-<img src="assets/shiroha_quiz_ui_assets_v2_cutout/illus_home_welcome.png" width="160" align="right" alt="看板娘" />
+<img src="assets/shiroha_quiz_ui_assets_v2_cutout/illus_home_welcome.webp" width="160" align="right" alt="看板娘" />
 
 Shiroha Quiz 一个轻量、开源的刷题工具，支持自导入题库、练习、考试、与多端使用。
 
