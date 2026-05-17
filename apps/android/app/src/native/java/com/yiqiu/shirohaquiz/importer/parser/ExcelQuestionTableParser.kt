@@ -11,8 +11,8 @@ import java.util.Locale
  * structure; rich-text symbols/subscripts are handled by TextImportDecoder.
  */
 object ExcelQuestionTableParser {
-    private const val MaxHeaderScanRows = 12
-    private const val MaxOptionColumns = 7
+    private const val MAX_HEADER_SCAN_ROWS = 12
+    private const val MAX_OPTION_COLUMNS = 7
 
     private data class HeaderMapping(
         val headerIndex: Int,
@@ -106,7 +106,7 @@ object ExcelQuestionTableParser {
     }
 
     private fun findHeaderMapping(rows: List<List<String>>): HeaderMapping? {
-        val scanCount = rows.size.coerceAtMost(MaxHeaderScanRows)
+        val scanCount = rows.size.coerceAtMost(MAX_HEADER_SCAN_ROWS)
         for (index in 0 until scanCount) {
             buildHeaderMapping(rows[index], index)?.let { return it }
         }

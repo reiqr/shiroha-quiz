@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.charset.Charset
 import java.util.Locale
+import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -99,13 +100,20 @@ object QuestionImportAssetExtractor {
     }
 
     private fun readZipEntries(bytes: ByteArray): List<RawZipEntry> {
+        val maxTotalSize = 50L * 1024 * 1024
+        val maxEntrySize = 10L * 1024 * 1024
+        val maxEntries = 500
+        var totalSize = 0L
         return buildList {
             ZipInputStream(bytes.inputStream()).use { zip ->
                 while (true) {
                     val entry = zip.nextEntry ?: break
-                    if (!entry.isDirectory) {
-                        add(RawZipEntry(entry.name, zip.readBytes()))
-                    }
+                    if (entry.isDirectory) continue
+                    if (size >= maxEntries) break
+                    val data = zip.readBytes(entry, maxEntrySize)
+                    totalSize += data.size
+                    if (totalSize > maxTotalSize) break
+                    add(RawZipEntry(entry.name, data))
                 }
             }
         }
@@ -228,12 +236,15 @@ object QuestionImportAssetExtractor {
         )
     }
 
-    private fun ZipInputStream.readBytes(): ByteArray {
+    private fun ZipInputStream.readBytes(entry: ZipEntry, maxSize: Long): ByteArray {
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(8192)
+        var total = 0L
         while (true) {
             val read = read(buffer)
             if (read <= 0) break
+            total += read
+            if (total > maxSize) break
             output.write(buffer, 0, read)
         }
         return output.toByteArray()

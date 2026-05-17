@@ -11,8 +11,8 @@ data class ParsedAnswerEntry(
 )
 
 object AnswerTokenParser {
-    private const val answerLabelPattern = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
-    private const val answerSeparatorPattern = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
+    private const val ANSWER_LABEL_PATTERN = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
+    private const val ANSWER_SEPARATOR_PATTERN = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
     private val judgeTrueRegex = Regex("""^(正确|对|是|√|true|t)$""", RegexOption.IGNORE_CASE)
     private val judgeFalseRegex = Regex("""^(错误|错|否|×|x|false|f)$""", RegexOption.IGNORE_CASE)
     private val leadingChoiceRegex = Regex("""^\s*([A-Ga-g]{1,7})(?=\s*(?:[.、．:：)）;；\]\}]|[\u4e00-\u9fa5]|$))""")
@@ -68,7 +68,7 @@ object AnswerTokenParser {
     private fun cleanup(raw: String): String {
         return raw.trim()
             .trim('[', ']', '【', '】', '(', ')', '（', '）')
-            .replace(Regex("""^\s*(?:本题)?(?:$answerLabelPattern)(?:$answerSeparatorPattern)?"""), "")
+            .replace(Regex("""^\s*(?:本题)?(?:$ANSWER_LABEL_PATTERN)(?:$ANSWER_SEPARATOR_PATTERN)?"""), "")
             .replace(Regex("""^\s*(?:应选|故选)\s*""", RegexOption.IGNORE_CASE), "")
             .trim()
             .trim('[', ']', '【', '】', '(', ')', '（', '）')
@@ -77,23 +77,23 @@ object AnswerTokenParser {
 }
 
 object AnswerParser {
-    private const val answerLabelPattern = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
-    private const val analysisLabelPattern = "答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明"
-    private const val answerSeparatorPattern = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
-    private const val objectiveAnswerValuePattern = """[\(（]?\s*(?:[A-Ga-g]{1,7}|对|错|正确|错误|√|×|True|False)\s*[\)）]?"""
+    private const val ANSWER_LABEL_PATTERN = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
+    private const val ANALYSIS_LABEL_PATTERN = "答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明"
+    private const val ANSWER_SEPARATOR_PATTERN = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
+    private const val OBJECTIVE_ANSWER_VALUE_PATTERN = """[\(（]?\s*(?:[A-Ga-g]{1,7}|对|错|正确|错误|√|×|True|False)\s*[\)）]?"""
     private val inlineEntryRegex = Regex(
-        """(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：]?\s*(?:(?:答案)$answerSeparatorPattern)?($objectiveAnswerValuePattern)(?=\s*(?:\d{1,4}\s*[.、．:：]|$|\[|【|解析|[;；]))""",
+        """(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：]?\s*(?:(?:答案)$ANSWER_SEPARATOR_PATTERN)?($OBJECTIVE_ANSWER_VALUE_PATTERN)(?=\s*(?:\d{1,4}\s*[.、．:：]|$|\[|【|解析|[;；]))""",
         RegexOption.IGNORE_CASE
     )
     private val answerAnalysisLineRegex = Regex(
-        """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：]?\s*(?:(?:本题)?(?:答案|正确答案|参考答案|标准答案)$answerSeparatorPattern)?($objectiveAnswerValuePattern)\s*[.。]?\s*(?:\[?\s*(?:$analysisLabelPattern)\s*\]?\s*[:：]?|【\s*(?:$analysisLabelPattern)\s*】\s*[:：]?)?\s*(.*)$""",
+        """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：]?\s*(?:(?:本题)?(?:答案|正确答案|参考答案|标准答案)$ANSWER_SEPARATOR_PATTERN)?($OBJECTIVE_ANSWER_VALUE_PATTERN)\s*[.。]?\s*(?:\[?\s*(?:$ANALYSIS_LABEL_PATTERN)\s*\]?\s*[:：]?|【\s*(?:$ANALYSIS_LABEL_PATTERN)\s*】\s*[:：]?)?\s*(.*)$""",
         RegexOption.IGNORE_CASE
     )
     private val rangeEntryRegex = Regex(
         """^\s*(\d{1,4})\s*[-~～至]\s*(\d{1,4})\s*[:：]\s*(.+)$"""
     )
     private val bracketAnswerLineRegex = Regex(
-        """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：]?\s*(?:[【\[]\s*(?:答案|正确答案|参考答案|标准答案|解析)\s*[】\]]|(?:本题)?(?:答案|正确答案|参考答案|标准答案|解析)$answerSeparatorPattern)\s*($objectiveAnswerValuePattern)\s*[.。]?\s*(?:[【\[]?\s*(?:$analysisLabelPattern)\s*[】\]]?\s*[:：]?)?\s*(.*)$""",
+        """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：]?\s*(?:[【\[]\s*(?:答案|正确答案|参考答案|标准答案|解析)\s*[】\]]|(?:本题)?(?:答案|正确答案|参考答案|标准答案|解析)$ANSWER_SEPARATOR_PATTERN)\s*($OBJECTIVE_ANSWER_VALUE_PATTERN)\s*[.。]?\s*(?:[【\[]?\s*(?:$ANALYSIS_LABEL_PATTERN)\s*[】\]]?\s*[:：]?)?\s*(.*)$""",
         RegexOption.IGNORE_CASE
     )
     private val simpleAnswerTailRegex = Regex(
@@ -101,19 +101,19 @@ object AnswerParser {
         RegexOption.IGNORE_CASE
     )
     private val multipleBracketEntryRegex = Regex(
-        """(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[【\[]\s*(?:答案|正确答案|参考答案|标准答案)\s*[】\]]\s*($objectiveAnswerValuePattern)""",
+        """(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[【\[]\s*(?:答案|正确答案|参考答案|标准答案)\s*[】\]]\s*($OBJECTIVE_ANSWER_VALUE_PATTERN)""",
         RegexOption.IGNORE_CASE
     )
     private val expressionAnswerLineRegex = Regex(
-        """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：)）]?\s*(?:(?:本题)?(?:答案|正确答案|参考答案|标准答案|正确选项)\s*(?:为|是)|(?:本题)?(?:应选|故选))\s*($objectiveAnswerValuePattern)\s*[.。,:：，、;；]?\s*(?:[【\[]?\s*(?:$analysisLabelPattern)\s*[】\]]?\s*[:：]?)?\s*(.*)$""",
+        """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：)）]?\s*(?:(?:本题)?(?:答案|正确答案|参考答案|标准答案|正确选项)\s*(?:为|是)|(?:本题)?(?:应选|故选))\s*($OBJECTIVE_ANSWER_VALUE_PATTERN)\s*[.。,:：，、;；]?\s*(?:[【\[]?\s*(?:$ANALYSIS_LABEL_PATTERN)\s*[】\]]?\s*[:：]?)?\s*(.*)$""",
         RegexOption.IGNORE_CASE
     )
     private val labeledAnswerLineRegex = Regex(
-        """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：)）]?\s*(?:(?:本题)?(?:答案|正确答案|参考答案|标准答案|正确选项)$answerSeparatorPattern)\s*($objectiveAnswerValuePattern)\s*[.。,:：，、;；]?\s*(?:[【\[]?\s*(?:$analysisLabelPattern)\s*[】\]]?\s*[:：]?)?\s*(.*)$""",
+        """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：)）]?\s*(?:(?:本题)?(?:答案|正确答案|参考答案|标准答案|正确选项)$ANSWER_SEPARATOR_PATTERN)\s*($OBJECTIVE_ANSWER_VALUE_PATTERN)\s*[.。,:：，、;；]?\s*(?:[【\[]?\s*(?:$ANALYSIS_LABEL_PATTERN)\s*[】\]]?\s*[:：]?)?\s*(.*)$""",
         RegexOption.IGNORE_CASE
     )
     private val subjectiveAnswerLineRegex = Regex(
-        """^\s*(?:(?:第\s*)?([一二三四五六七八九十百0-9]{1,4})\s*(?:题|问)?|(?:问题|题目)\s*([一二三四五六七八九十百0-9]{1,4}))\s*[.、．:：]?\s*(?:本题)?(?:$answerLabelPattern)$answerSeparatorPattern(.+)$""",
+        """^\s*(?:(?:第\s*)?([一二三四五六七八九十百0-9]{1,4})\s*(?:题|问)?|(?:问题|题目)\s*([一二三四五六七八九十百0-9]{1,4}))\s*[.、．:：]?\s*(?:本题)?(?:$ANSWER_LABEL_PATTERN)$ANSWER_SEPARATOR_PATTERN(.+)$""",
         RegexOption.IGNORE_CASE
     )
     private val tableQuestionNumberRowRegex = Regex(

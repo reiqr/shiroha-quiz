@@ -5,23 +5,23 @@ import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 
 object StandardQuestionParser {
-    private const val answerLabelPattern = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
-    private const val analysisLabelPattern = "答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明"
-    private const val objectiveAnswerValuePattern = "[A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False"
-    private const val answerSeparatorPattern = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
-    private val answerLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$answerLabelPattern)\s*[\]】]\s*)|(?:(?:本题)?(?:$answerLabelPattern)$answerSeparatorPattern))(.+?)\s*$""")
-    private val analysisLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$analysisLabelPattern)\s*[\]】]\s*)|(?:(?:$analysisLabelPattern)\s*[:：]\s*))(.*)$""")
-    private val bracketAnswerRegex = Regex("""[\[【\(（]\s*(?:$answerLabelPattern)$answerSeparatorPattern([^\]】\)）]+)\s*[\]】\)）]""")
+    private const val ANSWER_LABEL_PATTERN = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
+    private const val ANALYSIS_LABEL_PATTERN = "答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明"
+    private const val OBJECTIVE_ANSWER_VALUE_PATTERN = "[A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False"
+    private const val ANSWER_SEPARATOR_PATTERN = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
+    private val answerLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$ANSWER_LABEL_PATTERN)\s*[\]】]\s*)|(?:(?:本题)?(?:$ANSWER_LABEL_PATTERN)$ANSWER_SEPARATOR_PATTERN))(.+?)\s*$""")
+    private val analysisLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$ANALYSIS_LABEL_PATTERN)\s*[\]】]\s*)|(?:(?:$ANALYSIS_LABEL_PATTERN)\s*[:：]\s*))(.*)$""")
+    private val bracketAnswerRegex = Regex("""[\[【\(（]\s*(?:$ANSWER_LABEL_PATTERN)$ANSWER_SEPARATOR_PATTERN([^\]】\)）]+)\s*[\]】\)）]""")
     private val embeddedChoiceAnswerRegex = Regex("""[\(（]\s*([A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False)\s*[\)）]""", RegexOption.IGNORE_CASE)
     private val blankKeywords = Regex("""(填空|填入|补全|补充完整|空白处|空白|空格|横线|横线上|括号内|括号里|_{2,}|[\(（]\s*[\)）])""")
     private val judgeKeywords = Regex("""(判断|正确|错误|对错|是非|是否|√|×)""")
     private val shirohaImageMarkerRegex = Regex("""\[\[SHIROHA_IMAGE:img_\d{4}]]""")
     private val solutionChoiceRegex = Regex(
-        """^\s*(?:(?:本题)?(?:答案|正确答案|参考答案|标准答案|正确选项)\s*(?:为|是)|(?:本题)?(?:应选|故选))\s*($objectiveAnswerValuePattern)\b[.。,:：，、;；]?\s*(.*)$""",
+        """^\s*(?:(?:本题)?(?:答案|正确答案|参考答案|标准答案|正确选项)\s*(?:为|是)|(?:本题)?(?:应选|故选))\s*($OBJECTIVE_ANSWER_VALUE_PATTERN)\b[.。,:：，、;；]?\s*(.*)$""",
         RegexOption.IGNORE_CASE
     )
     private val subjectiveAnswerLineRegex = Regex(
-        """^\s*(?:(?:[\[【]\s*(?:$answerLabelPattern)\s*[\]】]\s*)|(?:(?:本题)?(?:$answerLabelPattern)$answerSeparatorPattern))(.*)$"""
+        """^\s*(?:(?:[\[【]\s*(?:$ANSWER_LABEL_PATTERN)\s*[\]】]\s*)|(?:(?:本题)?(?:$ANSWER_LABEL_PATTERN)$ANSWER_SEPARATOR_PATTERN))(.*)$"""
     )
 
     private data class OptionMarker(val key: String, val markerStart: Int, val contentStart: Int)
@@ -194,7 +194,7 @@ object StandardQuestionParser {
         }
 
         val answerWithAnalysis = Regex(
-            """^\s*(?:(?:[\[【]\s*(?:$answerLabelPattern)\s*[\]】]\s*)|(?:(?:本题)?(?:$answerLabelPattern)$answerSeparatorPattern))(.+?)(?:\s*(?:$analysisLabelPattern)\s*[:：]\s*(.*))?\s*$"""
+            """^\s*(?:(?:[\[【]\s*(?:$ANSWER_LABEL_PATTERN)\s*[\]】]\s*)|(?:(?:本题)?(?:$ANSWER_LABEL_PATTERN)$ANSWER_SEPARATOR_PATTERN))(.+?)(?:\s*(?:$ANALYSIS_LABEL_PATTERN)\s*[:：]\s*(.*))?\s*$"""
         ).find(clean)
         if (answerWithAnalysis != null) {
             answer = answer ?: answerWithAnalysis.groupValues[1].trim()

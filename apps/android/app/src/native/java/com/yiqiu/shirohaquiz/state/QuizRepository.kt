@@ -1302,11 +1302,20 @@ object QuizRepository {
 
     private fun importBackupZip(context: Context, bytes: ByteArray): String {
         val entries = mutableMapOf<String, ByteArray>()
+        var totalSize = 0L
+        val maxEntrySize = 20L * 1024 * 1024
+        val maxTotalSize = 100L * 1024 * 1024
+        val maxEntries = 1000
         runCatching {
             ZipInputStream(bytes.inputStream()).use { zip ->
-                while (true) {
+                while (entries.size < maxEntries) {
                     val entry = zip.nextEntry ?: break
-                    if (!entry.isDirectory) entries[entry.name] = zip.readBytes()
+                    if (entry.isDirectory) continue
+                    val data = zip.readBytes()
+                    if (data.size > maxEntrySize) continue
+                    totalSize += data.size
+                    if (totalSize > maxTotalSize) break
+                    entries[entry.name] = data
                     zip.closeEntry()
                 }
             }
