@@ -69,3 +69,4 @@ apps/android/.gradle-user-home/
 # ZIP archives (redundant with folder content)
 assets/*.zip
 .codex/
+run-regression.ps1
