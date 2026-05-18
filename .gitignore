@@ -63,7 +63,7 @@ source-upload.ps1
 tools/
 
 # Local test data
-test/
+test/*.docx
 apps/android/.gradle-user-home/
 
 # ZIP archives (redundant with folder content)
