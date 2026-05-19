@@ -417,6 +417,22 @@ fun PracticeScreen(
             canGoNext
         }
         val canStartNextBatchGroup = isBatchSubmitted && QuizRepository.canStartNextPracticeBatchGroup()
+        val scheduleInstantAutoNextAfterSubmit: (String, Int) -> Unit = { autoNextQuestionId, autoNextIndex ->
+            if (!isBatchPractice &&
+                !isReciteMode &&
+                QuizRepository.practiceAutoNextEnabled &&
+                autoNextIndex < practiceQuestions.lastIndex
+            ) {
+                autoNextScope.launch {
+                    delay(320)
+                    if (QuizRepository.practiceIndex == autoNextIndex &&
+                        QuizRepository.currentPracticeQuestion()?.id == autoNextQuestionId
+                    ) {
+                        QuizRepository.nextQuestion()
+                    }
+                }
+            }
+        }
         val isPracticeComplete = !isReciteMode &&
             practiceQuestions.isNotEmpty() &&
             if (isBatchPractice) QuizRepository.isAllPracticeBatchGroupsSubmitted() else QuizRepository.practiceAnsweredCount() >= practiceQuestions.size
@@ -534,41 +550,20 @@ fun PracticeScreen(
                             ),
                             onClick = {
                                 if (!isSubmitted && !isReciteMode) {
-                                    val isFastAutoQuestion = question.type == QuestionType.SINGLE || question.type == QuestionType.JUDGE
-                                    val shouldAutoNextInstant = !isBatchPractice &&
-                                        QuizRepository.practiceAutoNextEnabled &&
-                                        isFastAutoQuestion
-                                    val shouldAutoNextBatch = isBatchBeforeSubmit &&
-                                        QuizRepository.practiceAutoNextEnabled &&
-                                        isFastAutoQuestion
+                                    val isInstantAutoSubmitQuestion = question.type == QuestionType.SINGLE || question.type == QuestionType.JUDGE
+                                    val shouldAutoSubmitInstant = !isBatchPractice &&
+                                        QuizRepository.practiceAutoSubmitEnabled &&
+                                        isInstantAutoSubmitQuestion
                                     QuizRepository.toggleAnswer(
                                         key = option.key,
                                         multiple = question.type == QuestionType.MULTIPLE
                                     )
-                                    if (shouldAutoNextInstant) {
+                                    if (shouldAutoSubmitInstant) {
                                         val autoNextQuestionId = question.id
                                         val autoNextIndex = QuizRepository.practiceIndex
                                         val submitted = QuizRepository.submitPracticeQuestion()
-                                        if (submitted != null && autoNextIndex < practiceQuestions.lastIndex) {
-                                            autoNextScope.launch {
-                                                delay(320)
-                                                if (QuizRepository.practiceIndex == autoNextIndex &&
-                                                    QuizRepository.currentPracticeQuestion()?.id == autoNextQuestionId
-                                                ) {
-                                                    QuizRepository.nextQuestion()
-                                                }
-                                            }
-                                        }
-                                    } else if (shouldAutoNextBatch && QuizRepository.practiceIndex < batchGroupEnd) {
-                                        val autoNextQuestionId = question.id
-                                        val autoNextIndex = QuizRepository.practiceIndex
-                                        autoNextScope.launch {
-                                            delay(180)
-                                            if (QuizRepository.practiceIndex == autoNextIndex &&
-                                                QuizRepository.currentPracticeQuestion()?.id == autoNextQuestionId
-                                            ) {
-                                                QuizRepository.nextQuestion()
-                                            }
+                                        if (submitted != null) {
+                                            scheduleInstantAutoNextAfterSubmit(autoNextQuestionId, autoNextIndex)
                                         }
                                     }
                                 }
@@ -617,7 +612,12 @@ fun PracticeScreen(
                         fillWidthContent = true,
                         onClick = {
                             if (!isSubmitted) {
-                                QuizRepository.submitPracticeQuestion()
+                                val autoNextQuestionId = question.id
+                                val autoNextIndex = QuizRepository.practiceIndex
+                                val submitted = QuizRepository.submitPracticeQuestion()
+                                if (submitted != null) {
+                                    scheduleInstantAutoNextAfterSubmit(autoNextQuestionId, autoNextIndex)
+                                }
                             }
                         }
                     )
@@ -631,7 +631,12 @@ fun PracticeScreen(
                         fillWidthContent = true,
                         onClick = {
                             if (!isSubmitted) {
-                                QuizRepository.submitPracticeQuestion()
+                                val autoNextQuestionId = question.id
+                                val autoNextIndex = QuizRepository.practiceIndex
+                                val submitted = QuizRepository.submitPracticeQuestion()
+                                if (submitted != null) {
+                                    scheduleInstantAutoNextAfterSubmit(autoNextQuestionId, autoNextIndex)
+                                }
                             }
                         }
                     )

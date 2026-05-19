@@ -131,7 +131,7 @@ fun MeScreen(
         }
         IllustrationHeroCard(
             title = "我是Shiroha",
-            subtitle = "欢迎关注我的一点一点进步",
+            subtitle = "喜欢的话请给我⭐️⭐️",
             imageRes = R.drawable.illus_me_settings,
             modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
             imageSize = ShirohaDimens.HeroImageSize
@@ -571,8 +571,15 @@ fun PracticePreferenceScreen(
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
-                title = "单选 / 判断自动下一题",
-                desc = "即时反馈会自动提交进入下一题；批量做题只自动切到下一题。",
+                title = "选择后立即判题",
+                desc = "仅即时练习生效。单选题和判断题选择后立即显示对错、答案和解析。",
+                checked = QuizRepository.practiceAutoSubmitEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticeAutoSubmitEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "判题后自动下一题",
+                desc = "仅即时练习生效。关闭后停留在本题，方便查看答案和解析。",
                 checked = QuizRepository.practiceAutoNextEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeAutoNextEnabled(context, enabled) }
             )
