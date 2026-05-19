@@ -1524,8 +1524,9 @@ object QuizRepository {
     }
 
     private fun normalizeImportedQuestionAssets(question: Question, zipAssets: Map<String, ByteArray>, assetDir: File): Question {
-        val converted = convertEmbeddedDataImages(question, assetDir)
-        return remapQuestionAssets(converted, zipAssets, assetDir)
+        val convertedQuestionText = convertEmbeddedDataImages(question, assetDir)
+        val convertedStructuredImages = convertDataUriQuestionImages(convertedQuestionText, assetDir)
+        return remapQuestionAssets(convertedStructuredImages, zipAssets, assetDir)
     }
 
     private fun remapQuestionAssets(question: Question, zipAssets: Map<String, ByteArray>, assetDir: File): Question {
@@ -1597,6 +1598,65 @@ object QuizRepository {
         return question.copy(
             question = cleanedQuestion,
             images = question.images + addedImages
+        )
+    }
+
+    private fun convertDataUriQuestionImages(question: Question, assetDir: File): Question {
+        if (question.images.isEmpty()) return question
+        var changed = false
+        val convertedImages = question.images.mapIndexed { index, image ->
+            val dataUri = image.localPath.trim()
+            if (!dataUri.startsWith("data:image/", ignoreCase = true)) {
+                image
+            } else {
+                val parsed = parseDataImageUri(dataUri)
+                if (parsed == null) {
+                    image
+                } else {
+                    val safeImageId = image.id.ifBlank { "json_image_${index + 1}" }
+                        .replace(Regex("[^A-Za-z0-9_.-]"), "_")
+                        .take(96)
+                        .ifBlank { "json_image_${index + 1}" }
+                    val outFile = File(assetDir, "$safeImageId.${parsed.extension}")
+                    val saved = runCatching { outFile.writeBytes(parsed.bytes) }.isSuccess
+                    if (saved) {
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeByteArray(parsed.bytes, 0, parsed.bytes.size, bounds)
+                        changed = true
+                        image.copy(
+                            localPath = outFile.absolutePath,
+                            sourceName = image.sourceName.ifBlank { "题目图片${index + 1}.${parsed.extension}" },
+                            order = image.order.takeIf { it > 0 } ?: (index + 1),
+                            width = image.width ?: bounds.outWidth.takeIf { it > 0 },
+                            height = image.height ?: bounds.outHeight.takeIf { it > 0 },
+                            sizeBytes = outFile.length()
+                        )
+                    } else {
+                        image
+                    }
+                }
+            }
+        }
+        return if (changed) question.copy(images = convertedImages) else question
+    }
+
+    private data class ParsedDataImage(
+        val extension: String,
+        val bytes: ByteArray
+    )
+
+    private fun parseDataImageUri(dataUri: String): ParsedDataImage? {
+        val match = Regex(
+            "^data:image/([A-Za-z0-9.+-]+);base64,([A-Za-z0-9+/=\\r\\n\\s]+)$",
+            RegexOption.IGNORE_CASE
+        ).find(dataUri.trim()) ?: return null
+        val mimeSuffix = match.groupValues[1].lowercase(Locale.ROOT)
+        val base64Text = match.groupValues[2].replace(Regex("\\s+"), "")
+        val bytes = runCatching { Base64.decode(base64Text, Base64.DEFAULT) }.getOrNull()
+        if (bytes == null || bytes.isEmpty()) return null
+        return ParsedDataImage(
+            extension = imageExtensionForMimeSuffix(mimeSuffix),
+            bytes = bytes
         )
     }
 
@@ -2300,14 +2360,24 @@ object QuizRepository {
         val images = buildList {
             for (k in 0 until imagesArray.length()) {
                 val imageJson = imagesArray.optJSONObject(k) ?: continue
-                val path = imageJson.optString("localPath")
+                val path = listOf(
+                    imageJson.optString("localPath"),
+                    imageJson.optString("dataUrl"),
+                    imageJson.optString("dataUri"),
+                    imageJson.optString("src"),
+                    imageJson.optString("url")
+                ).firstOrNull { it.isNotBlank() }.orEmpty()
                 if (path.isBlank()) continue
                 add(
                     QuestionImage(
                         id = imageJson.optString("id"),
                         localPath = path,
-                        sourceName = imageJson.optString("sourceName"),
-                        order = imageJson.optInt("order"),
+                        sourceName = listOf(
+                            imageJson.optString("sourceName"),
+                            imageJson.optString("name"),
+                            imageJson.optString("alt")
+                        ).firstOrNull { it.isNotBlank() }.orEmpty(),
+                        order = imageJson.optInt("order", k + 1),
                         width = if (imageJson.has("width") && !imageJson.isNull("width")) imageJson.optInt("width") else null,
                         height = if (imageJson.has("height") && !imageJson.isNull("height")) imageJson.optInt("height") else null,
                         sizeBytes = imageJson.optLong("sizeBytes")
