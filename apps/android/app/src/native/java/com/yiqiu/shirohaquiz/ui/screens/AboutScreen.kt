@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
@@ -24,6 +25,8 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 fun AboutScreen(
     onBack: () -> Unit
 ) {
+    val uriHandler = LocalUriHandler.current
+
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
@@ -47,6 +50,14 @@ fun AboutScreen(
                 text = "https://github.com/reiqr/shiroha-quiz",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(10.dp))
+            ActionPillButton(
+                icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                text = "打开 GitHub 项目页",
+                primary = true,
+                modifier = Modifier.height(42.dp),
+                onClick = { uriHandler.openUri("https://github.com/reiqr/shiroha-quiz") }
             )
         }
 

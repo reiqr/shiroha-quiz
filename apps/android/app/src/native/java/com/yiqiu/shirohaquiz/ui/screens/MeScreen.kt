@@ -133,7 +133,7 @@ fun MeScreen(
         }
         IllustrationHeroCard(
             title = "我是Shiroha",
-            subtitle = "喜欢的话请给我⭐️⭐️",
+            subtitle = "欢迎关注，喜欢的话请给我⭐️⭐️",
             imageRes = R.drawable.illus_me_settings,
             modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
             imageSize = ShirohaDimens.HeroImageSize
