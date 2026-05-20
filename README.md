@@ -340,7 +340,7 @@ apps/android/app/build/outputs/
 
 ## 开发计划
 
-详见 [30.1-30.4](docs/native/Shiroha_Quiz_后续功能开发计划30.1-30.4.md) / [30.5-31](docs/native/Shiroha_Quiz_后续功能开发计划30.5-31.md)。
+详见 [30.1-30.4](docs/native/Shiroha_Quiz_后续功能开发计划30.1-30.4.md) / [30.5-31](docs/native/Shiroha_Quiz_后续功能开发计划30.5-31.md) / [31.0-31.5](docs/native/Shiroha_Quiz_后续功能开发计划31.0-31.5.md) / [31.5-32](docs/native/Shiroha_Quiz_后续功能开发计划31.5-32.md)。
 
 ---
 
