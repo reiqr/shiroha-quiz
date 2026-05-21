@@ -305,6 +305,38 @@ fun DataManagementScreen(
             }
         }
 
+
+        GlassCard {
+            Text(
+                text = "阅读显示",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(12.dp))
+            ReadingSizeChoiceRow(
+                title = "题干字号",
+                desc = "调整练习和考试中的题干阅读大小。",
+                currentMode = QuizRepository.questionFontSizeMode,
+                onSelect = { mode -> QuizRepository.setQuestionFontSizeMode(context, mode) }
+            )
+            Spacer(Modifier.height(14.dp))
+            ReadingSizeChoiceRow(
+                title = "选项字号",
+                desc = "调整练习和考试中的选项文字大小。",
+                currentMode = QuizRepository.optionFontSizeMode,
+                onSelect = { mode -> QuizRepository.setOptionFontSizeMode(context, mode) }
+            )
+            Spacer(Modifier.height(14.dp))
+            PreferenceSwitchRow(
+                title = "紧凑选项模式",
+                desc = "减少选项卡片背景和间距，适合长题快速阅读。",
+                checked = QuizRepository.compactOptionsEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setCompactOptionsEnabled(context, enabled) }
+            )
+        }
+
         BackToSettingsButton(onBack = onBack)
     }
 
@@ -524,6 +556,50 @@ fun AppearancePreferenceScreen(
         }
 
         BackToSettingsButton(onBack = onBack)
+    }
+}
+
+
+
+@Composable
+private fun ReadingSizeChoiceRow(
+    title: String,
+    desc: String,
+    currentMode: String,
+    onSelect: (String) -> Unit
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        text = desc,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(Modifier.height(8.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf(
+            "small" to "小",
+            "standard" to "标准",
+            "large" to "大"
+        ).forEach { (mode, label) ->
+            ActionPillButton(
+                icon = Icons.Rounded.Tune,
+                text = label,
+                primary = currentMode == mode,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(42.dp),
+                fillWidthContent = true,
+                onClick = { onSelect(mode) }
+            )
+        }
     }
 }
 

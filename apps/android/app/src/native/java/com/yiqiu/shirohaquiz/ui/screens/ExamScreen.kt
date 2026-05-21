@@ -811,9 +811,11 @@ private fun ActiveExamPanel(
         Spacer(Modifier.height(18.dp))
         Text(
             text = examQuestion.question,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 29.sp
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontSize = QuizRepository.questionFontSizeSp().sp,
+                lineHeight = QuizRepository.questionLineHeightSp().sp
+            ),
+            fontWeight = FontWeight.SemiBold
         )
         if (examQuestion.images.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
@@ -838,7 +840,7 @@ private fun ActiveExamPanel(
                             )
                         }
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(if (QuizRepository.compactOptionsEnabled) 5.dp else 10.dp))
                 }
             }
 

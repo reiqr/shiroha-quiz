@@ -57,6 +57,7 @@ import com.yiqiu.shirohaquiz.ui.screens.BankListScreen
 import com.yiqiu.shirohaquiz.ui.screens.BankReviewScreen
 import com.yiqiu.shirohaquiz.ui.screens.DataManagementScreen
 import com.yiqiu.shirohaquiz.ui.screens.ExamScreen
+import com.yiqiu.shirohaquiz.ui.screens.FavoriteScreen
 import com.yiqiu.shirohaquiz.ui.screens.HomeScreen
 import com.yiqiu.shirohaquiz.ui.screens.ImportScreen
 import com.yiqiu.shirohaquiz.ui.screens.MeScreen
@@ -90,6 +91,7 @@ private enum class MainTab(
     BankDetail("题库详情", Icons.Rounded.Dashboard, showInBottomBar = false),
     BankReview("题库核对", Icons.Rounded.Dashboard, showInBottomBar = false),
     WrongBook("错题本", Icons.Rounded.School, showInBottomBar = false),
+    Favorites("收藏夹", Icons.Rounded.School, showInBottomBar = false),
     Records("记录", Icons.Rounded.Dashboard, showInBottomBar = false),
     RecordDetail("记录详情", Icons.Rounded.Dashboard, showInBottomBar = false),
     AppearancePreference("外观偏好", Icons.Rounded.Settings, showInBottomBar = false),
@@ -112,6 +114,7 @@ private fun MainTab.systemBackTarget(): MainTab? = when (this) {
     MainTab.BankList,
     MainTab.BankDetail,
     MainTab.WrongBook,
+    MainTab.Favorites,
     MainTab.Records -> MainTab.Home
 
     MainTab.BankReview -> MainTab.BankDetail
@@ -206,6 +209,7 @@ fun ShirohaAppShell() {
                             currentTab = MainTab.BankDetail
                         },
                         onOpenWrongBook = { currentTab = MainTab.WrongBook },
+                        onOpenFavorites = { currentTab = MainTab.Favorites },
                         onOpenRecords = { currentTab = MainTab.Records }
                     )
 
@@ -254,6 +258,10 @@ fun ShirohaAppShell() {
                         onBack = { currentTab = MainTab.BankDetail }
                     )
                     MainTab.WrongBook -> WrongBookScreen(
+                        onBack = { currentTab = MainTab.Home },
+                        onGoPractice = { currentTab = MainTab.Practice }
+                    )
+                    MainTab.Favorites -> FavoriteScreen(
                         onBack = { currentTab = MainTab.Home },
                         onGoPractice = { currentTab = MainTab.Practice }
                     )

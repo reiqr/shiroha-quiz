@@ -65,6 +65,13 @@ data class SlashedQuestionEntry(
     val slashedAt: Long
 )
 
+data class FavoriteQuestionEntry(
+    val bankId: String,
+    val bankName: String,
+    val question: Question,
+    val favoritedAt: Long
+)
+
 enum class WrongStatus(val label: String) {
     REVIEWING("复习中"),
     NOT_MASTERED("未掌握"),
@@ -125,6 +132,7 @@ object QuizRepository {
     private const val KEY_ACTIVE_BANK_ID = "active_bank_id"
     private const val KEY_WRONG_BOOK = "wrong_book"
     private const val KEY_SLASHED_QUESTIONS = "slashed_questions"
+    private const val KEY_FAVORITE_QUESTIONS = "favorite_questions"
     private const val KEY_STUDY_RECORDS = "study_records"
     private const val KEY_PRACTICE_NEXT_REQUIRES_RESULT = "practice_next_requires_result"
     private const val KEY_REMEMBER_PRACTICE_SETTINGS = "remember_practice_settings"
@@ -153,6 +161,9 @@ object QuizRepository {
     private const val KEY_STARTUP_SPLASH_ENABLED = "startup_splash_enabled"
     private const val KEY_DARK_THEME_ENABLED = "dark_theme_enabled"
     private const val KEY_SHIROHA_MODE_ENABLED = "shiroha_mode_enabled"
+    private const val KEY_QUESTION_FONT_SIZE_MODE = "question_font_size_mode"
+    private const val KEY_OPTION_FONT_SIZE_MODE = "option_font_size_mode"
+    private const val KEY_COMPACT_OPTIONS_ENABLED = "compact_options_enabled"
     private const val KEY_AI_PROVIDER = "ai_provider"
     private const val KEY_AI_API_BASE_URL = "ai_api_base_url"
     private const val KEY_AI_API_KEY = "ai_api_key"
@@ -170,6 +181,7 @@ object QuizRepository {
     val banks = mutableStateListOf<QuizBank>()
     val wrongBook = mutableStateListOf<WrongQuestionEntry>()
     val slashedQuestions = mutableStateListOf<SlashedQuestionEntry>()
+    val favoriteQuestions = mutableStateListOf<FavoriteQuestionEntry>()
     val studyRecords = mutableStateListOf<StudyRecord>()
 
     var activeBankId by mutableStateOf<String?>(null)
@@ -241,6 +253,12 @@ object QuizRepository {
         private set
     var shirohaModeEnabled by mutableStateOf(false)
         private set
+    var questionFontSizeMode by mutableStateOf("standard")
+        private set
+    var optionFontSizeMode by mutableStateOf("standard")
+        private set
+    var compactOptionsEnabled by mutableStateOf(false)
+        private set
     var aiProvider by mutableStateOf("DeepSeek")
         private set
     var aiApiBaseUrl by mutableStateOf("")
@@ -303,6 +321,9 @@ object QuizRepository {
         val restoredSlashedQuestions = runCatching {
             parseSlashedQuestionsJson(prefs.getString(KEY_SLASHED_QUESTIONS, null))
         }.getOrDefault(emptyList())
+        val restoredFavoriteQuestions = runCatching {
+            parseFavoriteQuestionsJson(prefs.getString(KEY_FAVORITE_QUESTIONS, null))
+        }.getOrDefault(emptyList())
         val restoredStudyRecords = runCatching {
             parseStudyRecordsJson(prefs.getString(KEY_STUDY_RECORDS, null))
         }.getOrDefault(emptyList())
@@ -310,6 +331,7 @@ object QuizRepository {
         banks.clear()
         wrongBook.clear()
         slashedQuestions.clear()
+        favoriteQuestions.clear()
         studyRecords.clear()
 
         val sanitizedRestoredBanks = restoredBanks
@@ -358,6 +380,9 @@ object QuizRepository {
         startupSplashEnabled = prefs.getBoolean(KEY_STARTUP_SPLASH_ENABLED, true)
         darkThemeEnabled = prefs.getBoolean(KEY_DARK_THEME_ENABLED, false)
         shirohaModeEnabled = prefs.getBoolean(KEY_SHIROHA_MODE_ENABLED, false)
+        questionFontSizeMode = normalizeReadingSizeMode(prefs.getString(KEY_QUESTION_FONT_SIZE_MODE, "standard"))
+        optionFontSizeMode = normalizeReadingSizeMode(prefs.getString(KEY_OPTION_FONT_SIZE_MODE, "standard"))
+        compactOptionsEnabled = prefs.getBoolean(KEY_COMPACT_OPTIONS_ENABLED, false)
         aiProvider = prefs.getString(KEY_AI_PROVIDER, "DeepSeek") ?: "DeepSeek"
         aiApiBaseUrl = prefs.getString(KEY_AI_API_BASE_URL, "") ?: ""
         aiApiKey = prefs.getString(KEY_AI_API_KEY, "") ?: ""
@@ -373,6 +398,7 @@ object QuizRepository {
 
         wrongBook.addAll(restoredWrongBook.map(::sanitizeWrongEntry))
         slashedQuestions.addAll(sanitizeSlashedEntries(restoredSlashedQuestions, sanitizedRestoredBanks))
+        favoriteQuestions.addAll(sanitizeFavoriteEntries(restoredFavoriteQuestions, sanitizedRestoredBanks))
         studyRecords.addAll(restoredStudyRecords)
         if (sanitizedRestoredBanks != restoredBanks) persist()
     }
@@ -405,6 +431,7 @@ object QuizRepository {
         banks.removeAll { it.id == bankId }
         wrongBook.removeAll { it.bankId == bankId }
         slashedQuestions.removeAll { it.bankId == bankId }
+        favoriteQuestions.removeAll { it.bankId == bankId }
         studyRecords.removeAll { it.bankId == bankId }
 
         if (removingActive || banks.none { it.id == activeBankId }) {
@@ -643,6 +670,15 @@ object QuizRepository {
                 )
             }
         }
+        for (index in favoriteQuestions.indices) {
+            val entry = favoriteQuestions[index]
+            if (entry.bankId == mappedBankId && entry.question.id == current.id) {
+                favoriteQuestions[index] = entry.copy(
+                    bankName = banks[bankIndex].name,
+                    question = sanitizedUpdated
+                )
+            }
+        }
 
         practiceSessionResults.remove(current.id)
         practiceAnswerResults.remove(current.id)
@@ -829,6 +865,58 @@ object QuizRepository {
         val removed = slashedQuestions.removeAll { it.bankId == bankId && it.questionKey == key }
         if (removed) persist()
         return removed
+    }
+
+    fun isQuestionFavorited(bankId: String, question: Question): Boolean {
+        return favoriteQuestions.any { it.bankId == bankId && it.question.id == question.id }
+    }
+
+    fun isCurrentPracticeQuestionFavorited(): Boolean {
+        val question = currentPracticeQuestion() ?: return false
+        val bank = bankForPracticeQuestion(question) ?: return false
+        return isQuestionFavorited(bank.id, question)
+    }
+
+    fun toggleCurrentPracticeFavorite(context: Context): Boolean {
+        appContext = context.applicationContext
+        val question = currentPracticeQuestion() ?: return false
+        val bank = bankForPracticeQuestion(question) ?: return false
+        val index = favoriteQuestions.indexOfFirst { it.bankId == bank.id && it.question.id == question.id }
+        if (index >= 0) {
+            favoriteQuestions.removeAt(index)
+        } else {
+            favoriteQuestions.add(
+                0,
+                FavoriteQuestionEntry(
+                    bankId = bank.id,
+                    bankName = bank.name,
+                    question = question,
+                    favoritedAt = System.currentTimeMillis()
+                )
+            )
+        }
+        persist()
+        return true
+    }
+
+    fun removeFavoriteQuestion(entry: FavoriteQuestionEntry) {
+        favoriteQuestions.removeAll { it.bankId == entry.bankId && it.question.id == entry.question.id }
+        persist()
+    }
+
+    fun startFavoritePractice(entries: List<FavoriteQuestionEntry> = favoriteQuestions): Boolean {
+        val selectedEntries = entries.distinctBy { it.bankId + "#" + it.question.id }
+        val questions = selectedEntries.map { it.question }
+        if (questions.isEmpty()) return false
+        val sourceBankIds = selectedEntries.associate { it.question.id to it.bankId }
+        return startPracticeSession(
+            questionCount = questions.size,
+            allowedTypes = QuestionType.values().toSet(),
+            sourceQuestions = questions,
+            sourceLabel = "收藏夹",
+            randomize = false,
+            sourceBankIds = sourceBankIds
+        )
     }
 
     fun toggleAnswer(key: String, multiple: Boolean) {
@@ -1018,6 +1106,48 @@ object QuizRepository {
         shirohaModeEnabled = enabled
         persist()
         LauncherIconSwitcher.applyShirohaMode(context, enabled)
+    }
+
+    fun setQuestionFontSizeMode(context: Context, mode: String) {
+        appContext = context.applicationContext
+        questionFontSizeMode = normalizeReadingSizeMode(mode)
+        persist()
+    }
+
+    fun setOptionFontSizeMode(context: Context, mode: String) {
+        appContext = context.applicationContext
+        optionFontSizeMode = normalizeReadingSizeMode(mode)
+        persist()
+    }
+
+    fun setCompactOptionsEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        compactOptionsEnabled = enabled
+        persist()
+    }
+
+    fun questionFontSizeSp(): Int = when (questionFontSizeMode) {
+        "small" -> 20
+        "large" -> 24
+        else -> 22
+    }
+
+    fun questionLineHeightSp(): Int = when (questionFontSizeMode) {
+        "small" -> 27
+        "large" -> 32
+        else -> 29
+    }
+
+    fun optionFontSizeSp(): Int = when (optionFontSizeMode) {
+        "small" -> 15
+        "large" -> 18
+        else -> 16
+    }
+
+    fun optionLineHeightSp(): Int = when (optionFontSizeMode) {
+        "small" -> 20
+        "large" -> 24
+        else -> 21
     }
 
     fun setAiInterfaceConfig(
@@ -1452,6 +1582,7 @@ object QuizRepository {
             kind = "shiroha_quiz_selected_banks",
             selectedBanks = selectedBanks,
             includeWrongBook = false,
+            includeFavorites = false,
             includeStudyRecords = false,
             assetMapping = null
         ).toString(2)
@@ -1462,6 +1593,7 @@ object QuizRepository {
             kind = "shiroha_quiz_full_backup",
             selectedBanks = banks,
             includeWrongBook = true,
+            includeFavorites = true,
             includeStudyRecords = true,
             assetMapping = null
         ).toString(2)
@@ -1473,6 +1605,7 @@ object QuizRepository {
             kind = "shiroha_quiz_selected_banks",
             selectedBanks = selectedBanks,
             includeWrongBook = false,
+            includeFavorites = false,
             includeStudyRecords = false
         )
     }
@@ -1482,6 +1615,7 @@ object QuizRepository {
             kind = "shiroha_quiz_full_backup",
             selectedBanks = banks,
             includeWrongBook = true,
+            includeFavorites = true,
             includeStudyRecords = true
         )
     }
@@ -1514,6 +1648,7 @@ object QuizRepository {
         kind: String,
         selectedBanks: List<QuizBank>,
         includeWrongBook: Boolean,
+        includeFavorites: Boolean,
         includeStudyRecords: Boolean
     ): ByteArray {
         val assetMapping = mutableMapOf<String, BackupAsset>()
@@ -1521,6 +1656,7 @@ object QuizRepository {
             kind = kind,
             selectedBanks = selectedBanks,
             includeWrongBook = includeWrongBook,
+            includeFavorites = includeFavorites,
             includeStudyRecords = includeStudyRecords,
             assetMapping = assetMapping
         )
@@ -1547,6 +1683,7 @@ object QuizRepository {
         kind: String,
         selectedBanks: List<QuizBank>,
         includeWrongBook: Boolean,
+        includeFavorites: Boolean,
         includeStudyRecords: Boolean,
         assetMapping: MutableMap<String, BackupAsset>?
     ): JSONObject {
@@ -1557,6 +1694,7 @@ object QuizRepository {
         root.put("activeBankId", activeBankId)
         root.put("banks", JSONArray(banksToJson(selectedBanks, assetMapping)))
         if (includeWrongBook) root.put("wrongBook", JSONArray(wrongBookToJson(wrongBook, assetMapping)))
+        if (includeFavorites) root.put("favoriteQuestions", JSONArray(favoriteQuestionsToJson(favoriteQuestions, assetMapping)))
         if (includeStudyRecords) root.put("studyRecords", JSONArray(studyRecordsToJson(studyRecords, assetMapping)))
         return root
     }
@@ -1643,6 +1781,22 @@ object QuizRepository {
         }
         wrongBook.addAll(0, mappedWrongBook)
 
+        val importedFavorites = root.optJSONArray("favoriteQuestions")?.let { array ->
+            runCatching { parseFavoriteQuestionsJson(array.toString()) }.getOrDefault(emptyList())
+        }.orEmpty()
+        val mappedFavorites = importedFavorites.mapNotNull { entry ->
+            val mappedBankId = idMap[entry.bankId] ?: return@mapNotNull null
+            val mappedBankName = addedBanks.firstOrNull { it.id == mappedBankId }?.name ?: entry.bankName
+            sanitizeFavoriteEntry(
+                entry.copy(
+                    bankId = mappedBankId,
+                    bankName = mappedBankName,
+                    question = normalizeImportedQuestionAssets(entry.question, zipAssets, assetDir)
+                )
+            )
+        }
+        favoriteQuestions.addAll(0, mappedFavorites)
+
         val importedRecords = root.optJSONArray("studyRecords")?.let { array ->
             runCatching { parseStudyRecordsJson(array.toString()) }.getOrDefault(emptyList())
         }.orEmpty()
@@ -1664,7 +1818,7 @@ object QuizRepository {
         resetExam()
         persist()
         return "已导入 ${addedBanks.size} 个题库" +
-            if (mappedWrongBook.isNotEmpty() || mappedRecords.isNotEmpty()) "，同时恢复 ${mappedWrongBook.size} 条错题、${mappedRecords.size} 条记录。" else "。"
+            if (mappedWrongBook.isNotEmpty() || mappedFavorites.isNotEmpty() || mappedRecords.isNotEmpty()) "，同时恢复 ${mappedWrongBook.size} 条错题、${mappedFavorites.size} 条收藏、${mappedRecords.size} 条记录。" else "。"
     }
 
     private fun remapBankAssets(bank: QuizBank, zipAssets: Map<String, ByteArray>, assetDir: File): QuizBank {
@@ -1842,6 +1996,7 @@ object QuizRepository {
         banks.clear()
         wrongBook.clear()
         slashedQuestions.clear()
+        favoriteQuestions.clear()
         studyRecords.clear()
         activeBankId = null
         resetPracticeState()
@@ -1853,6 +2008,7 @@ object QuizRepository {
         banks.clear()
         wrongBook.clear()
         slashedQuestions.clear()
+        favoriteQuestions.clear()
         studyRecords.clear()
         activeBankId = null
         resetPracticeState()
@@ -1874,6 +2030,7 @@ object QuizRepository {
         val recordSource = when (practiceSourceLabel) {
             "错题本" -> "错题练习"
             "今日复习" -> "今日复习"
+            "收藏夹" -> "收藏练习"
             else -> "练习"
         }
         studyRecords.add(
@@ -1982,6 +2139,21 @@ object QuizRepository {
         return entries
             .filter { entry -> entry.questionKey.isNotBlank() && validKeysByBank[entry.bankId]?.contains(entry.questionKey) == true }
             .distinctBy { it.bankId + "#" + it.questionKey }
+    }
+
+    private fun sanitizeFavoriteEntry(entry: FavoriteQuestionEntry): FavoriteQuestionEntry {
+        return entry.copy(
+            question = sanitizeQuestion(entry.question),
+            favoritedAt = entry.favoritedAt.takeIf { it > 0L } ?: System.currentTimeMillis()
+        )
+    }
+
+    private fun sanitizeFavoriteEntries(entries: List<FavoriteQuestionEntry>, banks: List<QuizBank>): List<FavoriteQuestionEntry> {
+        val validBankIds = banks.map { it.id }.toSet()
+        return entries
+            .filter { entry -> entry.bankId in validBankIds && entry.question.id.isNotBlank() }
+            .map(::sanitizeFavoriteEntry)
+            .distinctBy { it.bankId + "#" + it.question.id }
     }
 
     private fun questionKey(question: Question): String {
@@ -2164,6 +2336,7 @@ object QuizRepository {
         return when (practiceSourceLabel) {
             "错题本" -> "错题练习"
             "今日复习" -> "今日复习"
+            "收藏夹" -> "收藏练习"
             else -> "练习"
         }
     }
@@ -2236,6 +2409,13 @@ object QuizRepository {
             index += 1
         } while (candidate in existingNames)
         return candidate
+    }
+
+    private fun normalizeReadingSizeMode(mode: String?): String {
+        return when (mode) {
+            "small", "standard", "large" -> mode
+            else -> "standard"
+        }
     }
 
     private fun normalizePracticeMode(mode: String): String {
@@ -2311,6 +2491,7 @@ object QuizRepository {
             .putString(KEY_ACTIVE_BANK_ID, activeBankId)
             .putString(KEY_WRONG_BOOK, wrongBookToJson(wrongBook))
             .putString(KEY_SLASHED_QUESTIONS, slashedQuestionsToJson(slashedQuestions))
+            .putString(KEY_FAVORITE_QUESTIONS, favoriteQuestionsToJson(favoriteQuestions))
             .putString(KEY_STUDY_RECORDS, studyRecordsToJson(studyRecords))
             .putBoolean(KEY_PRACTICE_NEXT_REQUIRES_RESULT, practiceNextRequiresResult)
             .putBoolean(KEY_REMEMBER_PRACTICE_SETTINGS, rememberPracticeSettingsEnabled)
@@ -2339,6 +2520,9 @@ object QuizRepository {
             .putBoolean(KEY_STARTUP_SPLASH_ENABLED, startupSplashEnabled)
             .putBoolean(KEY_DARK_THEME_ENABLED, darkThemeEnabled)
             .putBoolean(KEY_SHIROHA_MODE_ENABLED, shirohaModeEnabled)
+            .putString(KEY_QUESTION_FONT_SIZE_MODE, questionFontSizeMode)
+            .putString(KEY_OPTION_FONT_SIZE_MODE, optionFontSizeMode)
+            .putBoolean(KEY_COMPACT_OPTIONS_ENABLED, compactOptionsEnabled)
             .putString(KEY_AI_PROVIDER, aiProvider)
             .putString(KEY_AI_API_BASE_URL, aiApiBaseUrl)
             .putString(KEY_AI_API_KEY, aiApiKey)
@@ -2398,6 +2582,19 @@ object QuizRepository {
             item.put("bankId", entry.bankId)
             item.put("questionKey", entry.questionKey)
             item.put("slashedAt", entry.slashedAt)
+            array.put(item)
+        }
+        return array.toString()
+    }
+
+    private fun favoriteQuestionsToJson(entries: List<FavoriteQuestionEntry>, assetMapping: MutableMap<String, BackupAsset>? = null): String {
+        val array = JSONArray()
+        entries.forEach { entry ->
+            val item = JSONObject()
+            item.put("bankId", entry.bankId)
+            item.put("bankName", entry.bankName)
+            item.put("favoritedAt", entry.favoritedAt)
+            item.put("question", questionToJson(entry.question, assetMapping))
             array.put(item)
         }
         return array.toString()
@@ -2514,6 +2711,27 @@ object QuizRepository {
                         bankId = bankId,
                         questionKey = key,
                         slashedAt = item.optLong("slashedAt", System.currentTimeMillis())
+                    )
+                )
+            }
+        }
+    }
+
+    private fun parseFavoriteQuestionsJson(text: String?): List<FavoriteQuestionEntry> {
+        if (text.isNullOrBlank()) return emptyList()
+        val array = JSONArray(text)
+        return buildList {
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val questionJson = item.optJSONObject("question") ?: continue
+                val bankId = item.optString("bankId")
+                if (bankId.isBlank()) continue
+                add(
+                    FavoriteQuestionEntry(
+                        bankId = bankId,
+                        bankName = item.optString("bankName"),
+                        question = parseQuestion(questionJson),
+                        favoritedAt = item.optLong("favoritedAt", System.currentTimeMillis())
                     )
                 )
             }

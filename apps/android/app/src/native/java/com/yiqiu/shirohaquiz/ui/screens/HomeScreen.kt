@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Icon
@@ -48,15 +49,15 @@ fun HomeScreen(
     onOpenBankList: () -> Unit,
     onOpenBankDetail: (String) -> Unit,
     onOpenWrongBook: () -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenRecords: () -> Unit
 ) {
     val activeBank = QuizRepository.activeBank()
     val bankCount = QuizRepository.banks.size
-    val questionCount = activeBank?.questions?.size ?: 0
     val bankName = activeBank?.name ?: "尚未导入题库"
     val todayPracticeCount = QuizRepository.studyRecords
         .filter { record ->
-            record.source in listOf("练习", "错题练习", "今日复习") && isToday(record.timestamp)
+            record.source in listOf("练习", "错题练习", "今日复习", "收藏练习") && isToday(record.timestamp)
         }
         .sumOf { record -> record.total }
     val smartReviewEnabled = QuizRepository.wrongBookSmartReviewEnabled
@@ -104,12 +105,12 @@ fun HomeScreen(
 
         HomeShortcutGrid(
             bankCount = bankCount,
-            questionCount = questionCount,
+            favoriteCount = QuizRepository.favoriteQuestions.size,
             wrongCount = QuizRepository.wrongBook.size,
             recordCount = QuizRepository.studyRecords.size,
             onOpenBankList = onOpenBankList,
-            onOpenBankDetail = { activeBank?.let { onOpenBankDetail(it.id) } },
             onOpenWrongBook = onOpenWrongBook,
+            onOpenFavorites = onOpenFavorites,
             onOpenRecords = onOpenRecords,
             modifier = Modifier
                 .fillMaxWidth()
@@ -262,12 +263,12 @@ private fun MiniStatusCard(
 @Composable
 private fun HomeShortcutGrid(
     bankCount: Int,
-    questionCount: Int,
+    favoriteCount: Int,
     wrongCount: Int,
     recordCount: Int,
     onOpenBankList: () -> Unit,
-    onOpenBankDetail: () -> Unit,
     onOpenWrongBook: () -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenRecords: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -282,24 +283,24 @@ private fun HomeShortcutGrid(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             HomeShortcutCard(
-                icon = Icons.Rounded.AutoStories,
-                label = "题库数量",
-                value = bankCount.toString(),
-                desc = "进入题库管理",
+                icon = Icons.Rounded.Warning,
+                label = "错题本",
+                value = wrongCount.toString(),
+                desc = "复习错题",
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
-                onClick = onOpenBankList
+                onClick = onOpenWrongBook
             )
             HomeShortcutCard(
-                icon = Icons.Rounded.Description,
-                label = "当前题量",
-                value = questionCount.toString(),
-                desc = "查看当前题库详情",
+                icon = Icons.Rounded.Star,
+                label = "收藏夹",
+                value = favoriteCount.toString(),
+                desc = "查看收藏",
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
-                onClick = onOpenBankDetail
+                onClick = onOpenFavorites
             )
         }
         Row(
@@ -309,20 +310,20 @@ private fun HomeShortcutGrid(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             HomeShortcutCard(
-                icon = Icons.Rounded.Warning,
-                label = "错题本",
-                value = wrongCount.toString(),
-                desc = "打开错题本",
+                icon = Icons.Rounded.AutoStories,
+                label = "题库管理",
+                value = bankCount.toString(),
+                desc = "管理题库",
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
-                onClick = onOpenWrongBook
+                onClick = onOpenBankList
             )
             HomeShortcutCard(
                 icon = Icons.Rounded.Timer,
                 label = "学习记录",
                 value = recordCount.toString(),
-                desc = "查看学习记录",
+                desc = "查看记录",
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),

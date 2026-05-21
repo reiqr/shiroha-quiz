@@ -50,6 +50,8 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -391,6 +393,7 @@ fun PracticeScreen(
             isBatchBeforeSubmit || !QuizRepository.practiceNextRequiresResult || isSubmitted
         }
         val displayedSelection = if (isReciteMode) emptyList() else effectiveResult?.userAnswer ?: QuizRepository.selectedAnswer
+        val isCurrentQuestionFavorited = QuizRepository.isCurrentPracticeQuestionFavorited()
         val batchDraftAnsweredCount = QuizRepository.practiceDraftAnsweredCount()
         var showBatchSubmitConfirm by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
         var showExitPracticeConfirm by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
@@ -521,6 +524,10 @@ fun PracticeScreen(
                     if (isReciteMode) CompactPracticeChip("背题模式", selected = true)
                     if (isBatchSubmitted && batchReviewWrongOnly) CompactPracticeChip("只看错题", selected = true)
                 }
+                FavoriteQuestionIconButton(
+                    favorited = isCurrentQuestionFavorited,
+                    onClick = { QuizRepository.toggleCurrentPracticeFavorite(context) }
+                )
                 if (QuizRepository.practiceQuickEditEnabled) {
                     QuickEditQuestionIconButton(onClick = onOpenQuickEdit)
                 }
@@ -533,8 +540,10 @@ fun PracticeScreen(
             Spacer(Modifier.height(12.dp))
             Text(
                 text = question.question,
-                style = MaterialTheme.typography.titleLarge,
-                lineHeight = 29.sp,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = QuizRepository.questionFontSizeSp().sp,
+                    lineHeight = QuizRepository.questionLineHeightSp().sp
+                ),
                 fontWeight = FontWeight.SemiBold
             )
             if (question.images.isNotEmpty()) {
@@ -579,7 +588,7 @@ fun PracticeScreen(
                                 }
                             }
                         )
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(if (QuizRepository.compactOptionsEnabled) 5.dp else 10.dp))
                     }
                 }
 
@@ -1365,6 +1374,31 @@ private fun PracticeSetupStepCard(
 
 
 
+
+@Composable
+private fun FavoriteQuestionIconButton(
+    favorited: Boolean,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = if (favorited) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+            contentDescription = if (favorited) "取消收藏当前题目" else "收藏当前题目",
+            tint = if (favorited) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
 
 @Composable
 private fun QuickEditQuestionIconButton(
