@@ -74,7 +74,7 @@ fun HomeScreen(
     val homeSectionGap = ShirohaSpacing.Lg
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val compactHomeLayout = maxHeight < 860.dp
+        val compactHomeLayout = maxHeight < 760.dp
         val homeScrollState = rememberScrollState()
         val homeContentModifier = if (compactHomeLayout) {
             Modifier
