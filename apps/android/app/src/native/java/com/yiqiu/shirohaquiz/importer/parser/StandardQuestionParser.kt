@@ -314,7 +314,10 @@ object StandardQuestionParser {
         val previous = line.getOrNull(marker.markerStart - 1)
         val next = line.getOrNull(marker.contentStart)
         if (previous != null && (previous in 'A'..'G' || previous in 'a'..'g')) return true
-        if (next != null && (next in 'A'..'G' || next in 'a'..'g')) return true
+        if (next != null && (next in 'A'..'G' || next in 'a'..'g')) {
+            val tail = line.substring(marker.contentStart).trimStart()
+            if (Regex("""^[A-Ga-g]\s*[.、．:：)）]""").containsMatchIn(tail)) return true
+        }
         val prefix = line.take(marker.markerStart)
         if (Regex("""[A-Ga-g]\s*、\s*$""").containsMatchIn(prefix)) return true
         if (marker.markerStart > 0 && previous != null && previous.toString().matches(Regex("""[\u4e00-\u9fa5A-Za-z0-9]"""))) {
