@@ -1,0 +1,2 @@
+test/native-parser-regression/samples/* linguist-vendored
+test/native-parser-regression/expected/* linguist-vendored
