@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.ImportExport
 import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
@@ -64,6 +65,7 @@ import com.yiqiu.shirohaquiz.ui.screens.MeScreen
 import com.yiqiu.shirohaquiz.ui.screens.AppearancePreferenceScreen
 import com.yiqiu.shirohaquiz.ui.screens.PracticePreferenceScreen
 import com.yiqiu.shirohaquiz.ui.screens.PracticeQuickEditScreen
+import com.yiqiu.shirohaquiz.ui.screens.QuestionSearchScreen
 import com.yiqiu.shirohaquiz.ui.screens.PracticeScreen
 import com.yiqiu.shirohaquiz.ui.screens.RecordDetailScreen
 import com.yiqiu.shirohaquiz.ui.screens.RecordsScreen
@@ -88,6 +90,7 @@ private enum class MainTab(
     Me("我的", Icons.Rounded.Settings),
     Exam("考试", Icons.Rounded.School, showInBottomBar = false),
     BankList("题库管理", Icons.Rounded.Dashboard, showInBottomBar = false),
+    QuestionSearch("题目搜索", Icons.Rounded.Search, showInBottomBar = false),
     BankDetail("题库详情", Icons.Rounded.Dashboard, showInBottomBar = false),
     BankReview("题库核对", Icons.Rounded.Dashboard, showInBottomBar = false),
     WrongBook("错题本", Icons.Rounded.School, showInBottomBar = false),
@@ -112,6 +115,7 @@ private fun MainTab.systemBackTarget(): MainTab? = when (this) {
 
     MainTab.Exam,
     MainTab.BankList,
+    MainTab.QuestionSearch,
     MainTab.BankDetail,
     MainTab.WrongBook,
     MainTab.Favorites,
@@ -241,6 +245,14 @@ fun ShirohaAppShell() {
                     )
                     MainTab.BankList -> BankListScreen(
                         onBack = { currentTab = MainTab.Home },
+                        onOpenQuestionSearch = { currentTab = MainTab.QuestionSearch },
+                        onOpenBankDetail = { bankId ->
+                            detailBankId = bankId
+                            currentTab = MainTab.BankDetail
+                        }
+                    )
+                    MainTab.QuestionSearch -> QuestionSearchScreen(
+                        onBack = { currentTab = MainTab.BankList },
                         onOpenBankDetail = { bankId ->
                             detailBankId = bankId
                             currentTab = MainTab.BankDetail

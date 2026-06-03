@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Done
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -58,6 +59,7 @@ import com.yiqiu.shirohaquiz.ui.util.bankDisplayPath
 @Composable
 fun BankListScreen(
     onBack: () -> Unit,
+    onOpenQuestionSearch: () -> Unit,
     onOpenBankDetail: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -139,16 +141,45 @@ fun BankListScreen(
         ShirohaHeader(
             kicker = "Banks",
             title = "题库管理",
-            subtitle = "按一级分组管理题库，二级题库可切换、查看、编辑和删除。"
+            subtitle = "管理分组与题库，快速切换和编辑。"
         )
 
-        GlassCard {
-            ActionPillButton(
-                icon = Icons.Rounded.ArrowBack,
-                text = "返回首页",
-                primary = false,
-                onClick = onBack
-            )
+        GlassCard(
+            modifier = Modifier.shirohaNoRippleClickable(onClick = onOpenQuestionSearch),
+            contentPadding = 18.dp
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = "搜索题目",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "搜索题目",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "搜题干、选项、答案或解析",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Rounded.ChevronRight,
+                    contentDescription = "进入题目搜索",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
 
         groupedBanks.forEach { entry ->
@@ -219,6 +250,19 @@ fun BankListScreen(
                 }
             }
         }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            ActionPillButton(
+                icon = Icons.Rounded.ArrowBack,
+                text = "返回首页",
+                primary = false,
+                onClick = onBack
+            )
+        }
+        Spacer(Modifier.height(ShirohaSpacing.Xl))
     }
 }
 
