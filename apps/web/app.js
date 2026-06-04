@@ -492,7 +492,8 @@ function looksLikeTextualAnswer(s){
   return false;
 }
 function hasShortAnswerPrompt(question){
-  return /简述|说明|阐述|分析|论述|列举|写出|叙述|解释|概括|谈谈|提出|给出|简答|问答|名词解释|含义|定义|为什么|原因|措施|流程|步骤|要求|内容|注意事项|如何|哪些|什么是|是什么|怎么办|怎么做|意义|作用|影响|区别|联系|原则|要点|路径/.test(String(question||''));
+  // v58.9.3："作用"本身不是简答题强信号。带（）/横线的"主要作用是（ ）"应优先识别为填空题。
+  return /简述|说明|阐述|分析|论述|列举|写出|叙述|解释|概括|谈谈|提出|给出|简答|问答|名词解释|含义|定义|为什么|原因|措施|流程|步骤|要求|内容|注意事项|如何|哪些|什么是|是什么|怎么办|怎么做|意义|影响|区别|联系|原则|要点|路径/.test(String(question||''));
 }
 function hasExplicitBlankPrompt(question){
   const q=String(question||'');
@@ -500,9 +501,10 @@ function hasExplicitBlankPrompt(question){
 }
 function shouldGuessBlankFromNoOption(question,answer){
   // v52：填空题必须有明确填空特征；短答案不再单独作为填空依据。
-  // “什么是/简述/说明/列举”等无选项题，即使答案很短，也应优先按简答处理。
+  // v58.9.3：格式优先于语义。出现（）/横线等填空标记时，除非显式简答分区/标签已指定，否则优先填空。
+  if(hasExplicitBlankPrompt(question))return true;
   if(hasShortAnswerPrompt(question))return false;
-  return hasExplicitBlankPrompt(question);
+  return false;
 }
 function splitTextAnswer(s){
   if(Array.isArray(s))return s.map(x=>String(x||'').trim()).filter(Boolean);
@@ -3064,7 +3066,7 @@ function parseStructuredExamText(text){
   const questions=[]; let currentType=''; let current=null; let collectingAnalysis=false;
   const flush=()=>{
     if(!current)return;
-    const stem=(current.questionLines||[]).join(' ').replace(/\s+/g,' ').trim();
+    const stem=stripLeadingQuestionTypeLabelV592((current.questionLines||[]).join(' ').replace(/\s+/g,' ').trim());
     const mergedOptions=mergeDuplicateOptions(repairEmbeddedOptions(current.options||[])).filter(o=>o.text);
     let answer=[...(current.answer||[])];
     let type=current.type||guessType(stem,mergedOptions,answer,current.group||'');
@@ -3091,6 +3093,9 @@ function parseStructuredExamText(text){
   };
   for(let i=0;i<lines.length;i++){
     let line=lines[i];
+    const numberedTypedLineV592=getNumberedTypeQuestionLineV592(line);
+    const forcedLineTypeV592=numberedTypedLineV592?.type||'';
+    if(numberedTypedLineV592)line=`${numberedTypedLineV592.number}. ${numberedTypedLineV592.stem}`;
     const heading=getHeadingType(line);
     if(heading){flush();currentType=heading;continue;}
     if(isImportNoiseLine(line))continue;
@@ -3147,19 +3152,22 @@ function parseStructuredExamText(text){
     const qm=line.match(/^\s*(?:[【\[]\s*(\d{1,4})\s*[】\]]|(?:第\s*)?(\d{1,4})\s*(?:题)?[.、．:：]?)\s*(.*)$/);
     const optionLike=isOptionLine(line)||!!extractInlineOptionsRich(line)||splitInlineOptions(line).length>=2;
     if(qm && !optionLike){
-      beginQuestion(Number(qm[1]||qm[2]), qm[3]||'');
+      beginQuestion(Number(qm[1]||qm[2]), stripLeadingQuestionTypeLabelV592(qm[3]||''));
+      if(forcedLineTypeV592&&current)current.type=forcedLineTypeV592;
       continue;
     }
     if(!current)continue;
-    const inlineAnswerTag=extractInlineAnswerTag(line,current.type||'');
-    if(inlineAnswerTag.answer.length){current.answer.push(...inlineAnswerTag.answer);line=inlineAnswerTag.text;}
-    const trailingAnswer=extractTrailingAnswerFromText(line,current.type||'');
-    if(trailingAnswer.answer.length && !isAnswerLine(line)){current.answer.push(...trailingAnswer.answer);line=trailingAnswer.text;}
+    const contextualTypeV592=current.type||inferQuestionTypeFromPromptV592((current.questionLines||[]).join(' '),current.group||currentType||'');
+    const inlineAnswerTag=extractInlineAnswerTag(line,contextualTypeV592);
+    if(inlineAnswerTag.answer.length){if(!current.type&&contextualTypeV592)current.type=contextualTypeV592;current.answer.push(...inlineAnswerTag.answer);line=inlineAnswerTag.text;}
+    const trailingAnswer=extractTrailingAnswerFromText(line,contextualTypeV592);
+    if(trailingAnswer.answer.length && !isAnswerLine(line)){if(!current.type&&contextualTypeV592)current.type=contextualTypeV592;current.answer.push(...trailingAnswer.answer);line=trailingAnswer.text;}
     if(isAnswerLine(line)){
       const stripped=line.replace(/^(?:【|\[)?\s*(?:正确答案|参考答案|标准答案|答案解析|答案|参考要点|答题要点|Answer|Correct\s*answer)\s*(?:】|\])?\s*[:：]?\s*/i,'').trim();
+      const answerTypeV592=current.type||contextualTypeV592||'';
       const ca=stripped.match(/^(\d{1,4})\s*[.、．]\s*(?:【答案】\s*)?([A-Ga-g]{1,7})\s*【解析】\s*(.*)$/);
-      if(ca){current.answer=splitAnswerByType(ca[2],current.type||'');current.analysisLines=[ca[3].trim()];collectingAnalysis=true;}
-      else{current.answer=splitAnswerByType(stripped,current.type||'');collectingAnalysis=false;}
+      if(ca){current.answer=splitAnswerByType(ca[2],answerTypeV592);current.analysisLines=[ca[3].trim()];collectingAnalysis=true;}
+      else{current.answer=splitAnswerByType(stripped,answerTypeV592);if(!current.type&&answerTypeV592)current.type=answerTypeV592;collectingAnalysis=false;}
       continue;
     }
     if(isAnalysisLine(line)){current.analysisLines.push(line.replace(/^(?:【|\[)?\s*(?:解析|答案解析|试题解析|说明|考点)\s*(?:】|\])?\s*[:：]?\s*/i,'').trim());collectingAnalysis=true;continue;}
@@ -3474,10 +3482,46 @@ function isImportNoiseLine(line){
     || /^\[?矩阵文本题\]?/.test(s)
     || /^\*+$/.test(s);
 }
+
+function mapInlineQuestionTypeLabelV592(label){
+  const s=String(label||'').replace(/\s/g,'');
+  if(/^(?:简答题|簡答題|简答|問答題|问答题|名词解释|名詞解釋|论述题|論述題)$/.test(s))return 'short';
+  if(/^(?:填空题|填空|填充题)$/.test(s))return 'blank';
+  if(/^(?:判断题|判断|判斷題|是非题|是非題)$/.test(s))return 'judge';
+  if(/^(?:多选题|多选|多项选择题|多選題|多選|复选题|複選題|复选|複選)$/.test(s))return 'multiple';
+  if(/^(?:单选题|单项选择题|单选|單選題|單選)$/.test(s))return 'single';
+  return '';
+}
+function getNumberedTypeQuestionLineV592(line){
+  const raw=String(line||'').trim();
+  const labels='单选题|单项选择题|单选|單選題|單選|多选题|多项选择题|多选|多選題|多選|复选题|複選題|复选|複選|判断题|判断|判斷題|是非题|是非題|填空题|填空|填充题|简答题|簡答題|简答|問答題|问答题|名词解释|名詞解釋|论述题|論述題';
+  const re=new RegExp('^\\s*(?:第\\s*)?(\\d{1,4})\\s*(?:题)?[.、．:：]?\\s*('+labels+')\\s*[:：]\\s*(\\S[\\s\\S]*)$');
+  const m=raw.match(re);
+  if(!m)return null;
+  const type=mapInlineQuestionTypeLabelV592(m[2]);
+  const stem=String(m[3]||'').trim();
+  if(!type||!stem)return null;
+  if(/^(?:共\d+题|每题|满分|分，共|题，每题)/.test(stem.replace(/\s/g,'')))return null;
+  return {number:Number(m[1]),label:m[2],type,stem};
+}
+function stripLeadingQuestionTypeLabelV592(text){
+  return String(text||'').trim().replace(/^\s*(?:单选题|单项选择题|单选|單選題|單選|多选题|多项选择题|多选|多選題|多選|复选题|複選題|复选|複選|判断题|判断|判斷題|是非题|是非題|填空题|填空|填充题|简答题|簡答題|简答|問答題|问答题|名词解释|名詞解釋|论述题|論述題)\s*[:：]\s*/,'').trim();
+}
+function inferQuestionTypeFromPromptV592(text,group=''){
+  const gt=mapType(group);if(gt)return gt;
+  const s=String(text||'');
+  // v58.9.3：标准主线采用"显式题型 > 选项 > 填空格式 > 简答语义"。
+  if(hasExplicitBlankPrompt(s))return 'blank';
+  if(hasShortAnswerPrompt(s))return 'short';
+  return '';
+}
+
 function getHeadingType(line){
   const raw=String(line||'').trim();
   const s=raw.replace(/\s/g,'');
   if(!s)return'';
+  // 题号 + 题型 + 冒号 + 真实题干，是标准单题写法，不是题型分区。
+  if(getNumberedTypeQuestionLineV592(raw))return'';
   // 只把“短标题/带章节序号/带题量分值说明”的行识别为题型分区。
   // 避免把题干里的“判断某段程序……”、选项里的“单选/多选”等误当成题型标题。
   const hasSectionPrefix=/^(?:第[一二三四五六七八九十0-9]+部分|[一二三四五六七八九十]+[、.．:：])/.test(s)||/^\d+[、.．:：](?:单选题|单项选择题|多选题|多项选择题|判断题|填空题|简答题)/.test(s);
@@ -3722,13 +3766,17 @@ function parseBlock(block,idx){
   const full=lines.join('\n');const inlineType=detectType(full);if(inlineType)type=inlineType;
   for(let li=0;li<lines.length;li++){
     let line=lines[li].trim();
+    const numberedTypedLineV592=getNumberedTypeQuestionLineV592(line);
+    if(numberedTypedLineV592){type=numberedTypedLineV592.type;number=numberedTypedLineV592.number;line=`${numberedTypedLineV592.number}. ${numberedTypedLineV592.stem}`;}
     const numberedTypeHeader=getNumberedTypeQuestionHeader(line);
     if(numberedTypeHeader){type=numberedTypeHeader.type;number=numberedTypeHeader.number;collectingAnalysis=false;continue;}
     const t=detectType(line);if(t)type=t;
-    const inlineAnswerTag=extractInlineAnswerTag(line,type);
-    if(inlineAnswerTag.answer.length){answer.push(...inlineAnswerTag.answer);line=inlineAnswerTag.text;}
-    const lineAnswerExtract=extractTrailingAnswerFromText(line,type);
+    const contextualTypeV592=type||inferQuestionTypeFromPromptV592([qlines.join(' '),line].filter(Boolean).join(' '),group);
+    const inlineAnswerTag=extractInlineAnswerTag(line,contextualTypeV592);
+    if(inlineAnswerTag.answer.length){if(!type&&contextualTypeV592)type=contextualTypeV592;answer.push(...inlineAnswerTag.answer);line=inlineAnswerTag.text;}
+    const lineAnswerExtract=extractTrailingAnswerFromText(line,contextualTypeV592);
     if(lineAnswerExtract.answer.length && !isAnswerLine(line)){
+      if(!type&&contextualTypeV592)type=contextualTypeV592;
       answer.push(...lineAnswerExtract.answer);
       line=lineAnswerExtract.text;
     }
@@ -3788,7 +3836,8 @@ function parseBlock(block,idx){
     const am=line.match(/^(?:【|\[)?\s*(?:正确答案|参考答案|标准答案|答案解析|答案|参考要点|答题要点|Answer|Correct\s*answer)\s*(?:】|\])?\s*[:：]?\s*(.+)$/i);
     if(am){
       const amText=am[1].trim();
-      const amImageOptionsV589=splitAnswerAndTrailingImagesV589(amText,type);
+      const answerTypeV592=type||inferQuestionTypeFromPromptV592(qlines.join(' '),group)||'';
+      const amImageOptionsV589=splitAnswerAndTrailingImagesV589(amText,answerTypeV592);
       const amCombined=amText.match(/^(\d{1,4})\s*[.、．]\s*(?:【答案】\s*)?([A-Ga-g]{1,7})\s*【解析】\s*(.*)$/);
       if(amImageOptionsV589.answer.length && amImageOptionsV589.images.length && !options.length){
         answer=amImageOptionsV589.answer;
@@ -3796,8 +3845,8 @@ function parseBlock(block,idx){
         collectingAnswerImageOptionsV589=true;
         collectingAnalysis=false;
       }
-      else if(amCombined){number=amCombined[1];answer=splitAnswerByType(amCombined[2],type);analysis=(amCombined[3]||'').trim();collectingAnalysis=true;}
-      else{answer=splitAnswerByType(amText,type);collectingAnalysis=false;}
+      else if(amCombined){number=amCombined[1];answer=splitAnswerByType(amCombined[2],answerTypeV592);analysis=(amCombined[3]||'').trim();collectingAnalysis=true;}
+      else{answer=splitAnswerByType(amText,answerTypeV592);if(!type&&answerTypeV592)type=answerTypeV592;collectingAnalysis=false;}
       continue;
     }
     const xm=line.match(/^(?:【|\[)?\s*(?:解析|答案解析|试题解析|说明|考点)\s*(?:】|\])?\s*[:：]?\s*(.*)$/i);
@@ -3909,12 +3958,12 @@ function parseBlock(block,idx){
   }
   const qNo=(qlines[0]||'').match(/^\s*(?:[【\[]\s*(\d+)\s*[】\]]|(?:第\s*)?(\d+)\s*(?:题)?[\.、．:：])/);
   if(qNo)number=qNo[1]||qNo[2];
-  let question=qlines.join(' ')
+  let question=stripLeadingQuestionTypeLabelV592(qlines.join(' ')
     .replace(/^\s*(?:[【\[]\s*\d+\s*[】\]]|第\s*\d+\s*题|\d+\s*[\.、．:：])\s*/,'')
     .replace(/^\s*[（(]\s*\d+\s*[）)]\s*/,'')
     .replace(/[\[【(（]\s*(单选题|单选|单项选择题|單選題|單選|多选题|多选|多项选择题|多選題|多選|复选题|複選題|判断题|判断|判斷題|是非题|是非題|填空题|填空|填充题|简答题|简答|問答題|问答题|名词解释|名詞解釋|论述题|論述題)\s*[\]】)）]/g,'')
     .replace(/\s*\*+\s*$/,'')
-    .trim();
+    .trim());
   if(!options.length && allowAnswerImageOptionFallbackV591(question,group,type,answer,answerImageOptionsV589)){
     options=imageTokensToChoiceOptionsV589(answerImageOptionsV589);
   }
@@ -4019,8 +4068,9 @@ function guessType(question,options,answer,group=''){
     if(/多选|多项选择/.test(question))return'multiple';
     return'single';
   }
-  if(hasShortAnswerPrompt(question))return'short';
+  // v58.9.3：无选项题先看填空符号，再看简答语义，避免"主要作用是（）"被误判成简答。
   if(hasExplicitBlankPrompt(question))return'blank';
+  if(hasShortAnswerPrompt(question))return'short';
   if(!optionCount && ans.length){
     if(ans.some(a=>isJudgeSymbolAnswer(a)))return'judge';
     if(ans.every(a=>/^[A-Ga-g]$/.test(a)))return ans.length>1?'multiple':'single';
