@@ -7137,3 +7137,51 @@ body.exam-rail-collapsed-v34 #exam-answer-card-v30 .rail-show-btn-v34:hover{
   font-size:18px;
 }
 /* SHIROHA_WEB_V58_9_BANK_ACTION_AND_IMAGE_OPTION_FIX_END */
+
+/* SHIROHA_WEB_V58_9_5_LIMIT_CONTROL_START
+   练习页与错题页题量控制：自定义输入与固定题量保持在同一行，延续卡片内轻量表单布局。 */
+.limit-field-v60{
+  min-width:0 !important;
+}
+.limit-control-v60{
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  gap:8px !important;
+  align-items:center !important;
+  min-width:0 !important;
+}
+.limit-control-v60.is-custom{
+  grid-template-columns:minmax(0,1fr) 92px !important;
+}
+.limit-control-v60 select,
+.limit-control-v60 input{
+  width:100% !important;
+  min-width:0 !important;
+  height:44px !important;
+}
+.limit-control-v60 input{
+  text-align:center !important;
+  font-weight:900 !important;
+}
+.quick-action-field-v60 button{
+  width:100% !important;
+  min-height:44px !important;
+}
+.wrongbook-controls-v60{
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  align-items:end !important;
+}
+@media(max-width:1080px){
+  .wrongbook-controls-v60{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+}
+@media(max-width:720px){
+  .wrongbook-controls-v60{
+    grid-template-columns:1fr !important;
+  }
+  .limit-control-v60.is-custom{
+    grid-template-columns:minmax(0,1fr) 88px !important;
+  }
+}
+/* SHIROHA_WEB_V58_9_5_LIMIT_CONTROL_END */
