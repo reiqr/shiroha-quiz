@@ -41,6 +41,16 @@ data class AiAnalysisSuggestion(
     val confidence: Double
 )
 
+data class AiSingleQuestionAnalysis(
+    val questionId: String,
+    val suggestedAnswer: String,
+    val matchesLocalAnswer: Boolean?,
+    val analysis: String,
+    val confidence: String,
+    val needsReview: Boolean,
+    val warning: String
+)
+
 data class AiRefactorResult(
     val mode: String,
     val cleanedText: String?,
@@ -115,6 +125,32 @@ object ShirohaAiClient {
             timeoutSeconds = timeoutSeconds.coerceIn(15, 180)
         )
         return parseAnalysisSuggestions(content)
+    }
+
+    fun analyzeSingleQuestion(
+        apiBaseUrl: String,
+        apiKey: String,
+        modelName: String,
+        question: Question,
+        userAnswer: List<String> = emptyList(),
+        timeoutSeconds: Int = DEFAULT_AI_TIMEOUT_SECONDS
+    ): AiSingleQuestionAnalysis {
+        validateConfig(apiBaseUrl, apiKey, modelName)
+        val content = requestChatCompletion(
+            apiBaseUrl = apiBaseUrl,
+            apiKey = apiKey,
+            modelName = modelName,
+            systemPrompt = AiPrompts.AI_SINGLE_QUESTION_ANALYSIS_SYSTEM_PROMPT,
+            userPayload = JSONObject()
+                .put("task", "single_question_analysis")
+                .put("outputFormat", singleQuestionAnalysisOutputContract())
+                .put("question", questionsToJson(listOf(question)).optJSONObject(0))
+                .put("userAnswer", JSONArray().also { array -> userAnswer.forEach { array.put(it) } })
+                .put("note", "AI 结果只用于练习复盘参考，不会自动修改题库答案或解析。")
+                .toString(),
+            timeoutSeconds = timeoutSeconds.coerceIn(15, 180)
+        )
+        return parseSingleQuestionAnalysis(content, question.id)
     }
 
     fun refactorQuestions(
@@ -360,6 +396,31 @@ object ShirohaAiClient {
         }
     }
 
+    private fun parseSingleQuestionAnalysis(content: String, fallbackQuestionId: String): AiSingleQuestionAnalysis {
+        val root = JSONObject(extractJsonObject(content))
+        val answerJson = root.optJSONArray("suggestedAnswer")
+        val suggestedAnswer = if (answerJson != null) {
+            (0 until answerJson.length())
+                .map { answerJson.optString(it).trim() }
+                .filter { it.isNotBlank() }
+                .joinToString(" / ")
+        } else {
+            root.optString("suggestedAnswer").trim()
+        }
+        val hasMatchField = root.has("matchesLocalAnswer") && !root.isNull("matchesLocalAnswer")
+        val matchesLocalAnswer = if (hasMatchField) root.optBoolean("matchesLocalAnswer") else null
+        val confidence = root.optString("confidence", "MEDIUM").trim().uppercase().ifBlank { "MEDIUM" }
+        return AiSingleQuestionAnalysis(
+            questionId = root.optString("questionId", fallbackQuestionId).ifBlank { fallbackQuestionId },
+            suggestedAnswer = suggestedAnswer.ifBlank { "无法判断" },
+            matchesLocalAnswer = matchesLocalAnswer,
+            analysis = root.optString("analysis").trim().ifBlank { "AI 未返回有效解析。" },
+            confidence = confidence,
+            needsReview = root.optBoolean("needsReview", confidence == "LOW"),
+            warning = root.optString("warning").trim()
+        )
+    }
+
     private fun parseRefactorResult(content: String): AiRefactorResult {
         val root = JSONObject(extractJsonObject(content))
         val questionsJson = root.optJSONArray("questions") ?: root.optJSONArray("items") ?: JSONArray()
@@ -479,6 +540,17 @@ object ShirohaAiClient {
                         .put("confidence", 0.86)
                 )
             )
+    }
+
+    private fun singleQuestionAnalysisOutputContract(): JSONObject {
+        return JSONObject()
+            .put("questionId", "题目ID")
+            .put("suggestedAnswer", "AI 独立判断的参考答案")
+            .put("matchesLocalAnswer", true)
+            .put("analysis", "AI 解析、排除依据或简答题参考要点")
+            .put("confidence", "HIGH / MEDIUM / LOW")
+            .put("needsReview", false)
+            .put("warning", "不确定或疑似题库答案异常时填写；否则为空")
     }
 
     private fun refactorOutputContract(): JSONObject {

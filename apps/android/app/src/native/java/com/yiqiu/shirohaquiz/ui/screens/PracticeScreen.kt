@@ -45,6 +45,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.TextSnippet
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.EditNote
@@ -80,6 +81,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yiqiu.shirohaquiz.R
+import com.yiqiu.shirohaquiz.ai.AiSingleQuestionAnalysis
+import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
@@ -97,8 +100,10 @@ import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -529,6 +534,42 @@ fun PracticeScreen(
         val isPracticeComplete = !isReciteMode &&
             practiceQuestions.isNotEmpty() &&
             if (isBatchPractice) QuizRepository.isAllPracticeBatchGroupsSubmitted() else QuizRepository.practiceAnsweredCount() >= practiceQuestions.size
+        val canShowSingleQuestionAiAnalysis = QuizRepository.aiSingleQuestionAnalysisEnabled && (isReciteMode || effectiveResult != null)
+        var singleQuestionAiAnalysis by remember(question.id) { mutableStateOf<AiSingleQuestionAnalysis?>(null) }
+        var singleQuestionAiError by remember(question.id) { mutableStateOf<String?>(null) }
+        var isSingleQuestionAiLoading by remember(question.id) { mutableStateOf(false) }
+        val runSingleQuestionAiAnalysis = {
+            if (!QuizRepository.isAiConfigured()) {
+                singleQuestionAiError = "请先在 我的 → AI 设置 中填写 API 地址、API Key 和模型名称。"
+                singleQuestionAiAnalysis = null
+            } else if (!isSingleQuestionAiLoading) {
+                isSingleQuestionAiLoading = true
+                singleQuestionAiError = null
+                autoNextScope.launch {
+                    val requestUserAnswer = effectiveResult?.userAnswer ?: displayedSelection
+                    val result = runCatching {
+                        withContext(Dispatchers.IO) {
+                            ShirohaAiClient.analyzeSingleQuestion(
+                                apiBaseUrl = QuizRepository.aiApiBaseUrl,
+                                apiKey = QuizRepository.aiApiKey,
+                                modelName = QuizRepository.aiModelName,
+                                question = question,
+                                userAnswer = requestUserAnswer,
+                                timeoutSeconds = QuizRepository.aiTimeoutSeconds
+                            )
+                        }
+                    }
+                    result.onSuccess { analysis ->
+                        singleQuestionAiAnalysis = analysis
+                        singleQuestionAiError = null
+                    }.onFailure { error ->
+                        singleQuestionAiAnalysis = null
+                        singleQuestionAiError = error.message ?: "AI 分析失败，请检查接口配置或网络。"
+                    }
+                    isSingleQuestionAiLoading = false
+                }
+            }
+        }
 
         val questionCardModifier = if (QuizRepository.swipeNavigationEnabled) {
             Modifier.questionSwipeNavigation(
@@ -860,6 +901,15 @@ fun PracticeScreen(
                     style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 23.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (canShowSingleQuestionAiAnalysis) {
+                    Spacer(Modifier.height(14.dp))
+                    SingleQuestionAiAnalysisPanel(
+                        analysis = singleQuestionAiAnalysis,
+                        error = singleQuestionAiError,
+                        loading = isSingleQuestionAiLoading,
+                        onAnalyze = runSingleQuestionAiAnalysis
+                    )
+                }
             }
 
             if (showBatchSubmitConfirm) {
@@ -2403,6 +2453,115 @@ private fun resolvePracticeQuestionCount(
         "half" -> (safeAvailable / 2).coerceAtLeast(1)
         "all" -> safeAvailable
         else -> customCount.coerceIn(1, safeAvailable)
+    }
+}
+
+@Composable
+private fun SingleQuestionAiAnalysisPanel(
+    analysis: AiSingleQuestionAnalysis?,
+    error: String?,
+    loading: Boolean,
+    onAnalyze: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ActionPillButton(
+            icon = Icons.Rounded.AutoAwesome,
+            text = when {
+                loading -> "AI 分析中"
+                analysis != null -> "重新分析本题"
+                else -> "AI 分析本题"
+            },
+            primary = false,
+            enabled = !loading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp),
+            fillWidthContent = true,
+            onClick = onAnalyze
+        )
+        if (loading) {
+            NoticeCard("AI 正在分析当前题目，请稍候。", warning = false)
+        }
+        error?.takeIf { it.isNotBlank() }?.let { message ->
+            NoticeCard("AI 分析失败：$message", warning = true)
+        }
+        analysis?.let { result ->
+            SingleQuestionAiResultCard(result)
+        }
+    }
+}
+
+@Composable
+private fun SingleQuestionAiResultCard(result: AiSingleQuestionAnalysis) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = ShirohaColors.CardWhite68,
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "AI 参考分析",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                StatusChip(text = aiConfidenceLabel(result.confidence))
+            }
+            Text(
+                text = "参考答案：${result.suggestedAnswer}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            result.matchesLocalAnswer?.let { matched ->
+                Text(
+                    text = if (matched) "与题库答案：一致" else "与题库答案：可能不一致，建议人工确认",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (matched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                )
+            }
+            if (result.needsReview) {
+                Text(
+                    text = "需要人工确认",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Text(
+                text = LatexDisplayFormatter.format(formatAnalysisForDisplay(result.analysis)),
+                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 23.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            result.warning.takeIf { it.isNotBlank() }?.let { warning ->
+                Text(
+                    text = "提示：$warning",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            Text(
+                text = "AI 结果仅供参考，不会自动修改题库答案或解析。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private fun aiConfidenceLabel(confidence: String): String {
+    return when (confidence.trim().uppercase()) {
+        "HIGH" -> "可信度 高"
+        "LOW" -> "可信度 低"
+        else -> "可信度 中"
     }
 }
 

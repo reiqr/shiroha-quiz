@@ -16,6 +16,10 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -33,12 +37,18 @@ import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 
+private enum class RecordQuestionFilter(val label: String) {
+    ALL("全部题目"),
+    WRONG_ONLY("只看错题")
+}
+
 @Composable
 fun RecordDetailScreen(
     recordId: String?,
     onBack: () -> Unit
 ) {
     val record = QuizRepository.findStudyRecord(recordId)
+    var questionFilter by remember { mutableStateOf(RecordQuestionFilter.ALL) }
 
     Column(
         modifier = Modifier
@@ -72,13 +82,43 @@ fun RecordDetailScreen(
             return
         }
 
+        val indexedResults = remember(record.questionResults, questionFilter) {
+            record.questionResults
+                .mapIndexed { index, result -> index + 1 to result }
+                .filter { (_, result) -> questionFilter == RecordQuestionFilter.ALL || !result.correct }
+        }
+
         Text(
             text = "逐题结果",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold
         )
-        record.questionResults.forEachIndexed { index, result ->
-            QuestionResultCard(index = index + 1, result = result)
+        GlassCard {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                RecordQuestionFilter.entries.forEach { item ->
+                    ActionPillButton(
+                        icon = if (item == RecordQuestionFilter.WRONG_ONLY) Icons.Rounded.Close else Icons.Rounded.CheckCircle,
+                        text = item.label,
+                        primary = questionFilter == item,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        fillWidthContent = true,
+                        onClick = { questionFilter = item }
+                    )
+                }
+            }
+        }
+
+        if (indexedResults.isEmpty()) {
+            GlassCard { NoticeCard("这条记录里没有错题。") }
+        } else {
+            indexedResults.forEach { (index, result) ->
+                QuestionResultCard(index = index, result = result)
+            }
         }
     }
 }

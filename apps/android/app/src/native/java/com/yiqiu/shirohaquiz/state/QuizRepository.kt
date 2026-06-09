@@ -137,6 +137,8 @@ object QuizRepository {
     const val SEQUENTIAL_START_LAST = "last"
     const val SEQUENTIAL_START_FIRST = "first"
     const val SEQUENTIAL_START_CUSTOM = "custom"
+    const val WRONG_BOOK_SCOPE_CURRENT_BANK = "current_bank"
+    const val WRONG_BOOK_SCOPE_ALL_BANKS = "all_banks"
 
     private const val PREFS_NAME = "shiroha_quiz_native"
     private const val KEY_BANKS = "banks"
@@ -156,6 +158,7 @@ object QuizRepository {
     private const val KEY_PRACTICE_SLASH_ENABLED = "practice_slash_enabled"
     private const val KEY_PRACTICE_QUICK_EDIT_ENABLED = "practice_quick_edit_enabled"
     private const val KEY_WRONG_BOOK_SMART_REVIEW_ENABLED = "wrong_book_smart_review_enabled"
+    private const val KEY_WRONG_BOOK_SCOPE_MODE = "wrong_book_scope_mode"
     private const val KEY_PRACTICE_PREFERRED_COUNT_MODE = "practice_preferred_count_mode"
     private const val KEY_PRACTICE_PREFERRED_CUSTOM_COUNT = "practice_preferred_custom_count"
     private const val KEY_PRACTICE_PREFERRED_ORDER_MODE = "practice_preferred_order_mode"
@@ -184,6 +187,7 @@ object QuizRepository {
     private const val KEY_AI_REFACTOR_ENABLED = "ai_refactor_enabled"
     private const val KEY_AI_REVIEW_ENABLED = "ai_review_enabled"
     private const val KEY_AI_ANALYSIS_ENABLED = "ai_analysis_enabled"
+    private const val KEY_AI_SINGLE_QUESTION_ANALYSIS_ENABLED = "ai_single_question_analysis_enabled"
     private const val KEY_AI_ONLY_ANOMALY = "ai_only_anomaly"
     private const val KEY_AI_REQUIRE_CONFIRM = "ai_require_confirm"
     private const val KEY_AI_MAX_QUESTIONS = "ai_max_questions"
@@ -237,6 +241,8 @@ object QuizRepository {
         private set
     var wrongBookSmartReviewEnabled by mutableStateOf(false)
         private set
+    var wrongBookScopeMode by mutableStateOf(WRONG_BOOK_SCOPE_ALL_BANKS)
+        private set
     var preferredPracticeQuestionCountMode by mutableStateOf("custom")
         private set
     var preferredPracticeCustomQuestionCount by mutableStateOf(20)
@@ -287,6 +293,8 @@ object QuizRepository {
     var aiReviewEnabled by mutableStateOf(false)
         private set
     var aiAnalysisEnabled by mutableStateOf(false)
+        private set
+    var aiSingleQuestionAnalysisEnabled by mutableStateOf(false)
         private set
     var aiOnlyAnomaly by mutableStateOf(true)
         private set
@@ -375,6 +383,9 @@ object QuizRepository {
         practiceSlashEnabled = prefs.getBoolean(KEY_PRACTICE_SLASH_ENABLED, false)
         practiceQuickEditEnabled = prefs.getBoolean(KEY_PRACTICE_QUICK_EDIT_ENABLED, false)
         wrongBookSmartReviewEnabled = prefs.getBoolean(KEY_WRONG_BOOK_SMART_REVIEW_ENABLED, false)
+        wrongBookScopeMode = normalizeWrongBookScopeMode(
+            prefs.getString(KEY_WRONG_BOOK_SCOPE_MODE, WRONG_BOOK_SCOPE_ALL_BANKS) ?: WRONG_BOOK_SCOPE_ALL_BANKS
+        )
         preferredPracticeQuestionCountMode = normalizePracticeCountMode(
             prefs.getString(KEY_PRACTICE_PREFERRED_COUNT_MODE, "custom") ?: "custom"
         )
@@ -414,6 +425,7 @@ object QuizRepository {
         aiRefactorEnabled = prefs.getBoolean(KEY_AI_REFACTOR_ENABLED, false)
         aiReviewEnabled = prefs.getBoolean(KEY_AI_REVIEW_ENABLED, false)
         aiAnalysisEnabled = prefs.getBoolean(KEY_AI_ANALYSIS_ENABLED, false)
+        aiSingleQuestionAnalysisEnabled = prefs.getBoolean(KEY_AI_SINGLE_QUESTION_ANALYSIS_ENABLED, false)
         aiOnlyAnomaly = prefs.getBoolean(KEY_AI_ONLY_ANOMALY, true)
         aiRequireConfirm = prefs.getBoolean(KEY_AI_REQUIRE_CONFIRM, true)
         aiMaxQuestions = prefs.getInt(KEY_AI_MAX_QUESTIONS, 20).coerceIn(5, 100)
@@ -951,15 +963,29 @@ object QuizRepository {
         persist()
     }
 
+    fun wrongBookEntriesForCurrentScope(): List<WrongQuestionEntry> {
+        return when (wrongBookScopeMode) {
+            WRONG_BOOK_SCOPE_CURRENT_BANK -> {
+                val currentBankId = activeBankId ?: activeBank()?.id ?: return emptyList()
+                wrongBook.filter { it.bankId == currentBankId }
+            }
+            else -> wrongBook.toList()
+        }
+    }
+
+    fun currentWrongBookScopeLabel(): String {
+        return if (wrongBookScopeMode == WRONG_BOOK_SCOPE_CURRENT_BANK) "当前题库" else "全部题库"
+    }
+
     fun reviewDueWrongEntries(): List<WrongQuestionEntry> {
-        return wrongBook
+        return wrongBookEntriesForCurrentScope()
             .filter { it.status != WrongStatus.MASTERED.label }
             .filterNot { isQuestionSlashed(it.bankId, it.question) }
     }
 
     fun todayWrongBookSmartReviewEntries(now: Long = System.currentTimeMillis()): List<WrongQuestionEntry> {
         if (!wrongBookSmartReviewEnabled) return emptyList()
-        return wrongBook
+        return wrongBookEntriesForCurrentScope()
             .filterNot { isQuestionSlashed(it.bankId, it.question) }
             .filter { entry -> isWrongEntryDueForSmartReview(entry, now) }
             .sortedWith(
@@ -985,6 +1011,16 @@ object QuizRepository {
 
     fun clearWrongBook() {
         wrongBook.clear()
+        persist()
+    }
+
+    fun clearWrongBookForCurrentScope() {
+        if (wrongBookScopeMode == WRONG_BOOK_SCOPE_CURRENT_BANK) {
+            val currentBankId = activeBankId ?: activeBank()?.id ?: return
+            wrongBook.removeAll { it.bankId == currentBankId }
+        } else {
+            wrongBook.clear()
+        }
         persist()
     }
 
@@ -1205,6 +1241,12 @@ object QuizRepository {
         persist()
     }
 
+    fun setWrongBookScopeMode(context: Context, mode: String) {
+        appContext = context.applicationContext
+        wrongBookScopeMode = normalizeWrongBookScopeMode(mode)
+        persist()
+    }
+
     fun setPreferredPracticeMode(context: Context, mode: String) {
         appContext = context.applicationContext
         preferredPracticeMode = normalizePracticeMode(mode)
@@ -1384,6 +1426,12 @@ object QuizRepository {
         persist()
     }
 
+    fun setAiSingleQuestionAnalysisEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        aiSingleQuestionAnalysisEnabled = enabled
+        persist()
+    }
+
     fun setAiOnlyAnomaly(context: Context, enabled: Boolean) {
         appContext = context.applicationContext
         aiOnlyAnomaly = enabled
@@ -1417,6 +1465,7 @@ object QuizRepository {
         aiRefactorEnabled = false
         aiReviewEnabled = false
         aiAnalysisEnabled = false
+        aiSingleQuestionAnalysisEnabled = false
         persist()
     }
 
@@ -2687,6 +2736,14 @@ object QuizRepository {
         return streakCorrectCount >= 2
     }
 
+    private fun normalizeWrongBookScopeMode(mode: String?): String {
+        return when (mode) {
+            WRONG_BOOK_SCOPE_CURRENT_BANK -> WRONG_BOOK_SCOPE_CURRENT_BANK
+            WRONG_BOOK_SCOPE_ALL_BANKS -> WRONG_BOOK_SCOPE_ALL_BANKS
+            else -> WRONG_BOOK_SCOPE_ALL_BANKS
+        }
+    }
+
     private fun currentPracticeWrongSource(): String {
         return when (practiceSourceLabel) {
             "错题本" -> "错题练习"
@@ -2895,6 +2952,7 @@ object QuizRepository {
             .putBoolean(KEY_PRACTICE_SLASH_ENABLED, practiceSlashEnabled)
             .putBoolean(KEY_PRACTICE_QUICK_EDIT_ENABLED, practiceQuickEditEnabled)
             .putBoolean(KEY_WRONG_BOOK_SMART_REVIEW_ENABLED, wrongBookSmartReviewEnabled)
+            .putString(KEY_WRONG_BOOK_SCOPE_MODE, wrongBookScopeMode)
             .putString(KEY_PRACTICE_PREFERRED_COUNT_MODE, preferredPracticeQuestionCountMode)
             .putInt(KEY_PRACTICE_PREFERRED_CUSTOM_COUNT, preferredPracticeCustomQuestionCount)
             .putString(KEY_PRACTICE_PREFERRED_ORDER_MODE, preferredPracticeOrderMode)
@@ -2922,6 +2980,7 @@ object QuizRepository {
             .putBoolean(KEY_AI_REFACTOR_ENABLED, aiRefactorEnabled)
             .putBoolean(KEY_AI_REVIEW_ENABLED, aiReviewEnabled)
             .putBoolean(KEY_AI_ANALYSIS_ENABLED, aiAnalysisEnabled)
+            .putBoolean(KEY_AI_SINGLE_QUESTION_ANALYSIS_ENABLED, aiSingleQuestionAnalysisEnabled)
             .putBoolean(KEY_AI_ONLY_ANOMALY, aiOnlyAnomaly)
             .putBoolean(KEY_AI_REQUIRE_CONFIRM, aiRequireConfirm)
             .putInt(KEY_AI_MAX_QUESTIONS, aiMaxQuestions)
@@ -3291,7 +3350,18 @@ object QuizRepository {
                 analysis = questionJson.optString("analysis"),
                 category = questionJson.optString("category"),
                 images = images,
-                score = if (questionJson.has("score")) questionJson.optDouble("score") else null
+                score = if (questionJson.has("score")) questionJson.optDouble("score") else null,
+                subject = questionJson.optString("subject"),
+                grade = questionJson.optString("grade"),
+                difficulty = questionJson.optString("difficulty"),
+                knowledgePoints = parseStringArray(questionJson.optJSONArray("knowledgePoints")),
+                tags = parseStringArray(questionJson.optJSONArray("tags")),
+                source = questionJson.optString("source"),
+                sourceFileId = questionJson.optString("sourceFileId"),
+                version = questionJson.optInt("version", 1),
+                reviewStatus = questionJson.optString("reviewStatus", "approved"),
+                aiConfidence = if (questionJson.has("aiConfidence")) questionJson.optDouble("aiConfidence") else null,
+                warnings = parseStringArray(questionJson.optJSONArray("warnings"))
             )
         )
     }
@@ -3306,6 +3376,16 @@ object QuizRepository {
             "blank", "fill_blank", "fillblank", "fill_in_blank" -> QuestionType.BLANK
             "short", "subjective", "essay", "qa", "question_answer" -> QuestionType.SHORT
             else -> runCatching { QuestionType.valueOf(value.uppercase(Locale.ROOT)) }.getOrDefault(QuestionType.SINGLE)
+        }
+    }
+
+    private fun parseStringArray(array: JSONArray?): List<String> {
+        if (array == null) return emptyList()
+        return buildList {
+            for (i in 0 until array.length()) {
+                val value = array.optString(i).trim()
+                if (value.isNotBlank()) add(value)
+            }
         }
     }
 
@@ -3354,6 +3434,17 @@ object QuizRepository {
             imagesArray.put(imageJson)
         }
         questionJson.put("images", imagesArray)
+        if (question.subject.isNotBlank()) questionJson.put("subject", question.subject)
+        if (question.grade.isNotBlank()) questionJson.put("grade", question.grade)
+        if (question.difficulty.isNotBlank()) questionJson.put("difficulty", question.difficulty)
+        if (question.knowledgePoints.isNotEmpty()) questionJson.put("knowledgePoints", JSONArray(question.knowledgePoints))
+        if (question.tags.isNotEmpty()) questionJson.put("tags", JSONArray(question.tags))
+        if (question.source.isNotBlank()) questionJson.put("source", question.source)
+        if (question.sourceFileId.isNotBlank()) questionJson.put("sourceFileId", question.sourceFileId)
+        questionJson.put("version", question.version)
+        if (question.reviewStatus != "approved") questionJson.put("reviewStatus", question.reviewStatus)
+        if (question.aiConfidence != null) questionJson.put("aiConfidence", question.aiConfidence!!)
+        if (question.warnings.isNotEmpty()) questionJson.put("warnings", JSONArray(question.warnings))
         return questionJson
     }
     private fun registerBackupAsset(image: QuestionImage, assetMapping: MutableMap<String, BackupAsset>?): String? {

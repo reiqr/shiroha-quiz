@@ -12,9 +12,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Undo
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -34,12 +40,24 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private enum class RecordListFilter(val label: String) {
+    ALL("全部记录"),
+    WRONG_ONLY("只看错题")
+}
+
 @Composable
 fun RecordsScreen(
     onBack: () -> Unit,
     onOpenRecord: (String) -> Unit = {}
 ) {
-    val records = QuizRepository.studyRecords
+    val records = QuizRepository.studyRecords.toList()
+    var filter by remember { mutableStateOf(RecordListFilter.ALL) }
+    val filteredRecords = remember(records, filter) {
+        when (filter) {
+            RecordListFilter.ALL -> records
+            RecordListFilter.WRONG_ONLY -> records.filter { record -> (record.total - record.correct) > 0 }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -78,11 +96,47 @@ fun RecordsScreen(
             imageSize = 88.dp
         )
 
-        records.forEach { record ->
-            RecordCard(
-                record = record,
-                onClick = { onOpenRecord(record.id) }
+        GlassCard {
+            Text(
+                text = "记录筛选",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
             )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                RecordListFilter.entries.forEach { item ->
+                    ActionPillButton(
+                        icon = if (item == RecordListFilter.WRONG_ONLY) Icons.Rounded.Close else Icons.Rounded.CheckCircle,
+                        text = item.label,
+                        primary = filter == item,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        fillWidthContent = true,
+                        onClick = { filter = item }
+                    )
+                }
+            }
+        }
+
+        if (filteredRecords.isEmpty()) {
+            GlassCard {
+                Text(
+                    text = "当前筛选下没有错题记录。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            filteredRecords.forEach { record ->
+                RecordCard(
+                    record = record,
+                    onClick = { onOpenRecord(record.id) }
+                )
+            }
         }
     }
 }

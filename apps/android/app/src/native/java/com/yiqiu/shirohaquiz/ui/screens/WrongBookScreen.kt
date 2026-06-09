@@ -66,7 +66,11 @@ fun WrongBookScreen(
     onBack: () -> Unit,
     onGoPractice: () -> Unit
 ) {
-    val wrongBook = QuizRepository.wrongBook.toList()
+    val wrongBook = QuizRepository.wrongBookEntriesForCurrentScope()
+    val allWrongBook = QuizRepository.wrongBook.toList()
+    val scopeLabel = QuizRepository.currentWrongBookScopeLabel()
+    val scopeMode = QuizRepository.wrongBookScopeMode
+    val activeBank = QuizRepository.activeBank()
     var filter by remember { mutableStateOf(WrongBookFilter.NOT_MASTERED) }
     var sort by remember { mutableStateOf(WrongBookSort.RECENT_WRONG) }
     var showClearWrongBookConfirm by remember { mutableStateOf(false) }
@@ -78,15 +82,20 @@ fun WrongBookScreen(
     val masteredCount = wrongBook.count { it.status == WrongStatus.MASTERED.label }
     val smartReviewEnabled = QuizRepository.wrongBookSmartReviewEnabled
     val smartReviewSummary = QuizRepository.todayWrongBookSmartReviewSummary()
+    val isCurrentBankScope = scopeMode == QuizRepository.WRONG_BOOK_SCOPE_CURRENT_BANK
 
     if (showClearWrongBookConfirm) {
         ShirohaDangerConfirmDialog(
-            title = "确认清空错题本？",
-            message = "这会移除当前错题本里的全部错题记录，包括错题次数、掌握状态和复习统计。操作不可撤销。",
-            confirmText = "确认清空",
+            title = if (isCurrentBankScope) "确认清空当前题库错题？" else "确认清空全部错题？",
+            message = if (isCurrentBankScope) {
+                "这会移除当前题库错题记录，包括错题次数、掌握状态和复习统计。其他题库错题不会受影响。"
+            } else {
+                "这会移除全部题库的错题记录，包括错题次数、掌握状态和复习统计。操作不可撤销。"
+            },
+            confirmText = if (isCurrentBankScope) "清空当前题库" else "清空全部",
             onDismiss = { showClearWrongBookConfirm = false },
             onConfirm = {
-                QuizRepository.clearWrongBook()
+                QuizRepository.clearWrongBookForCurrentScope()
                 showClearWrongBookConfirm = false
             }
         )
@@ -106,8 +115,13 @@ fun WrongBookScreen(
 
         if (wrongBook.isEmpty()) {
             EmptyStateIllustration(
-                title = "错题本还是空的",
-                message = "继续练习或考试后，错题会自动进入这里。",
+                title = if (allWrongBook.isEmpty()) "错题本还是空的" else "${scopeLabel}暂无错题",
+                message = when {
+                    allWrongBook.isEmpty() -> "继续练习或考试后，错题会自动进入这里。"
+                    isCurrentBankScope && activeBank == null -> "请先在题库管理中设为当前题库，或到设置中切换为全部题库错题。"
+                    isCurrentBankScope -> "当前题库没有错题。需要查看其他错题时，可到 我的 → 错题本 中切换为全部题库。"
+                    else -> "当前范围下没有错题。"
+                },
                 imageRes = R.drawable.illus_wrongbook_hint_webp,
                 action = {
                     Spacer(Modifier.height(12.dp))
@@ -137,11 +151,14 @@ fun WrongBookScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "错题 ${wrongBook.size} 条",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "错题 ${wrongBook.size} 条",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        StatusChip(scopeLabel, selected = isCurrentBankScope)
+                    }
                     Spacer(Modifier.height(6.dp))
                     Text(
                         text = "未掌握 $notMasteredCount · 已掌握 $masteredCount",
@@ -230,7 +247,7 @@ fun WrongBookScreen(
             ) {
                 ActionPillButton(
                     icon = Icons.Rounded.PlayArrow,
-                    text = if (smartReviewEnabled) "刷当前筛选" else "刷错题",
+                    text = if (smartReviewEnabled) "刷当前筛选" else if (isCurrentBankScope) "刷当前题库" else "刷错题",
                     primary = reviewEntries.isNotEmpty(),
                     modifier = Modifier
                         .weight(1f)

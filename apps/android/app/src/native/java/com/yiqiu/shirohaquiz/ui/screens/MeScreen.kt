@@ -633,6 +633,52 @@ fun WrongBookPreferenceScreen(
             )
         )
 
+        GlassCard {
+            val scopeMode = QuizRepository.wrongBookScopeMode
+            val activeBankName = QuizRepository.activeBank()?.name ?: "未选择题库"
+            Text(
+                text = "错题显示范围",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "控制错题本、首页错题数量、刷错题和今日复习使用当前题库还是全部题库。当前题库：$activeBankName",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionPillButton(
+                    icon = Icons.Rounded.Tune,
+                    text = "当前题库",
+                    primary = scopeMode == QuizRepository.WRONG_BOOK_SCOPE_CURRENT_BANK,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    fillWidthContent = true,
+                    onClick = {
+                        QuizRepository.setWrongBookScopeMode(context, QuizRepository.WRONG_BOOK_SCOPE_CURRENT_BANK)
+                    }
+                )
+                ActionPillButton(
+                    icon = Icons.Rounded.Tune,
+                    text = "全部题库",
+                    primary = scopeMode == QuizRepository.WRONG_BOOK_SCOPE_ALL_BANKS,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    fillWidthContent = true,
+                    onClick = {
+                        QuizRepository.setWrongBookScopeMode(context, QuizRepository.WRONG_BOOK_SCOPE_ALL_BANKS)
+                    }
+                )
+            }
+        }
+
         WrongBookExplanationCard(
             icon = Icons.Rounded.AutoAwesome,
             title = "智能复习逻辑",
@@ -952,7 +998,7 @@ fun AiSettingsScreen(
         ShirohaHeader(
             kicker = "AI",
             title = "AI 设置",
-            subtitle = "管理 AI重构、AI核对、AI解析和接口配置"
+            subtitle = "管理导入核对、题目页分析和接口配置"
         )
 
         AiSettingsPanel(context = context)
@@ -985,7 +1031,7 @@ private fun AiSettingsPanel(context: Context) {
     if (showClearAiConfigConfirm) {
         ShirohaDangerConfirmDialog(
             title = "确认清除 AI 配置？",
-            message = "这会清除当前保存的 API 地址、API Key 和模型名称。清除后需要重新填写才能继续使用 AI 核对或 AI 解析。",
+            message = "这会清除当前保存的 API 地址、API Key 和模型名称，并关闭所有 AI 功能开关。清除后需要重新填写才能继续使用 AI。",
             confirmText = "确认清除",
             onDismiss = { showClearAiConfigConfirm = false },
             onConfirm = {
@@ -1148,10 +1194,17 @@ private fun AiSettingsPanel(context: Context) {
         )
         Spacer(Modifier.height(10.dp))
         PreferenceSwitchRow(
-            title = "启用 AI 解析",
-            desc = "优先为缺少解析或解析过短的题目生成建议。",
+            title = "启用导入页 AI 解析",
+            desc = "导入核对阶段，优先为缺少解析或解析过短的题目生成建议。",
             checked = QuizRepository.aiAnalysisEnabled,
             onCheckedChange = { enabled -> QuizRepository.setAiAnalysisEnabled(context, enabled) }
+        )
+        Spacer(Modifier.height(10.dp))
+        PreferenceSwitchRow(
+            title = "启用题目页 AI 分析",
+            desc = "练习提交后显示单题 AI 分析入口，AI 只给参考答案和解析，不自动修改题库。",
+            checked = QuizRepository.aiSingleQuestionAnalysisEnabled,
+            onCheckedChange = { enabled -> QuizRepository.setAiSingleQuestionAnalysisEnabled(context, enabled) }
         )
         Spacer(Modifier.height(10.dp))
         PreferenceSwitchRow(

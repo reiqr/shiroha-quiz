@@ -127,7 +127,7 @@ fun HomeScreen(
             HomeShortcutGrid(
                 bankCount = bankCount,
                 favoriteCount = QuizRepository.favoriteQuestions.size,
-                wrongCount = QuizRepository.wrongBook.size,
+                wrongCount = QuizRepository.wrongBookEntriesForCurrentScope().size,
                 recordCount = QuizRepository.studyRecords.size,
                 onOpenBankList = onOpenBankList,
                 onOpenWrongBook = onOpenWrongBook,
