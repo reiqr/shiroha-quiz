@@ -94,6 +94,7 @@ import com.yiqiu.shirohaquiz.importer.validate.ImportValidator
 import com.yiqiu.shirohaquiz.state.DEFAULT_BANK_GROUP_NAME
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
+import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.LoadingIllustration
@@ -2652,6 +2653,14 @@ private fun ReviewQuestionEditorContent(
                 minLines = 5,
                 label = { Text("解析") },
                 textStyle = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(Modifier.height(10.dp))
+            AiAnalysisFillPanel(
+                question = question,
+                currentAnalysis = question.analysis,
+                onApplyAnalysis = { value ->
+                    onQuestionChange(question.copy(analysis = value))
+                }
             )
         }
 

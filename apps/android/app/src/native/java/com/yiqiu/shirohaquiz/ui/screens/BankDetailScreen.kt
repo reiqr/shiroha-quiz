@@ -42,6 +42,7 @@ import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.DEFAULT_BANK_GROUP_NAME
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
+import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.ui.components.EmptyStateIllustration
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
@@ -449,6 +450,16 @@ private fun QuestionEditDialog(
                     label = { Text("解析") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2
+                )
+                AiAnalysisFillPanel(
+                    question = question.copy(
+                        question = stem.trim(),
+                        options = parseOptions(optionsText),
+                        answer = parseAnswer(answerText),
+                        analysis = analysisText.trim()
+                    ),
+                    currentAnalysis = analysisText,
+                    onApplyAnalysis = { analysisText = it }
                 )
             }
         },

@@ -89,6 +89,7 @@ import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.QuestionCheckResult
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
+import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.IllustrationHeroCard
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
@@ -464,6 +465,14 @@ fun PracticeScreen(
             isBatchBeforeSubmit || !QuizRepository.practiceNextRequiresResult || isSubmitted
         }
         val displayedSelection = if (isReciteMode) emptyList() else effectiveResult?.userAnswer ?: QuizRepository.selectedAnswer
+        val displayOptions = remember(
+            question.id,
+            question.options,
+            QuizRepository.practiceOptionShuffleEnabled,
+            QuizRepository.practiceOptionShuffleSeed
+        ) {
+            practiceDisplayOptions(question, QuizRepository.practiceOptionShuffleEnabled, QuizRepository.practiceOptionShuffleSeed)
+        }
         val isCurrentQuestionFavorited = QuizRepository.isCurrentPracticeQuestionFavorited()
         val batchDraftAnsweredCount = QuizRepository.practiceDraftAnsweredCount()
         var showBatchSubmitConfirm by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
@@ -682,7 +691,7 @@ fun PracticeScreen(
                 QuestionType.SINGLE,
                 QuestionType.MULTIPLE,
                 QuestionType.JUDGE -> {
-                    question.options.forEach { option ->
+                    displayOptions.forEach { option ->
                         QuizOptionCard(
                             label = option.key,
                             text = option.text,
@@ -1108,6 +1117,20 @@ fun PracticeQuickEditScreen(
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 4,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
+            )
+            Spacer(Modifier.height(10.dp))
+            AiAnalysisFillPanel(
+                question = question.copy(
+                    question = questionText.trim(),
+                    options = if (isObjective) optionDrafts.map { it.copy(text = it.text.trim()) } else emptyList(),
+                    answer = parseQuickEditAnswer(answerText, question.type, optionDrafts),
+                    analysis = analysisText.trim()
+                ),
+                currentAnalysis = analysisText,
+                onApplyAnalysis = { value ->
+                    analysisText = value
+                    savedNotice = "AI 建议解析已写入编辑框，保存后才会更新题库。"
+                }
             )
 
             if (savedNotice.isNotBlank()) {
@@ -2570,6 +2593,17 @@ private fun formatAnalysisForDisplay(analysis: String): String {
         .replace(Regex("\\s*(?=([A-GＡ-Ｇ])项[，,：:])"), "\n")
         .replace(Regex("\n{3,}"), "\n\n")
         .trim()
+}
+
+private fun practiceDisplayOptions(question: Question, shuffleEnabled: Boolean, sessionSeed: Long): List<Option> {
+    if (!shuffleEnabled) return question.options
+    if (question.type != QuestionType.SINGLE && question.type != QuestionType.MULTIPLE && question.type != QuestionType.JUDGE) return question.options
+    if (question.options.size <= 1) return question.options
+    val seedSource = "${question.id}|${question.number}|${question.question}"
+    val seed = sessionSeed xor seedSource.hashCode().toLong()
+    return question.options.toMutableList().also { options ->
+        java.util.Collections.shuffle(options, java.util.Random(seed))
+    }
 }
 
 private val practiceTypeOrder = listOf(

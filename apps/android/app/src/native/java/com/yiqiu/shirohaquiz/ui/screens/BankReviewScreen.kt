@@ -51,6 +51,7 @@ import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
+import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.ui.components.EmptyStateIllustration
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
@@ -547,6 +548,14 @@ fun BankReviewScreen(
                     minLines = 5,
                     label = { Text("解析") },
                     textStyle = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(10.dp))
+                AiAnalysisFillPanel(
+                    question = question,
+                    currentAnalysis = question.analysis,
+                    onApplyAnalysis = { value ->
+                        editableQuestions[safeIndex] = question.copy(analysis = value)
+                    }
                 )
             }
 

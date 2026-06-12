@@ -24,6 +24,7 @@ object StandardQuestionParser {
     )
 
     private data class OptionMarker(val key: String, val markerStart: Int, val contentStart: Int)
+    private data class ProtectedImageMarkerText(val text: String, val replacements: Map<String, String>)
     private data class LineAnswerExtraction(val cleanLine: String, val answerText: String? = null, val analysisText: String? = null)
     private data class EmbeddedStemAnswer(val cleanStem: String, val answerText: String)
     private data class InferredPlainOptions(val stem: List<String>, val options: List<Option>)
@@ -227,13 +228,18 @@ object StandardQuestionParser {
         stemLines: MutableList<String>
     ): Boolean {
         val optionLine = stripLeadingOptionLabel(line)
-        val markers = findOptionMarkers(optionLine)
+        val protectedLine = protectImageMarkersForOptionSplit(optionLine)
+        val optionSplitLine = protectedLine.text
+        val markers = findOptionMarkers(optionSplitLine)
         if (markers.isEmpty()) return false
         if (markers.size == 1 && markers.first().markerStart > 0 && options.isNotEmpty()) return false
 
         val firstMarker = markers.first()
         if (firstMarker.markerStart > 0) {
-            val prefix = optionLine.substring(0, firstMarker.markerStart).trim()
+            val prefix = restoreProtectedImageMarkers(
+                optionSplitLine.substring(0, firstMarker.markerStart),
+                protectedLine
+            ).trim()
             if (prefix.isNotBlank()) {
                 val inferredKey = missingPreviousOptionKey(firstMarker.key, options)
                 if (inferredKey != null && shouldUsePrefixAsMissingOption(prefix, inferredKey, firstMarker.key)) {
@@ -245,8 +251,11 @@ object StandardQuestionParser {
         }
 
         markers.forEachIndexed { index, marker ->
-            val end = markers.getOrNull(index + 1)?.markerStart ?: optionLine.length
-            val text = optionLine.substring(marker.contentStart, end)
+            val end = markers.getOrNull(index + 1)?.markerStart ?: optionSplitLine.length
+            val text = restoreProtectedImageMarkers(
+                optionSplitLine.substring(marker.contentStart, end),
+                protectedLine
+            )
                 .trim()
                 .trim(';', '；')
                 .trim()
@@ -330,6 +339,33 @@ object StandardQuestionParser {
         return line.replace(Regex("""^\s*(?:选项|备选项|选项内容|候选项)\s*[:：]\s*"""), "")
     }
 
+    private fun protectImageMarkersForOptionSplit(line: String): ProtectedImageMarkerText {
+        val ranges = QuestionImageMarker.rangesIn(line)
+        if (ranges.isEmpty()) return ProtectedImageMarkerText(line, emptyMap())
+        val replacements = linkedMapOf<String, String>()
+        val builder = StringBuilder()
+        var cursor = 0
+        ranges.forEachIndexed { index, range ->
+            if (range.first < cursor) return@forEachIndexed
+            builder.append(line.substring(cursor, range.first))
+            val token = "@@SHIROHA_IMG_MARKER_$index@@"
+            replacements[token] = line.substring(range)
+            builder.append(token)
+            cursor = range.last + 1
+        }
+        if (cursor < line.length) builder.append(line.substring(cursor))
+        return ProtectedImageMarkerText(builder.toString(), replacements)
+    }
+
+    private fun restoreProtectedImageMarkers(text: String, protectedText: ProtectedImageMarkerText): String {
+        if (protectedText.replacements.isEmpty()) return text
+        var restored = text
+        protectedText.replacements.forEach { (token, marker) ->
+            restored = restored.replace(token, marker)
+        }
+        return restored
+    }
+
     private fun findOptionMarkers(line: String): List<OptionMarker> {
         val markers = mutableListOf<OptionMarker>()
 
@@ -375,9 +411,15 @@ object StandardQuestionParser {
         val imageRanges = QuestionImageMarker.rangesIn(line)
         return markers
             .filterNot { marker -> imageRanges.any { range -> marker.markerStart in range } }
+            .filterNot { marker -> looksLikeOptionMarkerInsideAsciiWord(line, marker) }
             .filterNot { marker -> looksLikeInlineEnumerationMarker(line, marker) }
             .distinctBy { it.markerStart to it.key }
             .sortedBy { it.markerStart }
+    }
+
+    private fun looksLikeOptionMarkerInsideAsciiWord(line: String, marker: OptionMarker): Boolean {
+        val previous = line.getOrNull(marker.markerStart - 1) ?: return false
+        return previous in 'A'..'Z' || previous in 'a'..'z' || previous in '0'..'9' || previous == '_'
     }
 
     private fun looksLikeInlineEnumerationMarker(line: String, marker: OptionMarker): Boolean {

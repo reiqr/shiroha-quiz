@@ -853,6 +853,13 @@ fun PracticePreferenceScreen(
                 onCheckedChange = { enabled -> QuizRepository.setPracticeQuickEditEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "选择题打乱选项顺序",
+                desc = "仅练习、背题、错题练习和今日复习生效；本次练习内顺序固定，不影响题库原始答案。",
+                checked = QuizRepository.practiceOptionShuffleEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticeOptionShuffleEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
             Text(
                 text = "默认答题方式",
                 style = MaterialTheme.typography.titleSmall,
