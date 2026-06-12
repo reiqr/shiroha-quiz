@@ -7312,3 +7312,93 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
   box-shadow:none !important;
 }
 /* SHIROHA_WEB_V58_9_6_1_PRACTICE_STATS_TOGGLE_TRANSPARENT_FIX_END */
+
+/* v58.9.8.1: import preview toolbar alignment */
+.import-preview-head-v5981{
+  display:grid !important;
+  grid-template-columns:minmax(360px,1fr) auto !important;
+  align-items:start !important;
+  gap:18px 24px !important;
+}
+.import-preview-title-v5981{
+  min-width:0 !important;
+}
+.import-preview-title-v5981 h2{
+  margin-bottom:10px !important;
+}
+.import-preview-title-v5981 .muted{
+  max-width:720px !important;
+  line-height:1.65 !important;
+}
+.import-preview-tools-v5981{
+  width:max-content !important;
+  max-width:100% !important;
+  margin-left:auto !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  flex-wrap:nowrap !important;
+  gap:10px !important;
+}
+.import-preview-filter-v5981{
+  height:46px !important;
+  min-height:46px !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  white-space:nowrap !important;
+}
+.import-preview-filter-v5981 select{
+  width:140px !important;
+  min-width:140px !important;
+  height:46px !important;
+  min-height:46px !important;
+  padding:0 36px 0 14px !important;
+  border-radius:16px !important;
+  text-align-last:left !important;
+}
+.import-preview-tools-v5981 button{
+  width:112px !important;
+  min-width:112px !important;
+  height:46px !important;
+  min-height:46px !important;
+  padding:0 14px !important;
+  border-radius:16px !important;
+  white-space:nowrap !important;
+  margin:0 !important;
+}
+#import-preview-filter,
+.import-preview-tools-v5981 button{
+  box-sizing:border-box !important;
+}
+@media(max-width:1080px){
+  .import-preview-head-v5981{
+    grid-template-columns:1fr !important;
+  }
+  .import-preview-tools-v5981{
+    width:100% !important;
+    margin-left:0 !important;
+    justify-content:flex-start !important;
+    flex-wrap:wrap !important;
+  }
+}
+@media(max-width:720px){
+  .import-preview-tools-v5981{
+    display:grid !important;
+    grid-template-columns:1fr 1fr !important;
+    gap:10px !important;
+  }
+  .import-preview-filter-v5981{
+    grid-column:1 / -1 !important;
+    width:100% !important;
+  }
+  .import-preview-filter-v5981 select{
+    flex:1 !important;
+    width:auto !important;
+    min-width:0 !important;
+  }
+  .import-preview-tools-v5981 button{
+    width:100% !important;
+    min-width:0 !important;
+  }
+}
