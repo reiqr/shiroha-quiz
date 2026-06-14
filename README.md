@@ -122,6 +122,7 @@ Shiroha Quiz 解决一个很实际的问题：
 
 **备份恢复**
 - 全部数据一键导出为 JSON 备份文件，Web 端与原生端导出格式互通，可相互导入
+- 完整备份含错题本、收藏夹、学习记录，跨端互导时可自动恢复（v0.8.0+）
 - 原生端导出 ZIP 含图片素材，Web 端同样可直接导入并自动转换
 - 支持批量导出单个题库 JSON
 - 恢复时可选合并或覆盖现有数据
@@ -285,7 +286,6 @@ shiroha-quiz/
 ├── test/                            # 解析器回归测试
 │   └── native-parser-regression/
 ├── assets/                          # 宣传图与素材源文件
-├── packages/                        # 跨端模块接口说明
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── LICENSE
