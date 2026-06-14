@@ -1,6 +1,6 @@
 # Shiroha Quiz 后续功能开发计划 33-34
 
-当前版本：原生 `v0.7.6-native`，Web `v0.6.0-alpha`。本阶段原生端完成 20 个版本迭代（v0.6.7~v0.7.6），Web 端完成 9 个版本迭代（v0.4.7~v0.6.0），统一发布推进至 v2.3.0-beta。
+当前版本：原生 `v0.8.0-native`，Web `v0.6.0-alpha`。本阶段原生端完成 21 个版本迭代（v0.6.7~v0.8.0），Web 端完成 9 个版本迭代（v0.4.7~v0.6.0），统一发布推进至 v2.4.0-beta。
 
 ---
 
@@ -66,10 +66,18 @@
 ### 5. 工程
 
 - 清理未启用的 monorepo 骨架（pnpm-workspace.yaml / package.json / packages/）
-- 回归测试 20 用例积累（17/20 通过，3 例待修：13 紧凑答案/A,B提取、17 卷首语误判、18 空输入返回题目）
-- 空结果报告：无可用解析时产出 ERROR 级别警告而非静默返回
-- 紧凑答案归一化：`normalizeLocalObjectiveAnswer` 将 "AB"/"A,B"/"A B" 归一化为 `["A","B"]` 后比较
-- 卷首语/前言过滤增强：`纸面前言正则` 收紧、"说明" 需带冒号、长度限制、问句排除
+- 回归测试 21 用例积累，全部通过
+- 紧凑答案归一化修复（13）：`embeddedChoiceLetterPattern` 扩展支持 (A,B)/(A B)
+- 前言过滤（17/18）：`pureFrontMatterLineRegex` 阻止卷首语入题块，`isPureFrontMatterPseudoQuestion` 最终守卫
+- 英文缩写防误判回归用例（21）：Vitamin A / U.S.A. / e.g.
+- 空结果报告：无可用解析时产出 ERROR 级别警告
+
+**跨端数据互通：**
+
+- Web 导出适配 Native 格式：`buildNativeInteropStateV24`，完整备份含 `kind:shiroha_quiz` 互通字段
+- Web 导入兼容 Native 格式：识别 `kind`，数组→对象映射（3 个转换函数）
+- Native 导入兼容 Web 格式：`crossPlatform` 包装解包、ISO 时间字符串解析、状态自动映射
+- 备份格式升级 v3：`crossPlatformSchemaVersion` / `exportedBy` 等元数据
 
 ---
 
@@ -90,19 +98,19 @@
 
 ### 目标 1：解析稳定性收口
 
-| 编号 | 内容 |
-|------|------|
-| 1.1 | 修复 `07_compact_format` 回归：答案归一化后再比较（"AB"→["A","B"]） |
-| 1.2 | 补充主观题紧凑格式回归用例 |
-| 1.3 | 大题库（500+ 题）导入性能摸底与优化 |
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| 1.1 | 修复紧凑多选答案提取 + 前言/注意事项过滤 | ✅ 21/21 |
+| 1.2 | 补充英文缩写防误判回归用例（21号） | ✅ |
+| 1.3 | 大题库（500+ 题）导入性能摸底与优化 | ⬜ |
 
 ### 目标 2：跨端数据互通（以 Native 为标准）
 
-| 编号 | 内容 |
-|------|------|
-| 2.1 | Web 导出适配 Native 格式：`kind: shiroha_quiz`，wrongBook/favorites 对象→数组 |
-| 2.2 | Web 导入适配 Native 格式：数组→对象映射 |
-| 2.3 | Native 导入适配 Web 格式：移除"跳过状态"逻辑，改为映射导入 |
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| 2.1 | Web 导出适配 Native 格式 | ✅ |
+| 2.2 | Web 导入兼容 Native 格式 | ✅ |
+| 2.3 | Native 导入兼容 Web 格式 | ✅ |
 
 ### 目标 3：后台化推进
 
