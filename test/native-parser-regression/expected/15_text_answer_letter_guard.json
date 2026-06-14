@@ -1,0 +1,13 @@
+{
+  "id": "15_text_answer_letter_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "answeredCount": 2,
+    "typeCounts": {"SHORT": 2},
+    "questions": [
+      {"number": "1", "type": "SHORT", "optionCount": 0, "answerTextContains": "AB法适用于"},
+      {"number": "2", "type": "SHORT", "optionCount": 0, "answerTextContains": "AI用于辅助分析"}
+    ]
+  }
+}

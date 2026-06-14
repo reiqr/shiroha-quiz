@@ -188,17 +188,45 @@ object QuestionParser {
         if (!fallbackOptionKeys.containsAll(expectedOptionKeys)) return false
         if (fallback.answer.any { it.uppercase() !in fallbackOptionKeys }) return false
 
-        // 标准结果已有明确文本答案时，禁止局部选择题修复把答案丢掉或改成字母答案。
-        val standardHasTextAnswer = standard?.answer.orEmpty().any { answer ->
-            !Regex("""^[A-G]$""").matches(answer.trim().uppercase())
-        }
+        // “AB / A,B / A B”属于合法的紧凑客观答案，不能因为标准结果暂时是 SHORT
+        // 就被当成文本答案拦截；只有无法严格归一化为现有选项键的内容才视为主观答案。
+        val standardAnswer = normalizeLocalObjectiveAnswer(standard?.answer.orEmpty(), expectedOptionKeys)
+        val fallbackAnswer = normalizeLocalObjectiveAnswer(fallback.answer, expectedOptionKeys)
+        val standardHasTextAnswer = standard?.answer.orEmpty().isNotEmpty() && standardAnswer == null
         if (standardHasTextAnswer) {
             if (fallback.answer != standard?.answer) return false
             if (fallback.type != standard.type) return false
+        } else if (standardAnswer != null && standardAnswer.isNotEmpty()) {
+            if (fallbackAnswer == null || fallbackAnswer != standardAnswer) return false
         }
 
         return questionStructureScore(fallback, expectedOptionKeys) >
             questionStructureScore(standard, expectedOptionKeys)
+    }
+
+    private fun normalizeLocalObjectiveAnswer(
+        answers: List<String>,
+        expectedOptionKeys: Set<String>
+    ): List<String>? {
+        if (answers.isEmpty()) return emptyList()
+        if (expectedOptionKeys.isEmpty()) return null
+
+        val raw = answers.joinToString(",").trim()
+            .trim('[', ']', '【', '】', '(', ')', '（', '）')
+            .trim()
+        if (raw.isBlank()) return emptyList()
+
+        // 严格限制为选项字母及分隔符，避免把“AB法、A方案、AI”等文本答案拆成字母。
+        if (!Regex("""^[A-Ga-g\s,，、;；/\\]+$""").matches(raw)) return null
+        val compact = raw.replace(Regex("""[\s,，、;；/\\]+"""), "").uppercase()
+        if (compact.isBlank() || !Regex("""^[A-G]+$""").matches(compact)) return null
+
+        val letters = compact.map { it.toString() }
+        val normalized = letters.distinct()
+        // 重复字母（如 AA / A,A）不是合法多选答案，不能作为题型转换依据。
+        if (normalized.size != letters.size) return null
+        if (normalized.any { it !in expectedOptionKeys }) return null
+        return normalized.sorted()
     }
 
     private fun looksLikeSubjectiveEnumeration(question: Question?): Boolean {

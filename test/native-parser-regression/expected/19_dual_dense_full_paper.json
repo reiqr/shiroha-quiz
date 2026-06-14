@@ -1,0 +1,15 @@
+{
+  "id": "19_dual_dense_full_paper",
+  "mode": "dual-file",
+  "expected": {
+    "questionCount": 10,
+    "answeredCount": 10,
+    "typeCounts": {"SINGLE": 10},
+    "strategyNameContains": "整卷真题复杂题目兜底解析",
+    "stemMustNotContain": ["绝密", "注意事项", "答题卡", "考试结束"],
+    "questions": [
+      {"number": "1", "type": "SINGLE", "optionCount": 4, "answer": ["C"]},
+      {"number": "10", "type": "SINGLE", "optionCount": 4, "answer": ["C"]}
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "17_full_paper_subjective_letter_answers",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 5,
+    "answeredCount": 5,
+    "typeCounts": {"SHORT": 5},
+    "questions": [
+      {"number": "1", "type": "SHORT", "optionCount": 0, "answer": ["A"]},
+      {"number": "2", "type": "SHORT", "optionCount": 0, "answer": ["B"]},
+      {"number": "3", "type": "SHORT", "optionCount": 0, "answer": ["C"]},
+      {"number": "4", "type": "SHORT", "optionCount": 0, "answer": ["D"]},
+      {"number": "5", "type": "SHORT", "optionCount": 0, "answer": ["A"]}
+    ]
+  }
+}

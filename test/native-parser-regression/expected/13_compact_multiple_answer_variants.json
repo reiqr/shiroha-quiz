@@ -1,0 +1,14 @@
+{
+  "id": "13_compact_multiple_answer_variants",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 3,
+    "answeredCount": 3,
+    "typeCounts": {"MULTIPLE": 3},
+    "questions": [
+      {"number": "1", "type": "MULTIPLE", "optionCount": 4, "answer": ["A", "B"]},
+      {"number": "2", "type": "MULTIPLE", "optionCount": 4, "answer": ["A", "B"]},
+      {"number": "3", "type": "MULTIPLE", "optionCount": 4, "answer": ["A", "B"]}
+    ]
+  }
+}

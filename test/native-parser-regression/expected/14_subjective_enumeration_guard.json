@@ -1,0 +1,14 @@
+{
+  "id": "14_subjective_enumeration_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 3,
+    "answeredCount": 3,
+    "typeCounts": {"SHORT": 3},
+    "questions": [
+      {"number": "1", "type": "SHORT", "optionCount": 0, "stemContains": "A.直接施工", "answerTextContains": "应结合现场条件分析"},
+      {"number": "2", "type": "SHORT", "optionCount": 0, "stemContains": "A.法与 B.法", "answer": ["A"]},
+      {"number": "3", "type": "SHORT", "optionCount": 0, "stemContains": "A.方案", "answerTextContains": "A方案适用于"}
+    ]
+  }
+}

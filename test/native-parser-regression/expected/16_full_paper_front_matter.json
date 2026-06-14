@@ -1,0 +1,15 @@
+{
+  "id": "16_full_paper_front_matter",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 5,
+    "answeredCount": 5,
+    "typeCounts": {"SINGLE": 5},
+    "stemMustNotContain": ["绝密", "注意事项", "考试时间", "答题卡"],
+    "mustNotCreateQuestionFrom": ["参考答案", "考试结束"],
+    "questions": [
+      {"number": "1", "type": "SINGLE", "optionCount": 4, "answer": ["A"]},
+      {"number": "5", "type": "SINGLE", "optionCount": 4, "answer": ["A"]}
+    ]
+  }
+}

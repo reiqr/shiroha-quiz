@@ -1,0 +1,9 @@
+{
+  "id": "18_empty_no_question",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 0,
+    "answeredCount": 0,
+    "warningContains": ["未识别到任何题目"]
+  }
+}

@@ -1,8 +1,8 @@
 {
   "app": "Shiroha Quiz",
   "scope": "native-parser-regression",
-  "version": 2,
-  "note": "外部回归核对包，不改 Android 源码和现有单元测试。Runner 以本 manifest 为唯一用例清单。",
+  "version": 3,
+  "note": "外部回归核对包 v3：覆盖 v89_14_2 紧凑多选答案归一化、主观枚举保护、整卷前言过滤和双文件密集整卷接管。Runner 以本 manifest 为唯一用例清单。",
   "cases": [
     {
       "id": "01_standard_single",
@@ -88,6 +88,63 @@
       "sample": "samples/12_material_wording_standard_guard.txt",
       "expected": "expected/12_material_wording_standard_guard.json",
       "risk": "普通编号题干里出现材料题字样时，不能被兜底策略误重写"
+    },
+    {
+      "id": "13_compact_multiple_answer_variants",
+      "mode": "single",
+      "sample": "samples/13_compact_multiple_answer_variants.txt",
+      "expected": "expected/13_compact_multiple_answer_variants.json",
+      "risk": "AB、A,B、A B 三种紧凑多选答案都应归一化为 A+B"
+    },
+    {
+      "id": "14_subjective_enumeration_guard",
+      "mode": "single",
+      "sample": "samples/14_subjective_enumeration_guard.txt",
+      "expected": "expected/14_subjective_enumeration_guard.json",
+      "risk": "主观题中的 A/B/C 分项和单字母文本答案不能触发选择题转换"
+    },
+    {
+      "id": "15_text_answer_letter_guard",
+      "mode": "single",
+      "sample": "samples/15_text_answer_letter_guard.txt",
+      "expected": "expected/15_text_answer_letter_guard.json",
+      "risk": "AB法、AI 等文本答案不能被拆成客观答案"
+    },
+    {
+      "id": "16_full_paper_front_matter",
+      "mode": "single",
+      "sample": "samples/16_full_paper_front_matter.txt",
+      "expected": "expected/16_full_paper_front_matter.json",
+      "risk": "完整试卷前言、答题卡提示和结束语不能进入题干"
+    },
+    {
+      "id": "17_full_paper_subjective_letter_answers",
+      "mode": "single",
+      "sample": "samples/17_full_paper_subjective_letter_answers.txt",
+      "expected": "expected/17_full_paper_subjective_letter_answers.json",
+      "risk": "整卷主观题即使答案为 A/B/C/D，也不能被改成带占位选项的客观题"
+    },
+    {
+      "id": "18_empty_no_question",
+      "mode": "single",
+      "sample": "samples/18_empty_no_question.txt",
+      "expected": "expected/18_empty_no_question.json",
+      "risk": "无题目文本必须返回未识别错误"
+    },
+    {
+      "id": "19_dual_dense_full_paper",
+      "mode": "dual",
+      "questionSample": "samples/19_dual_dense_full_paper_questions.txt",
+      "answerSample": "samples/19_dual_dense_full_paper_answers.txt",
+      "expected": "expected/19_dual_dense_full_paper.json",
+      "risk": "双文件密集整卷应在合并答案后允许结构完整的整卷候选接管"
+    },
+    {
+      "id": "20_full_paper_explain_word_guard",
+      "mode": "single",
+      "sample": "samples/20_full_paper_explain_word_guard.txt",
+      "expected": "expected/20_full_paper_explain_word_guard.json",
+      "risk": "题干以说明文字开头时不能被前言过滤器误删"
     }
   ]
 }

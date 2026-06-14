@@ -1,0 +1,12 @@
+{
+  "id": "20_full_paper_explain_word_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 5,
+    "answeredCount": 5,
+    "typeCounts": {"SINGLE": 5},
+    "questions": [
+      {"number": "1", "type": "SINGLE", "optionCount": 4, "answer": ["A"], "stemContains": "说明文字中"}
+    ]
+  }
+}

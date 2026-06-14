@@ -232,12 +232,10 @@ object QuizImportParser {
             it.question.trim().length <= 3 && it.options.isEmpty()
         }
         val primaryFrontMatter = primary.questions.count { question ->
-            Regex("""^(?:说明|注意事项|密卷|绝密|祝各位考生|时间[:：]|考试时间[:：])""")
-                .containsMatchIn(question.question.trim())
+            containsFrontMatterContamination(question.question)
         }
         val fullFrontMatter = fullPaper.questions.count { question ->
-            Regex("""^(?:说明|注意事项|密卷|绝密|祝各位考生|时间[:：]|考试时间[:：])""")
-                .containsMatchIn(question.question.trim())
+            containsFrontMatterContamination(question.question)
         }
         val primaryValidObjective = primary.questions.count(::isStructurallyValidObjectiveQuestion)
         val fullValidObjective = fullPaper.questions.count(::isStructurallyValidObjectiveQuestion)
@@ -249,12 +247,24 @@ object QuizImportParser {
                 primarySuspiciousSubjective >= (primaryCount / 5).coerceAtLeast(2) ||
                 primaryShortStem >= 3 ||
                 primaryFrontMatter > 0
-        if (!primaryOverallUnreliable) return false
+
+        // 双文件/密集整卷中，标准路径可能只得到少量“看起来正常”的题，因而没有错误告警。
+        // 此时允许结构完整的整卷候选凭“明确补回多题”接管，但必须同时满足客观结构、
+        // 错误数和前言污染均不退化，避免重新回到按总分自由覆盖标准结果。
+        val recoveryGain = (primaryCount / 10).coerceAtLeast(2)
+        val strongMissingQuestionRecovery =
+            fullCount >= primaryCount + recoveryGain &&
+                fullValidObjective >= primaryValidObjective + recoveryGain &&
+                fullErrors <= primaryErrors &&
+                fullShortStem <= primaryShortStem &&
+                fullFrontMatter <= primaryFrontMatter &&
+                fullValidObjective * 10 >= fullCount * 7
+        if (!primaryOverallUnreliable && !strongMissingQuestionRecovery) return false
 
         val countIsReasonable = fullCount >= (primaryCount * 0.7).toInt().coerceAtLeast(3)
         val concreteStructureGain =
             fullErrors < primaryErrors ||
-                fullCount >= primaryCount + (primaryCount / 10).coerceAtLeast(2) ||
+                strongMissingQuestionRecovery ||
                 fullSuspiciousSubjective < primarySuspiciousSubjective ||
                 fullValidObjective >= primaryValidObjective + 2 ||
                 fullShortStem < primaryShortStem ||
@@ -288,9 +298,7 @@ object QuizImportParser {
             return true
         }
         if (looksLikeSubjectivePrompt(question.question)) return true
-        return question.answer.any { answer ->
-            !Regex("""^[A-G]$""").matches(answer.trim().uppercase())
-        }
+        return question.answer.isNotEmpty() && strictObjectiveAnswer(question.answer) == null
     }
 
     private fun looksLikeSubjectivePrompt(stem: String): Boolean {
@@ -308,6 +316,29 @@ object QuizImportParser {
         ).containsMatchIn(normalized)
         val comparisonQuestion = Regex("""(?:有何|有什么).*(?:区别|差异|联系)""").containsMatchIn(normalized)
         return (subjectiveLead && subjectivePurpose) || comparisonQuestion
+    }
+
+    private fun containsFrontMatterContamination(stem: String): Boolean {
+        val prefix = stem.trim().take(140)
+        if (prefix.isBlank()) return false
+        return Regex(
+            """(?:^|\s)(?:说明\s*[:：]|注意事项|密卷|绝密|祝各位考生|请仔细阅读|监考老师|请用\s*2B|答题卡|请勿|考试时间\s*[:：]|时间\s*[:：])"""
+        ).containsMatchIn(prefix)
+    }
+
+    private fun strictObjectiveAnswer(answers: List<String>): List<String>? {
+        if (answers.isEmpty()) return emptyList()
+        val raw = answers.joinToString(",").trim()
+            .trim('[', ']', '【', '】', '(', ')', '（', '）')
+            .trim()
+        if (raw.isBlank()) return emptyList()
+        if (!Regex("""^[A-Ga-g\s,，、;；/\\]+$""").matches(raw)) return null
+        val compact = raw.replace(Regex("""[\s,，、;；/\\]+"""), "").uppercase()
+        if (!Regex("""^[A-G]+$""").matches(compact)) return null
+        val letters = compact.map { it.toString() }
+        val normalized = letters.distinct()
+        if (normalized.size != letters.size) return null
+        return normalized.sorted()
     }
 
     private fun downgradesExplicitSubjectiveQuestions(

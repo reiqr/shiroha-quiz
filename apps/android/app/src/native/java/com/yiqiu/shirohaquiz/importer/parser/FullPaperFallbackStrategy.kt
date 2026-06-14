@@ -31,7 +31,7 @@ object FullPaperFallbackStrategy {
     private enum class Mode { QUESTION, ANSWER }
 
     private val paperFrontMatterRegex = Regex(
-        """^(?:说明|注意事项|密卷|绝密|祝各位考生|时间[:：]|考试时间[:：]|请仔细阅读|监考老师|请用\s*2B|答题卡|请勿|在考试结束|全部测验到此结束)"""
+        """^(?:说明\s*[:：]|注意事项|密卷|绝密|祝各位考生|时间[:：]|考试时间[:：]|请仔细阅读|监考老师|请用\s*2B|答题卡|请勿|在考试结束|全部测验到此结束)"""
     )
 
     private val answerHeadingRegex = Regex(
@@ -206,10 +206,30 @@ object FullPaperFallbackStrategy {
         return text.lineSequence()
             .filterNot { line ->
                 val trimmed = line.trim()
-                paperFrontMatterRegex.containsMatchIn(trimmed) || answerHeadingRegex.matches(trimmed) || materialIntroLineRegex.containsMatchIn(trimmed)
+                isPaperFrontMatterLine(trimmed) || answerHeadingRegex.matches(trimmed) || materialIntroLineRegex.containsMatchIn(trimmed)
             }
             .flatMap { line -> repairDenseQuestionLine(line).lineSequence() }
             .joinToString("\n")
+    }
+
+    private fun isPaperFrontMatterLine(line: String): Boolean {
+        val trimmed = line.trim()
+        if (trimmed.isBlank()) return false
+        if (paperFrontMatterRegex.containsMatchIn(trimmed)) return true
+        if (questionStartRegex.containsMatchIn(trimmed)) return false
+        if (trimmed.length > 160) return false
+        return Regex(
+            """(?:注意事项|绝密|密卷|祝各位考生|请仔细阅读|监考老师|请用\s*2B|答题卡|考试时间\s*[:：]|请勿|考试结束)"""
+        ).containsMatchIn(trimmed)
+    }
+
+    private fun containsPaperFrontMatterContamination(stem: String): Boolean {
+        val prefix = stem.trim().take(160)
+        if (prefix.isBlank()) return false
+        if (paperFrontMatterRegex.containsMatchIn(prefix)) return true
+        return Regex(
+            """(?:^|\s)(?:注意事项|绝密|密卷|祝各位考生|请仔细阅读|监考老师|请用\s*2B|答题卡|考试时间|请勿|考试结束)\s*[:：]?"""
+        ).containsMatchIn(prefix)
     }
 
     private fun repairDenseQuestionLine(raw: String): String {
@@ -231,7 +251,7 @@ object FullPaperFallbackStrategy {
     private fun isValidPaperQuestion(question: Question): Boolean {
         val stem = question.question.trim()
         if (stem.isBlank()) return false
-        if (paperFrontMatterRegex.containsMatchIn(stem)) return false
+        if (containsPaperFrontMatterContamination(stem)) return false
         if (QuestionImageMarker.contains(stem)) return true
         if (tableRowLikeRegex.containsMatchIn(stem)) return false
         if (Regex("""^\d+\s*表\d*""").containsMatchIn(stem)) return false
