@@ -66,9 +66,10 @@
 ### 5. 工程
 
 - 清理未启用的 monorepo 骨架（pnpm-workspace.yaml / package.json / packages/）
-- 回归测试 build.gradle 补充 `assets/` 和 `util/` 源目录
-- Question 云端 11 字段完整序列化（subject/grade/difficulty/knowledgePoints 等）
+- 回归测试 20 用例积累（17/20 通过，3 例待修：13 紧凑答案/A,B提取、17 卷首语误判、18 空输入返回题目）
 - 空结果报告：无可用解析时产出 ERROR 级别警告而非静默返回
+- 紧凑答案归一化：`normalizeLocalObjectiveAnswer` 将 "AB"/"A,B"/"A B" 归一化为 `["A","B"]` 后比较
+- 卷首语/前言过滤增强：`纸面前言正则` 收紧、"说明" 需带冒号、长度限制、问句排除
 
 ---
 
