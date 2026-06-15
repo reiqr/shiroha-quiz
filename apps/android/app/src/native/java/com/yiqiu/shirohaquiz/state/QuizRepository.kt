@@ -101,7 +101,16 @@ data class StudyQuestionResult(
     val answerText: String,
     val earnedScore: Double? = null,
     val maxScore: Double? = null,
-    val autoScored: Boolean = true
+    val autoScored: Boolean = true,
+    val sourceBankId: String? = null,
+    val sourceBankName: String? = null
+)
+
+data class PracticeQuestionSource(
+    val bankId: String,
+    val bankName: String,
+    val groupName: String,
+    val question: Question
 )
 
 data class StudyRecord(
@@ -118,7 +127,9 @@ data class StudyRecord(
     val startedAt: Long? = null,
     val earnedScore: Double? = null,
     val totalScore: Double? = null,
-    val questionResults: List<StudyQuestionResult> = emptyList()
+    val questionResults: List<StudyQuestionResult> = emptyList(),
+    val scopeType: String? = null,
+    val scopeName: String? = null
 )
 
 data class QuestionCheckResult(
@@ -146,10 +157,14 @@ object QuizRepository {
     const val SEQUENTIAL_START_CUSTOM = "custom"
     const val WRONG_BOOK_SCOPE_CURRENT_BANK = "current_bank"
     const val WRONG_BOOK_SCOPE_ALL_BANKS = "all_banks"
+    const val PRACTICE_SCOPE_BANK = "BANK"
+    const val PRACTICE_SCOPE_GROUP = "GROUP"
 
     private const val PREFS_NAME = "shiroha_quiz_native"
     private const val KEY_BANKS = "banks"
     private const val KEY_ACTIVE_BANK_ID = "active_bank_id"
+    private const val KEY_PRACTICE_SCOPE_TYPE = "practice_scope_type"
+    private const val KEY_PRACTICE_SCOPE_VALUE = "practice_scope_value"
     private const val KEY_WRONG_BOOK = "wrong_book"
     private const val KEY_SLASHED_QUESTIONS = "slashed_questions"
     private const val KEY_FAVORITE_QUESTIONS = "favorite_questions"
@@ -211,6 +226,10 @@ object QuizRepository {
     val studyRecords = mutableStateListOf<StudyRecord>()
 
     var activeBankId by mutableStateOf<String?>(null)
+    var practiceScopeType by mutableStateOf(PRACTICE_SCOPE_BANK)
+        private set
+    var practiceScopeValue by mutableStateOf("")
+        private set
     var practiceQuestions by mutableStateOf<List<Question>>(emptyList())
         private set
     var practiceSourceLabel by mutableStateOf("当前题库")
@@ -323,7 +342,10 @@ object QuizRepository {
     val practiceAnswerResults = mutableStateMapOf<String, StudyQuestionResult>()
     val practiceSequentialProgress = mutableStateMapOf<String, Int>()
     private val practiceQuestionBankIds = mutableStateMapOf<String, String>()
+    private var practiceQuestionSessionKeys by mutableStateOf<List<String>>(emptyList())
     private var practiceStartedAt by mutableStateOf<Long?>(null)
+    private var practiceSessionScopeType: String? = null
+    private var practiceSessionScopeName: String? = null
     private var practiceSequentialBankId: String? = null
     private var practiceSequentialStartIndex: Int? = null
     var practiceOptionShuffleSeed by mutableStateOf(0L)
@@ -391,6 +413,9 @@ object QuizRepository {
         activeBankId = prefs.getString(KEY_ACTIVE_BANK_ID, sanitizedRestoredBanks.firstOrNull()?.id)
             ?.takeIf { id -> sanitizedRestoredBanks.any { it.id == id } }
             ?: sanitizedRestoredBanks.firstOrNull()?.id
+        practiceScopeType = normalizePracticeScopeType(prefs.getString(KEY_PRACTICE_SCOPE_TYPE, PRACTICE_SCOPE_BANK))
+        practiceScopeValue = prefs.getString(KEY_PRACTICE_SCOPE_VALUE, activeBankId.orEmpty()).orEmpty()
+        ensureValidPracticeScope()
         practiceNextRequiresResult = prefs.getBoolean(KEY_PRACTICE_NEXT_REQUIRES_RESULT, false)
         rememberPracticeSettingsEnabled = prefs.getBoolean(KEY_REMEMBER_PRACTICE_SETTINGS, true)
         swipeNavigationEnabled = prefs.getBoolean(KEY_SWIPE_NAVIGATION_ENABLED, true)
@@ -481,6 +506,8 @@ object QuizRepository {
         )
         banks += bank
         activeBankId = bank.id
+        practiceScopeType = PRACTICE_SCOPE_BANK
+        practiceScopeValue = bank.id
         resetPracticeState()
         resetExam()
         persist()
@@ -506,25 +533,55 @@ object QuizRepository {
 
     fun setActiveBank(context: Context, bankId: String) {
         appContext = context.applicationContext
+        if (banks.none { it.id == bankId }) return
         activeBankId = bankId
-        resetPracticeState()
+        practiceScopeType = PRACTICE_SCOPE_BANK
+        practiceScopeValue = bankId
+        // The current practice session is a snapshot. Switching the default bank/scope
+        // only affects the next session and must not discard an unfinished practice.
         resetExam()
         persist()
     }
 
+    fun setPracticeGroupScope(context: Context, groupName: String): Boolean {
+        appContext = context.applicationContext
+        val cleanGroupName = normalizeBankGroupName(groupName)
+        if (banks.none { normalizeBankGroupName(it.groupName) == cleanGroupName }) return false
+        practiceScopeType = PRACTICE_SCOPE_GROUP
+        practiceScopeValue = cleanGroupName
+        // Keep an already-started practice unchanged; this scope is used next time.
+        persist()
+        return true
+    }
+
+    fun setPracticeBankScope(context: Context, bankId: String): Boolean {
+        appContext = context.applicationContext
+        if (banks.none { it.id == bankId }) return false
+        practiceScopeType = PRACTICE_SCOPE_BANK
+        practiceScopeValue = bankId
+        // Keep an already-started practice unchanged; this scope is used next time.
+        persist()
+        return true
+    }
+
     fun deleteBank(context: Context, bankId: String) {
         appContext = context.applicationContext
+        val removingBank = banks.firstOrNull { it.id == bankId } ?: return
+        val removedGroupName = normalizeBankGroupName(removingBank.groupName)
         val removingActive = activeBankId == bankId
         banks.removeAll { it.id == bankId }
         wrongBook.removeAll { it.bankId == bankId }
         slashedQuestions.removeAll { it.bankId == bankId }
         favoriteQuestions.removeAll { it.bankId == bankId }
         practiceSequentialProgress.remove(bankId)
+        practiceSequentialProgress.remove("BANK:$bankId")
         studyRecords.removeAll { it.bankId == bankId }
 
         if (removingActive || banks.none { it.id == activeBankId }) {
             activeBankId = banks.firstOrNull()?.id
         }
+        clampGroupSequentialProgress(removedGroupName)
+        ensureValidPracticeScope()
         resetPracticeState()
         resetExam()
         persist()
@@ -547,7 +604,12 @@ object QuizRepository {
             bankId = bankId
         )
         val current = banks[index]
+        val oldGroupName = normalizeBankGroupName(current.groupName)
         banks[index] = current.copy(name = cleanName, groupName = cleanGroupName)
+        if (oldGroupName != cleanGroupName) {
+            clampGroupSequentialProgress(oldGroupName)
+            clampGroupSequentialProgress(cleanGroupName)
+        }
 
         for (i in wrongBook.indices) {
             val entry = wrongBook[i]
@@ -563,9 +625,18 @@ object QuizRepository {
         }
         for (i in studyRecords.indices) {
             val record = studyRecords[i]
-            if (record.bankId == bankId) {
-                studyRecords[i] = record.copy(bankName = cleanName)
+            val updatedResults = record.questionResults.map { result ->
+                if (result.sourceBankId == bankId) result.copy(sourceBankName = cleanName) else result
             }
+            if (record.bankId == bankId || updatedResults != record.questionResults) {
+                studyRecords[i] = record.copy(
+                    bankName = if (record.bankId == bankId) cleanName else record.bankName,
+                    questionResults = updatedResults
+                )
+            }
+        }
+        if (practiceScopeType == PRACTICE_SCOPE_GROUP && practiceScopeValue == oldGroupName && banks.none { normalizeBankGroupName(it.groupName) == oldGroupName }) {
+            fallbackPracticeScopeToActiveBank()
         }
         persist()
         return true
@@ -627,12 +698,23 @@ object QuizRepository {
         }
         val validQuestionKeys = cleanQuestions.map(::questionKey).toSet()
         slashedQuestions.removeAll { it.bankId == bankId && it.questionKey !in validQuestionKeys }
-        practiceSequentialProgress[bankId]?.let { index ->
+        val bankProgressKey = "BANK:$bankId"
+        val legacyProgress = practiceSequentialProgress.remove(bankId)
+        val savedProgress = practiceSequentialProgress[bankProgressKey] ?: legacyProgress
+        savedProgress?.let { index ->
             if (cleanQuestions.isEmpty()) {
-                practiceSequentialProgress.remove(bankId)
+                practiceSequentialProgress.remove(bankProgressKey)
             } else {
-                practiceSequentialProgress[bankId] = index.coerceIn(0, cleanQuestions.lastIndex)
+                practiceSequentialProgress[bankProgressKey] = index.coerceIn(0, cleanQuestions.lastIndex)
             }
+        }
+        val affectedGroupKey = "GROUP:${normalizeBankGroupName(banks[bankIndex].groupName)}"
+        practiceSequentialProgress[affectedGroupKey]?.let { index ->
+            val groupSize = banks
+                .filter { normalizeBankGroupName(it.groupName) == normalizeBankGroupName(banks[bankIndex].groupName) }
+                .sumOf { it.questions.count { question -> !isQuestionSlashed(it.id, question) } }
+            if (groupSize <= 0) practiceSequentialProgress.remove(affectedGroupKey)
+            else practiceSequentialProgress[affectedGroupKey] = index.coerceIn(0, groupSize - 1)
         }
 
         if (activeBankId == bankId) {
@@ -653,6 +735,67 @@ object QuizRepository {
 
     fun activeBank(): QuizBank? = banks.firstOrNull { it.id == activeBankId } ?: banks.firstOrNull()
 
+    fun isGroupPracticeScope(): Boolean = practiceScopeType == PRACTICE_SCOPE_GROUP
+
+    fun currentPracticeScopeKey(): String {
+        ensureValidPracticeScope()
+        return if (practiceScopeType == PRACTICE_SCOPE_GROUP) {
+            "GROUP:${normalizeBankGroupName(practiceScopeValue)}"
+        } else {
+            "BANK:${currentPracticeScopeBank()?.id.orEmpty()}"
+        }
+    }
+
+    fun currentPracticeScopeLabel(): String {
+        ensureValidPracticeScope()
+        return if (practiceScopeType == PRACTICE_SCOPE_GROUP) {
+            normalizeBankGroupName(practiceScopeValue)
+        } else {
+            currentPracticeScopeBank()?.name ?: "当前题库"
+        }
+    }
+
+    fun currentPracticeScopeSummary(): String {
+        val scopeBanks = currentPracticeScopeBanks()
+        val total = scopeBanks.sumOf { bank -> bank.questions.count { !isQuestionSlashed(bank.id, it) } }
+        return if (practiceScopeType == PRACTICE_SCOPE_GROUP) {
+            "${scopeBanks.size} 个题库 · $total 题"
+        } else {
+            "$total 题"
+        }
+    }
+
+    fun currentPracticeScopeBanks(): List<QuizBank> {
+        ensureValidPracticeScope()
+        return if (practiceScopeType == PRACTICE_SCOPE_GROUP) {
+            val cleanGroup = normalizeBankGroupName(practiceScopeValue)
+            banks.filter { normalizeBankGroupName(it.groupName) == cleanGroup }
+        } else {
+            listOfNotNull(currentPracticeScopeBank())
+        }
+    }
+
+    private fun currentPracticeScopeBank(): QuizBank? {
+        val scoped = banks.firstOrNull { it.id == practiceScopeValue }
+        return scoped ?: activeBank()
+    }
+
+    fun activePracticePoolSources(bank: QuizBank? = null): List<PracticeQuestionSource> {
+        val scopeBanks = bank?.let(::listOf) ?: currentPracticeScopeBanks()
+        return scopeBanks.flatMap { sourceBank ->
+            sourceBank.questions
+                .filterNot { isQuestionSlashed(sourceBank.id, it) }
+                .map { question ->
+                    PracticeQuestionSource(
+                        bankId = sourceBank.id,
+                        bankName = sourceBank.name,
+                        groupName = normalizeBankGroupName(sourceBank.groupName),
+                        question = question
+                    )
+                }
+        }
+    }
+
     fun currentPracticeQuestion(): Question? {
         val questions = activePracticeQuestions()
         if (questions.isEmpty()) return null
@@ -663,22 +806,32 @@ object QuizRepository {
         return questions[safeIndex]
     }
 
+    fun currentPracticeSessionKey(): String? = practiceSessionKeyAt(practiceIndex)
+
+    fun practiceSessionKeyAt(index: Int): String? = practiceQuestionSessionKeys.getOrNull(index)
+
+    fun currentPracticeSourceBank(): QuizBank? = bankForPracticeIndex(practiceIndex)
+
+    fun canSlashCurrentPracticeQuestion(): Boolean {
+        if (!practiceSlashEnabled || currentPracticeQuestion() == null) return false
+        return practiceSourceLabel !in setOf("错题本", "今日复习", "收藏夹")
+    }
+
     fun activePracticeQuestions(): List<Question> {
-        return practiceQuestions.ifEmpty { activePracticePoolQuestions(activeBank()) }
+        return practiceQuestions.ifEmpty { activePracticePoolQuestions() }
     }
 
-    fun activePracticePoolQuestions(bank: QuizBank? = activeBank()): List<Question> {
-        val currentBank = bank ?: return emptyList()
-        return currentBank.questions.filterNot { isQuestionSlashed(currentBank.id, it) }
+    fun activePracticePoolQuestions(bank: QuizBank? = null): List<Question> {
+        return activePracticePoolSources(bank).map { it.question }
     }
 
-    fun practiceAvailableQuestionCount(bank: QuizBank? = activeBank()): Int = activePracticePoolQuestions(bank).size
+    fun practiceAvailableQuestionCount(bank: QuizBank? = null): Int = activePracticePoolSources(bank).size
 
-    fun sequentialPracticeProgressIndex(bank: QuizBank? = activeBank(), allowedTypes: Set<QuestionType> = QuestionType.values().toSet()): Int {
-        val currentBank = bank ?: return 0
-        val sourceSize = sequentialPracticeSource(currentBank, allowedTypes).size
+    fun sequentialPracticeProgressIndex(bank: QuizBank? = null, allowedTypes: Set<QuestionType> = QuestionType.values().toSet()): Int {
+        val sourceSize = sequentialPracticeSource(bank, allowedTypes).size
         if (sourceSize <= 0) return 0
-        return (practiceSequentialProgress[currentBank.id] ?: 0).coerceIn(0, sourceSize - 1)
+        val progressKey = sequentialProgressKey(bank)
+        return (practiceSequentialProgress[progressKey] ?: 0).coerceIn(0, sourceSize - 1)
     }
 
     fun sequentialPracticeRangePreview(
@@ -686,13 +839,12 @@ object QuizRepository {
         allowedTypes: Set<QuestionType>,
         startMode: String = SEQUENTIAL_START_LAST,
         customStartNumber: Int = 1,
-        bank: QuizBank? = activeBank()
+        bank: QuizBank? = null
     ): Pair<Int, Int>? {
-        val currentBank = bank ?: return null
-        val source = sequentialPracticeSource(currentBank, allowedTypes)
+        val source = sequentialPracticeSource(bank, allowedTypes)
         if (source.isEmpty()) return null
         val startIndex = resolveSequentialPracticeStartIndex(
-            bank = currentBank,
+            progressKey = sequentialProgressKey(bank),
             sourceSize = source.size,
             startMode = startMode,
             customStartNumber = customStartNumber
@@ -710,50 +862,56 @@ object QuizRepository {
         practiceMode: String = PRACTICE_MODE_INSTANT,
         batchGroupSize: Int = preferredPracticeBatchGroupSize()
     ): Boolean {
-        val bank = activeBank() ?: return false
-        val source = sequentialPracticeSource(bank, allowedTypes)
+        val source = sequentialPracticeSource(null, allowedTypes)
         if (source.isEmpty()) return false
+        val progressKey = sequentialProgressKey(null)
         val startIndex = resolveSequentialPracticeStartIndex(
-            bank = bank,
+            progressKey = progressKey,
             sourceSize = source.size,
             startMode = startMode,
             customStartNumber = customStartNumber
         )
         val count = questionCount.coerceIn(1, source.size)
-        val selectedQuestions = source.drop(startIndex).take(count)
-        if (selectedQuestions.isEmpty()) return false
+        val selectedSources = source.drop(startIndex).take(count)
+        if (selectedSources.isEmpty()) return false
         val started = startPracticeSession(
-            questionCount = selectedQuestions.size,
+            questionCount = selectedSources.size,
             allowedTypes = allowedTypes.ifEmpty { objectiveQuestionTypes() },
-            sourceQuestions = selectedQuestions,
-            sourceLabel = "当前题库",
+            sourceItems = selectedSources,
+            sourceLabel = currentPracticeScopeLabel(),
             randomize = false,
             practiceMode = practiceMode,
-            batchGroupSize = batchGroupSize.coerceIn(1, selectedQuestions.size)
+            batchGroupSize = batchGroupSize.coerceIn(1, selectedSources.size),
+            sessionScopeType = practiceScopeType,
+            sessionScopeName = currentPracticeScopeLabel()
         )
         if (started) {
-            val nextIndex = startIndex + selectedQuestions.size
-            practiceSequentialBankId = bank.id
+            val nextIndex = startIndex + selectedSources.size
+            practiceSequentialBankId = progressKey
             practiceSequentialStartIndex = startIndex
             practiceSequentialNextIndexAfterComplete = if (nextIndex >= source.size) 0 else nextIndex
         }
         return started
     }
 
-    fun resetSequentialPracticeProgress(context: Context, bankId: String = activeBank()?.id.orEmpty()) {
-        if (bankId.isBlank()) return
+    fun resetSequentialPracticeProgress(context: Context, bankId: String = "") {
         appContext = context.applicationContext
-        practiceSequentialProgress[bankId] = 0
+        val key = if (bankId.isNotBlank()) "BANK:$bankId" else currentPracticeScopeKey()
+        practiceSequentialProgress[key] = 0
         persist()
     }
 
-    private fun sequentialPracticeSource(bank: QuizBank, allowedTypes: Set<QuestionType>): List<Question> {
+    private fun sequentialPracticeSource(bank: QuizBank?, allowedTypes: Set<QuestionType>): List<PracticeQuestionSource> {
         val selectedTypes = allowedTypes.ifEmpty { objectiveQuestionTypes() }
-        return activePracticePoolQuestions(bank).filter { it.type in selectedTypes }
+        return activePracticePoolSources(bank).filter { it.question.type in selectedTypes }
+    }
+
+    private fun sequentialProgressKey(bank: QuizBank?): String {
+        return bank?.let { "BANK:${it.id}" } ?: currentPracticeScopeKey()
     }
 
     private fun resolveSequentialPracticeStartIndex(
-        bank: QuizBank,
+        progressKey: String,
         sourceSize: Int,
         startMode: String,
         customStartNumber: Int
@@ -762,7 +920,7 @@ object QuizRepository {
         return when (startMode) {
             SEQUENTIAL_START_FIRST -> 0
             SEQUENTIAL_START_CUSTOM -> (customStartNumber - 1).coerceIn(0, sourceSize - 1)
-            else -> (practiceSequentialProgress[bank.id] ?: 0).coerceIn(0, sourceSize - 1)
+            else -> (practiceSequentialProgress[progressKey] ?: 0).coerceIn(0, sourceSize - 1)
         }
     }
 
@@ -770,21 +928,38 @@ object QuizRepository {
         questionCount: Int,
         allowedTypes: Set<QuestionType>,
         sourceQuestions: List<Question>? = null,
-        sourceLabel: String = "当前题库",
+        sourceLabel: String = "",
         randomize: Boolean = true,
         practiceMode: String = PRACTICE_MODE_INSTANT,
         batchGroupSize: Int = preferredPracticeBatchGroupSize(),
-        sourceBankIds: Map<String, String>? = null
+        sourceBankIds: Map<String, String>? = null,
+        sourceItems: List<PracticeQuestionSource>? = null,
+        sessionScopeType: String? = null,
+        sessionScopeName: String? = null
     ): Boolean {
         val selectedTypes = allowedTypes.ifEmpty { objectiveQuestionTypes() }
-        val bank = activeBank()
-        val rawSource = sourceQuestions ?: activePracticePoolQuestions(bank)
-        val source = rawSource.filter { it.type in selectedTypes }
-        if (source.isEmpty()) return false
-        val count = questionCount.coerceIn(1, source.size)
-        val selectedQuestions = if (randomize) source.shuffled().take(count) else source.take(count)
-        practiceQuestions = selectedQuestions
-        practiceSourceLabel = sourceLabel
+        val fallbackBank = activeBank()
+        val rawItems = when {
+            sourceItems != null -> sourceItems
+            sourceQuestions != null -> sourceQuestions.map { question ->
+                val bankId = sourceBankIds?.get(question.id) ?: fallbackBank?.id.orEmpty()
+                val bank = banks.firstOrNull { it.id == bankId } ?: fallbackBank
+                PracticeQuestionSource(
+                    bankId = bank?.id.orEmpty(),
+                    bankName = bank?.name.orEmpty(),
+                    groupName = normalizeBankGroupName(bank?.groupName),
+                    question = question
+                )
+            }
+            else -> activePracticePoolSources()
+        }
+        val filteredItems = rawItems.filter { it.question.type in selectedTypes }
+        if (filteredItems.isEmpty()) return false
+        val count = questionCount.coerceIn(1, filteredItems.size)
+        val selectedItems = if (randomize) filteredItems.shuffled().take(count) else filteredItems.take(count)
+        practiceQuestions = selectedItems.map { it.question }
+        practiceQuestionSessionKeys = buildPracticeSessionKeys(selectedItems)
+        practiceSourceLabel = sourceLabel.ifBlank { currentPracticeScopeLabel() }
         practiceIndex = 0
         selectedAnswer = emptyList()
         practiceLastResult = null
@@ -797,15 +972,37 @@ object QuizRepository {
         practiceDraftAnswers.clear()
         practiceQuestionBankIds.clear()
         practiceOptionShuffleSeed = System.currentTimeMillis()
-        selectedQuestions.forEach { question ->
-            val bankId = sourceBankIds?.get(question.id) ?: bank?.id
-            if (!bankId.isNullOrBlank()) practiceQuestionBankIds[question.id] = bankId
+        selectedItems.forEachIndexed { index, item ->
+            val sessionKey = practiceQuestionSessionKeys[index]
+            if (item.bankId.isNotBlank()) practiceQuestionBankIds[sessionKey] = item.bankId
+        }
+        practiceSessionScopeType = when {
+            !sessionScopeType.isNullOrBlank() -> normalizePracticeScopeType(sessionScopeType)
+            sourceItems == null && sourceQuestions == null -> practiceScopeType
+            else -> null
+        }
+        practiceSessionScopeName = sessionScopeName?.takeIf { it.isNotBlank() } ?: when {
+            practiceSessionScopeType == PRACTICE_SCOPE_GROUP -> {
+                if (sourceItems == null && sourceQuestions == null) currentPracticeScopeLabel() else practiceSourceLabel
+            }
+            selectedItems.map { it.bankId }.distinct().size == 1 -> selectedItems.firstOrNull()?.bankName
+            else -> practiceSourceLabel
         }
         practiceStartedAt = System.currentTimeMillis()
         practiceSequentialBankId = null
         practiceSequentialStartIndex = null
         practiceSequentialNextIndexAfterComplete = null
         return true
+    }
+
+    private fun buildPracticeSessionKeys(items: List<PracticeQuestionSource>): List<String> {
+        val occurrences = mutableMapOf<String, Int>()
+        return items.map { item ->
+            val base = "${item.bankId}#${item.question.id}"
+            val occurrence = occurrences.getOrDefault(base, 0)
+            occurrences[base] = occurrence + 1
+            if (occurrence == 0) base else "$base#$occurrence"
+        }
     }
 
     fun startWrongBookPractice(
@@ -816,18 +1013,23 @@ object QuizRepository {
         val selectedEntries = entries
             .filter { includeMastered || it.status != WrongStatus.MASTERED.label }
             .filterNot { isQuestionSlashed(it.bankId, it.question) }
-        val questions = selectedEntries
-            .map { it.question }
-            .distinctBy { it.id }
-        if (questions.isEmpty()) return false
-        val sourceBankIds = selectedEntries.associate { it.question.id to it.bankId }
+        val sourceItems = selectedEntries
+            .distinctBy { it.bankId + "#" + it.question.id }
+            .map { entry ->
+                PracticeQuestionSource(
+                    bankId = entry.bankId,
+                    bankName = entry.bankName,
+                    groupName = banks.firstOrNull { it.id == entry.bankId }?.groupName ?: DEFAULT_BANK_GROUP_NAME,
+                    question = entry.question
+                )
+            }
+        if (sourceItems.isEmpty()) return false
         return startPracticeSession(
-            questionCount = questions.size,
+            questionCount = sourceItems.size,
             allowedTypes = QuestionType.values().toSet(),
-            sourceQuestions = questions,
+            sourceItems = sourceItems,
             sourceLabel = sourceLabel,
-            randomize = false,
-            sourceBankIds = sourceBankIds
+            randomize = false
         )
     }
 
@@ -864,10 +1066,10 @@ object QuizRepository {
         updatedQuestions[questionIndex] = sanitizedUpdated
         banks[bankIndex] = banks[bankIndex].copy(questions = updatedQuestions)
 
-        practiceQuestions = practiceQuestions.map { question ->
-            if (question.id == current.id) sanitizedUpdated else question
-        }
-        val mappedBankId = practiceQuestionBankIds[current.id] ?: targetBank.id
+        val currentIndex = practiceIndex.coerceIn(0, practiceQuestions.lastIndex)
+        practiceQuestions = practiceQuestions.toMutableList().also { it[currentIndex] = sanitizedUpdated }
+        val currentSessionKey = practiceSessionKeyAt(currentIndex).orEmpty()
+        val mappedBankId = practiceQuestionBankIds[currentSessionKey] ?: targetBank.id
         for (index in wrongBook.indices) {
             val entry = wrongBook[index]
             if (entry.bankId == mappedBankId && entry.question.id == current.id) {
@@ -887,9 +1089,9 @@ object QuizRepository {
             }
         }
 
-        practiceSessionResults.remove(current.id)
-        practiceAnswerResults.remove(current.id)
-        practiceDraftAnswers.remove(current.id)
+        practiceSessionResults.remove(currentSessionKey)
+        practiceAnswerResults.remove(currentSessionKey)
+        practiceDraftAnswers.remove(currentSessionKey)
         if (practiceLastResult?.question?.id == current.id) practiceLastResult = null
         selectedAnswer = emptyList()
         persist()
@@ -954,7 +1156,10 @@ object QuizRepository {
             practiceAnswerResults.clear()
             practiceDraftAnswers.clear()
             practiceQuestionBankIds.clear()
-            practiceQuestionBankIds[entry.question.id] = entry.bankId
+            practiceQuestionSessionKeys = listOf("${entry.bankId}#${entry.question.id}")
+            practiceQuestionBankIds[practiceQuestionSessionKeys.first()] = entry.bankId
+            practiceSessionScopeType = PRACTICE_SCOPE_BANK
+            practiceSessionScopeName = bank.name
             practiceStartedAt = System.currentTimeMillis()
         }
     }
@@ -1074,8 +1279,8 @@ object QuizRepository {
 
     fun slashCurrentPracticeQuestion(context: Context): Boolean {
         appContext = context.applicationContext
-        val bank = activeBank() ?: return false
         val question = currentPracticeQuestion() ?: return false
+        val bank = currentPracticeSourceBank() ?: return false
         val key = questionKey(question)
         val now = System.currentTimeMillis()
         if (slashedQuestions.none { it.bankId == bank.id && it.questionKey == key }) {
@@ -1083,11 +1288,13 @@ object QuizRepository {
         }
 
         val currentIndex = practiceIndex
-        practiceQuestions = practiceQuestions.filterNot { questionKey(it) == key }
-        practiceSessionResults.remove(question.id)
-        practiceAnswerResults.remove(question.id)
-        practiceDraftAnswers.remove(question.id)
-        practiceQuestionBankIds.remove(question.id)
+        val currentSessionKey = practiceSessionKeyAt(currentIndex).orEmpty()
+        practiceQuestions = practiceQuestions.toMutableList().also { if (currentIndex in it.indices) it.removeAt(currentIndex) }
+        practiceQuestionSessionKeys = practiceQuestionSessionKeys.toMutableList().also { if (currentIndex in it.indices) it.removeAt(currentIndex) }
+        practiceSessionResults.remove(currentSessionKey)
+        practiceAnswerResults.remove(currentSessionKey)
+        practiceDraftAnswers.remove(currentSessionKey)
+        practiceQuestionBankIds.remove(currentSessionKey)
         practiceLastResult = null
         selectedAnswer = emptyList()
 
@@ -1156,16 +1363,21 @@ object QuizRepository {
 
     fun startFavoritePractice(entries: List<FavoriteQuestionEntry> = favoriteQuestions): Boolean {
         val selectedEntries = entries.distinctBy { it.bankId + "#" + it.question.id }
-        val questions = selectedEntries.map { it.question }
-        if (questions.isEmpty()) return false
-        val sourceBankIds = selectedEntries.associate { it.question.id to it.bankId }
+        val sourceItems = selectedEntries.map { entry ->
+            PracticeQuestionSource(
+                bankId = entry.bankId,
+                bankName = entry.bankName,
+                groupName = banks.firstOrNull { it.id == entry.bankId }?.groupName ?: DEFAULT_BANK_GROUP_NAME,
+                question = entry.question
+            )
+        }
+        if (sourceItems.isEmpty()) return false
         return startPracticeSession(
-            questionCount = questions.size,
+            questionCount = sourceItems.size,
             allowedTypes = QuestionType.values().toSet(),
-            sourceQuestions = questions,
+            sourceItems = sourceItems,
             sourceLabel = "收藏夹",
-            randomize = false,
-            sourceBankIds = sourceBankIds
+            randomize = false
         )
     }
 
@@ -1186,12 +1398,13 @@ object QuizRepository {
         selectedAnswer = answer
         if (practiceMode == PRACTICE_MODE_BATCH && !practiceBatchSubmitted) {
             val question = currentPracticeQuestion()
-            if (question != null) {
+            val sessionKey = currentPracticeSessionKey()
+            if (question != null && sessionKey != null) {
                 val normalizedAnswer = answer.map { it.trim() }.filter { it.isNotBlank() }
                 if (normalizedAnswer.isEmpty()) {
-                    practiceDraftAnswers.remove(question.id)
+                    practiceDraftAnswers.remove(sessionKey)
                 } else {
-                    practiceDraftAnswers[question.id] = normalizedAnswer
+                    practiceDraftAnswers[sessionKey] = normalizedAnswer
                 }
             }
         }
@@ -1517,17 +1730,20 @@ object QuizRepository {
         if (practiceMode == PRACTICE_MODE_BATCH && !practiceBatchSubmitted) return null
         val question = currentPracticeQuestion() ?: return null
         val result = evaluateQuestion(question, selectedAnswer)
+        val sessionKey = currentPracticeSessionKey() ?: return null
+        val bank = currentPracticeSourceBank()
         practiceLastResult = result
-        practiceSessionResults[question.id] = result.correct
-        practiceAnswerResults[question.id] = StudyQuestionResult(
+        practiceSessionResults[sessionKey] = result.correct
+        practiceAnswerResults[sessionKey] = StudyQuestionResult(
             question = question,
             userAnswer = result.userAnswer,
             correct = result.correct,
             answerText = result.answerText,
-            autoScored = result.autoScored
+            autoScored = result.autoScored,
+            sourceBankId = bank?.id,
+            sourceBankName = bank?.name
         )
 
-        val bank = bankForPracticeQuestion(question)
         if (result.autoScored && result.correct) {
             markWrongQuestionRight(bank = bank, question = question)
         } else if (result.autoScored) {
@@ -1544,18 +1760,22 @@ object QuizRepository {
 
     fun submitPracticeBatch(): Boolean {
         if (practiceMode != PRACTICE_MODE_BATCH || practiceQuestions.isEmpty() || practiceBatchSubmitted) return false
-        practiceCurrentBatchQuestions().forEach { question ->
-            val userAnswer = practiceDraftAnswers[question.id].orEmpty()
+        practiceCurrentBatchIndexes().forEach { index ->
+            val question = practiceQuestions.getOrNull(index) ?: return@forEach
+            val sessionKey = practiceSessionKeyAt(index) ?: return@forEach
+            val userAnswer = practiceDraftAnswers[sessionKey].orEmpty()
             val result = evaluateQuestion(question, userAnswer)
-            practiceSessionResults[question.id] = result.correct
-            practiceAnswerResults[question.id] = StudyQuestionResult(
+            val bank = bankForPracticeIndex(index)
+            practiceSessionResults[sessionKey] = result.correct
+            practiceAnswerResults[sessionKey] = StudyQuestionResult(
                 question = question,
                 userAnswer = result.userAnswer,
                 correct = result.correct,
                 answerText = result.answerText,
-                autoScored = result.autoScored
+                autoScored = result.autoScored,
+                sourceBankId = bank?.id,
+                sourceBankName = bank?.name
             )
-            val bank = bankForPracticeQuestion(question)
             if (result.autoScored && result.correct) {
                 markWrongQuestionRight(bank = bank, question = question)
             } else if (result.autoScored) {
@@ -1575,21 +1795,21 @@ object QuizRepository {
     }
 
     fun practiceDraftAnsweredCount(): Int {
-        val questions = if (practiceMode == PRACTICE_MODE_BATCH) practiceCurrentBatchQuestions() else practiceQuestions
-        return questions.count { question -> practiceDraftAnswers[question.id]?.isNotEmpty() == true }
+        val indexes = if (practiceMode == PRACTICE_MODE_BATCH) practiceCurrentBatchIndexes() else practiceQuestions.indices.toList()
+        return indexes.count { index -> practiceSessionKeyAt(index)?.let { practiceDraftAnswers[it]?.isNotEmpty() == true } == true }
     }
 
     fun practiceCurrentBatchSubmittedCount(): Int {
-        return practiceCurrentBatchQuestions().count { question -> practiceAnswerResults.containsKey(question.id) }
+        return practiceCurrentBatchIndexes().count { index -> practiceSessionKeyAt(index)?.let(practiceAnswerResults::containsKey) == true }
     }
 
     fun practiceCurrentBatchAutoScoredSubmittedCount(): Int {
-        return practiceCurrentBatchQuestions().count { question -> practiceAnswerResults[question.id]?.autoScored == true }
+        return practiceCurrentBatchIndexes().count { index -> practiceSessionKeyAt(index)?.let { practiceAnswerResults[it]?.autoScored == true } == true }
     }
 
     fun practiceCurrentBatchCorrectCount(): Int {
-        return practiceCurrentBatchQuestions().count { question ->
-            val result = practiceAnswerResults[question.id]
+        return practiceCurrentBatchIndexes().count { index ->
+            val result = practiceSessionKeyAt(index)?.let { practiceAnswerResults[it] }
             result?.autoScored == true && result.correct
         }
     }
@@ -1597,8 +1817,8 @@ object QuizRepository {
     fun practiceWrongQuestionIndexes(): List<Int> {
         val indexes = if (practiceMode == PRACTICE_MODE_BATCH) practiceCurrentBatchIndexes() else practiceQuestions.indices.toList()
         return indexes.mapNotNull { index ->
-            val question = practiceQuestions.getOrNull(index) ?: return@mapNotNull null
-            val result = practiceAnswerResults[question.id]
+            practiceQuestions.getOrNull(index) ?: return@mapNotNull null
+            val result = practiceSessionKeyAt(index)?.let { practiceAnswerResults[it] }
             if (result?.autoScored == true && !result.correct) index else null
         }
     }
@@ -1677,7 +1897,7 @@ object QuizRepository {
         return practiceMode == PRACTICE_MODE_BATCH &&
             practiceBatchSubmitted &&
             practiceCurrentBatchEndIndex() >= practiceQuestions.lastIndex &&
-            practiceQuestions.all { question -> practiceAnswerResults.containsKey(question.id) }
+            practiceQuestions.indices.all { index -> practiceSessionKeyAt(index)?.let(practiceAnswerResults::containsKey) == true }
     }
 
 
@@ -1814,7 +2034,9 @@ object QuizRepository {
                 answerText = result.answerText,
                 earnedScore = if (result.autoScored) { if (result.correct) maxScore else 0.0 } else null,
                 maxScore = if (result.autoScored) maxScore else null,
-                autoScored = result.autoScored
+                autoScored = result.autoScored,
+                sourceBankId = bank?.id,
+                sourceBankName = bank?.name
             )
         }
         studyRecords.add(
@@ -2362,7 +2584,16 @@ object QuizRepository {
                                         answerText = referenceAnswer.joinToString(" / "),
                                         earnedScore = if (detail.has("score") && !detail.isNull("score")) detail.optDouble("score") else null,
                                         maxScore = if (detail.has("fullScore") && !detail.isNull("fullScore")) detail.optDouble("fullScore") else null,
-                                        autoScored = true
+                                        autoScored = true,
+                                        sourceBankId = (idMap[detail.optString("sourceBankId")]
+                                            ?: detail.optString("sourceBankId").ifBlank { mappedBankId }),
+                                        sourceBankName = run {
+                                            val originalSourceBankId = detail.optString("sourceBankId")
+                                            val resolvedSourceBankId = idMap[originalSourceBankId]
+                                                ?: originalSourceBankId.ifBlank { mappedBankId }
+                                            addedBanks.firstOrNull { it.id == resolvedSourceBankId }?.name
+                                                ?: detail.optString("sourceBankName").ifBlank { mappedBank?.name.orEmpty() }
+                                        }
                                     )
                                 )
                             }
@@ -2385,7 +2616,9 @@ object QuizRepository {
                             startedAt = if (rec.has("startedAt") && !rec.isNull("startedAt")) parseBackupTimeMillis(rec.opt("startedAt")) else null,
                             earnedScore = if (rec.has("score") && !rec.isNull("score")) rec.optDouble("score") else null,
                             totalScore = if (rec.has("totalScore") && !rec.isNull("totalScore")) rec.optDouble("totalScore") else null,
-                            questionResults = questionResults
+                            questionResults = questionResults,
+                            scopeType = rec.optString("scopeType").ifBlank { null },
+                            scopeName = rec.optString("scopeName").ifBlank { null }
                         )
                     )
                 }
@@ -2444,16 +2677,23 @@ object QuizRepository {
             runCatching { parseStudyRecordsJson(array.toString()) }.getOrDefault(emptyList())
         }.orEmpty()
         val mappedRecords = importedRecords.map { record ->
-            val mappedBankId = record.bankId?.let { idMap[it] }
+            val mappedBankId = record.bankId?.let { originalId -> idMap[originalId] ?: originalId }
             val mappedBank = mappedBankId?.let { id -> addedBanks.firstOrNull { it.id == id } }
             val mappedBankName = mappedBank?.name ?: record.bankName
             record.copy(
-                bankId = mappedBankId ?: record.bankId,
+                bankId = mappedBankId,
                 bankName = mappedBankName,
                 questionResults = record.questionResults.map { result ->
-                    val mappedQuestion = mappedBank?.questions?.firstOrNull { it.id == result.question.id }
+                    val mappedSourceBankId = result.sourceBankId?.let { originalId -> idMap[originalId] ?: originalId }
+                        ?: mappedBankId
+                    val mappedSourceBank = mappedSourceBankId?.let { id -> addedBanks.firstOrNull { it.id == id } }
+                    val mappedQuestion = mappedSourceBank?.questions?.firstOrNull { it.id == result.question.id }
                         ?: normalizeImportedQuestionAssets(result.question, zipAssets, assetDir)
-                    result.copy(question = mappedQuestion)
+                    result.copy(
+                        question = mappedQuestion,
+                        sourceBankId = mappedSourceBank?.id ?: mappedSourceBankId,
+                        sourceBankName = mappedSourceBank?.name ?: result.sourceBankName
+                    )
                 }
             )
         }
@@ -2686,8 +2926,7 @@ object QuizRepository {
             }
         } else {
             val currentIndex = practiceIndex.coerceIn(0, practiceQuestions.lastIndex)
-            val currentQuestion = practiceQuestions.getOrNull(currentIndex)
-            val currentSubmitted = currentQuestion?.let { practiceAnswerResults.containsKey(it.id) } == true
+            val currentSubmitted = practiceSessionKeyAt(currentIndex)?.let(practiceAnswerResults::containsKey) == true
             if (currentSubmitted) {
                 (currentIndex + 1).coerceAtMost(practiceQuestions.size)
             } else {
@@ -2708,11 +2947,12 @@ object QuizRepository {
         if (practiceQuestions.isEmpty() || practiceAnswerResults.isEmpty()) return
         val now = System.currentTimeMillis()
         val startedAt = practiceStartedAt ?: now
-        val orderedResults = practiceQuestions.mapNotNull { question -> practiceAnswerResults[question.id] }
+        val orderedResults = practiceQuestions.indices.mapNotNull { index -> practiceSessionKeyAt(index)?.let { practiceAnswerResults[it] } }
         if (orderedResults.isEmpty()) return
         val correctCount = orderedResults.count { it.autoScored && it.correct }
-        val involvedBankIds = practiceQuestions.mapNotNull { practiceQuestionBankIds[it.id] }.distinct()
-        val recordBank = involvedBankIds.singleOrNull()?.let { bankId -> banks.firstOrNull { it.id == bankId } }
+        val involvedBankIds = practiceQuestionSessionKeys.mapNotNull { practiceQuestionBankIds[it] }.distinct()
+        val isGroupSession = practiceSessionScopeType == PRACTICE_SCOPE_GROUP
+        val recordBank = if (isGroupSession) null else involvedBankIds.singleOrNull()?.let { bankId -> banks.firstOrNull { it.id == bankId } }
         val recordSource = when (practiceSourceLabel) {
             "错题本" -> "错题练习"
             "今日复习" -> "今日复习"
@@ -2724,16 +2964,22 @@ object QuizRepository {
             StudyRecord(
                 id = "practice_${now}",
                 bankId = recordBank?.id,
-                bankName = recordBank?.name ?: practiceSourceLabel.ifBlank { "未命名题库" },
+                bankName = if (isGroupSession) {
+                    practiceSessionScopeName ?: practiceSourceLabel.ifBlank { "分组练习" }
+                } else {
+                    recordBank?.name ?: practiceSessionScopeName ?: practiceSourceLabel.ifBlank { "未命名题库" }
+                },
                 source = recordSource,
-                title = practiceSourceLabel.ifBlank { "练习记录" },
+                title = if (practiceSessionScopeType == PRACTICE_SCOPE_GROUP) "${practiceSessionScopeName.orEmpty()} · 分组练习" else practiceSourceLabel.ifBlank { "练习记录" },
                 total = orderedResults.size,
                 correct = correctCount,
                 timestamp = now,
                 durationSeconds = ((now - startedAt) / 1000L).toInt().coerceAtLeast(0),
                 autoSubmitted = false,
                 startedAt = startedAt,
-                questionResults = orderedResults
+                questionResults = orderedResults,
+                scopeType = practiceSessionScopeType,
+                scopeName = practiceSessionScopeName
             )
         )
         if (advanceSequentialProgress) {
@@ -2762,8 +3008,11 @@ object QuizRepository {
         practiceAnswerResults.clear()
         practiceDraftAnswers.clear()
         practiceQuestionBankIds.clear()
+        practiceQuestionSessionKeys = emptyList()
         practiceOptionShuffleSeed = System.currentTimeMillis()
         practiceStartedAt = null
+        practiceSessionScopeType = null
+        practiceSessionScopeName = null
         practiceSequentialBankId = null
         practiceSequentialStartIndex = null
         practiceSequentialNextIndexAfterComplete = null
@@ -2773,12 +3022,12 @@ object QuizRepository {
         val question = currentPracticeQuestion()
         selectedAnswer = when {
             question == null -> emptyList()
-            practiceMode == PRACTICE_MODE_BATCH && !practiceBatchSubmitted -> practiceDraftAnswers[question.id].orEmpty()
-            question != null -> practiceAnswerResults[question.id]?.userAnswer.orEmpty()
+            practiceMode == PRACTICE_MODE_BATCH && !practiceBatchSubmitted -> currentPracticeSessionKey()?.let { practiceDraftAnswers[it].orEmpty() }.orEmpty()
+            question != null -> currentPracticeSessionKey()?.let { practiceAnswerResults[it]?.userAnswer.orEmpty() }.orEmpty()
             else -> emptyList()
         }
         practiceLastResult = if (question != null && practiceMode == PRACTICE_MODE_BATCH && practiceBatchSubmitted) {
-            practiceAnswerResults[question.id]?.let { result ->
+            currentPracticeSessionKey()?.let { practiceAnswerResults[it] }?.let { result ->
                 QuestionCheckResult(
                     question = question,
                     userAnswer = result.userAnswer,
@@ -2799,7 +3048,7 @@ object QuizRepository {
         QuestionType.JUDGE
     )
 
-    fun questionTypeCounts(questions: List<Question> = activeBank()?.questions.orEmpty()): Map<QuestionType, Int> {
+    fun questionTypeCounts(questions: List<Question> = activePracticePoolQuestions()): Map<QuestionType, Int> {
         return QuestionType.values().associateWith { type -> questions.count { it.type == type } }
     }
 
@@ -2864,10 +3113,27 @@ object QuizRepository {
 
     private fun sanitizeSequentialProgress(progress: Map<String, Int>, banks: List<QuizBank>): Map<String, Int> {
         val bankById = banks.associateBy { it.id }
-        return progress.mapNotNull { (bankId, index) ->
-            val bank = bankById[bankId] ?: return@mapNotNull null
-            if (bank.questions.isEmpty()) return@mapNotNull null
-            bankId to index.coerceIn(0, bank.questions.lastIndex)
+        val groups = banks.groupBy { normalizeBankGroupName(it.groupName) }
+        return progress.mapNotNull { (rawKey, index) ->
+            when {
+                rawKey.startsWith("BANK:") -> {
+                    val bankId = rawKey.removePrefix("BANK:")
+                    val bank = bankById[bankId] ?: return@mapNotNull null
+                    if (bank.questions.isEmpty()) return@mapNotNull null
+                    rawKey to index.coerceIn(0, bank.questions.lastIndex)
+                }
+                rawKey.startsWith("GROUP:") -> {
+                    val groupName = normalizeBankGroupName(rawKey.removePrefix("GROUP:"))
+                    val total = groups[groupName].orEmpty().sumOf { it.questions.size }
+                    if (total <= 0) return@mapNotNull null
+                    "GROUP:$groupName" to index.coerceIn(0, total - 1)
+                }
+                else -> {
+                    val bank = bankById[rawKey] ?: return@mapNotNull null
+                    if (bank.questions.isEmpty()) return@mapNotNull null
+                    "BANK:${bank.id}" to index.coerceIn(0, bank.questions.lastIndex)
+                }
+            }
         }.toMap()
     }
 
@@ -3095,6 +3361,42 @@ object QuizRepository {
         return streakCorrectCount >= 2
     }
 
+    private fun clampGroupSequentialProgress(groupName: String) {
+        val cleanGroup = normalizeBankGroupName(groupName)
+        val key = "GROUP:$cleanGroup"
+        val total = banks
+            .filter { normalizeBankGroupName(it.groupName) == cleanGroup }
+            .sumOf { bank -> bank.questions.count { question -> !isQuestionSlashed(bank.id, question) } }
+        if (total <= 0) {
+            practiceSequentialProgress.remove(key)
+        } else if (practiceSequentialProgress.containsKey(key)) {
+            practiceSequentialProgress[key] = (practiceSequentialProgress[key] ?: 0).coerceIn(0, total - 1)
+        }
+    }
+
+    private fun normalizePracticeScopeType(value: String?): String {
+        return if (value == PRACTICE_SCOPE_GROUP) PRACTICE_SCOPE_GROUP else PRACTICE_SCOPE_BANK
+    }
+
+    private fun ensureValidPracticeScope() {
+        if (practiceScopeType == PRACTICE_SCOPE_GROUP) {
+            val cleanGroup = normalizeBankGroupName(practiceScopeValue)
+            if (banks.any { normalizeBankGroupName(it.groupName) == cleanGroup }) {
+                practiceScopeValue = cleanGroup
+                return
+            }
+        } else if (banks.any { it.id == practiceScopeValue }) {
+            return
+        }
+        fallbackPracticeScopeToActiveBank()
+    }
+
+    private fun fallbackPracticeScopeToActiveBank() {
+        val fallbackBank = activeBank()
+        practiceScopeType = PRACTICE_SCOPE_BANK
+        practiceScopeValue = fallbackBank?.id.orEmpty()
+    }
+
     private fun normalizeWrongBookScopeMode(mode: String?): String {
         return when (mode) {
             WRONG_BOOK_SCOPE_CURRENT_BANK -> WRONG_BOOK_SCOPE_CURRENT_BANK
@@ -3112,9 +3414,16 @@ object QuizRepository {
         }
     }
 
-    private fun bankForPracticeQuestion(question: Question): QuizBank? {
-        val mappedBankId = practiceQuestionBankIds[question.id]
+    private fun bankForPracticeIndex(index: Int): QuizBank? {
+        val sessionKey = practiceSessionKeyAt(index)
+        val mappedBankId = sessionKey?.let { practiceQuestionBankIds[it] }
         return mappedBankId?.let { bankId -> banks.firstOrNull { it.id == bankId } } ?: activeBank()
+    }
+
+    private fun bankForPracticeQuestion(question: Question): QuizBank? {
+        val index = practiceQuestions.indices.firstOrNull { practiceQuestions[it] === question }
+            ?: practiceQuestions.indexOfFirst { it == question }.takeIf { it >= 0 }
+        return index?.let(::bankForPracticeIndex) ?: activeBank()
     }
 
     private fun isWrongEntryDueForSmartReview(entry: WrongQuestionEntry, now: Long): Boolean {
@@ -3295,6 +3604,8 @@ object QuizRepository {
         prefs.edit()
             .putString(KEY_BANKS, banksToJson(banks))
             .putString(KEY_ACTIVE_BANK_ID, activeBankId)
+            .putString(KEY_PRACTICE_SCOPE_TYPE, practiceScopeType)
+            .putString(KEY_PRACTICE_SCOPE_VALUE, practiceScopeValue)
             .putString(KEY_WRONG_BOOK, wrongBookToJson(wrongBook))
             .putString(KEY_SLASHED_QUESTIONS, slashedQuestionsToJson(slashedQuestions))
             .putString(KEY_FAVORITE_QUESTIONS, favoriteQuestionsToJson(favoriteQuestions))
@@ -3438,6 +3749,8 @@ object QuizRepository {
             item.put("startedAt", record.startedAt)
             item.put("earnedScore", record.earnedScore)
             item.put("totalScore", record.totalScore)
+            item.put("scopeType", record.scopeType)
+            item.put("scopeName", record.scopeName)
             item.put("questionResults", studyQuestionResultsToJson(record.questionResults, assetMapping))
             array.put(item)
         }
@@ -3456,6 +3769,8 @@ object QuizRepository {
             item.put("earnedScore", result.earnedScore)
             item.put("maxScore", result.maxScore)
             item.put("autoScored", result.autoScored)
+            item.put("sourceBankId", result.sourceBankId)
+            item.put("sourceBankName", result.sourceBankName)
             array.put(item)
         }
         return array
@@ -3607,7 +3922,9 @@ object QuizRepository {
                         },
                         earnedScore = if (item.has("earnedScore") && !item.isNull("earnedScore")) item.optDouble("earnedScore") else null,
                         totalScore = if (item.has("totalScore") && !item.isNull("totalScore")) item.optDouble("totalScore") else null,
-                        questionResults = parseStudyQuestionResults(item.optJSONArray("questionResults"))
+                        questionResults = parseStudyQuestionResults(item.optJSONArray("questionResults")),
+                        scopeType = item.optString("scopeType").ifBlank { null },
+                        scopeName = item.optString("scopeName").ifBlank { null }
                     )
                 )
             }
@@ -3635,7 +3952,9 @@ object QuizRepository {
                         answerText = item.optString("answerText"),
                         earnedScore = if (item.has("earnedScore") && !item.isNull("earnedScore")) item.optDouble("earnedScore") else null,
                         maxScore = if (item.has("maxScore") && !item.isNull("maxScore")) item.optDouble("maxScore") else null,
-                        autoScored = item.optBoolean("autoScored", true)
+                        autoScored = item.optBoolean("autoScored", true),
+                        sourceBankId = item.optString("sourceBankId").ifBlank { null },
+                        sourceBankName = item.optString("sourceBankName").ifBlank { null }
                     )
                 )
             }
