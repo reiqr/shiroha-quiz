@@ -55,6 +55,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -545,17 +546,30 @@ fun IllustrationHeroCard(
 
     GlassCard(modifier = modifier) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg),
+            modifier = if (showIllustration) {
+                Modifier.fillMaxWidth()
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            },
+            horizontalArrangement = if (showIllustration) {
+                Arrangement.spacedBy(ShirohaSpacing.Lg)
+            } else {
+                Arrangement.Center
+            },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = if (showIllustration) Modifier.weight(1f) else Modifier.fillMaxWidth(),
+                horizontalAlignment = if (showIllustration) Alignment.Start else Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Sm)
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
+                    textAlign = if (showIllustration) TextAlign.Start else TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -564,6 +578,7 @@ fun IllustrationHeroCard(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = if (showIllustration) TextAlign.Start else TextAlign.Center,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
