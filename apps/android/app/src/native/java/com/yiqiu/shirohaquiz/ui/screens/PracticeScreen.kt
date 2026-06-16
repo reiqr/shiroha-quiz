@@ -471,7 +471,8 @@ fun PracticeScreen(
         } else if (isBatchPractice) {
             QuizRepository.practiceIndex < batchGroupEnd
         } else {
-            isBatchBeforeSubmit || !QuizRepository.practiceNextRequiresResult || isSubmitted
+            QuizRepository.practiceIndex < practiceQuestions.lastIndex &&
+                (isBatchBeforeSubmit || !QuizRepository.practiceNextRequiresResult || isSubmitted)
         }
         val displayedSelection = if (isReciteMode) emptyList() else effectiveResult?.userAnswer ?: QuizRepository.selectedAnswer
         val displayOptions = remember(
@@ -490,9 +491,11 @@ fun PracticeScreen(
         var showBatchSubmitConfirm by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
         var showExitPracticeConfirm by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
         var showBatchAnswerSheet by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
+        var showUnsubmittedCompleteConfirm by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
+        var isUnsubmittedReviewMode by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
 
         BackHandler(
-            enabled = !showExitPracticeConfirm && !showBatchSubmitConfirm && !showBatchAnswerSheet
+            enabled = !showExitPracticeConfirm && !showBatchSubmitConfirm && !showBatchAnswerSheet && !showUnsubmittedCompleteConfirm
         ) {
             showExitPracticeConfirm = true
         }
@@ -526,6 +529,22 @@ fun PracticeScreen(
             canGoNext
         }
         val canStartNextBatchGroup = isBatchSubmitted && QuizRepository.canStartNextPracticeBatchGroup()
+        val unsubmittedIndexes = if (!isBatchPractice && !isReciteMode) QuizRepository.practiceUnsubmittedQuestionIndexes() else emptyList()
+        val unsubmittedCount = unsubmittedIndexes.size
+        val isAtLastInstantQuestion = !isBatchPractice && !isReciteMode && QuizRepository.practiceIndex >= practiceQuestions.lastIndex
+        val shouldOfferUnsubmittedCompletion = isAtLastInstantQuestion && unsubmittedCount > 0
+        val isResolvingUnsubmitted = isUnsubmittedReviewMode && unsubmittedCount > 0
+        val firstUnsubmittedIndex = unsubmittedIndexes.firstOrNull { it != QuizRepository.practiceIndex }
+            ?: unsubmittedIndexes.firstOrNull()
+        val nextUnsubmittedIndex = unsubmittedIndexes.firstOrNull { it > QuizRepository.practiceIndex }
+            ?: unsubmittedIndexes.firstOrNull { it < QuizRepository.practiceIndex }
+        val startUnsubmittedReview = {
+            isUnsubmittedReviewMode = true
+            firstUnsubmittedIndex?.let(QuizRepository::goToPracticeQuestion)
+        }
+        val goToNextUnsubmittedQuestion = {
+            nextUnsubmittedIndex?.let(QuizRepository::goToPracticeQuestion)
+        }
         val scheduleInstantAutoNextAfterSubmit: (String, Int, Boolean) -> Unit = { autoNextQuestionId, autoNextIndex, correct ->
             if (correct &&
                 !isBatchPractice &&
@@ -558,6 +577,24 @@ fun PracticeScreen(
                     }
                 }
             }
+        }
+        val submitCurrentPracticeQuestion = {
+            val autoNextQuestionId = currentSessionKey
+            val autoNextIndex = QuizRepository.practiceIndex
+            val wasResolvingUnsubmitted = isResolvingUnsubmitted
+            val submitted = QuizRepository.submitPracticeQuestion()
+            if (submitted != null) {
+                if (wasResolvingUnsubmitted) {
+                    if (QuizRepository.practiceUnsubmittedQuestionIndexes().isEmpty()) {
+                        isUnsubmittedReviewMode = false
+                        isPracticeProgressExpanded = true
+                        autoNextScope.launch { screenScrollState.scrollTo(0) }
+                    }
+                } else {
+                    scheduleInstantAutoNextAfterSubmit(autoNextQuestionId, autoNextIndex, submitted.correct)
+                }
+            }
+            submitted
         }
         val isPracticeComplete = !isReciteMode &&
             practiceQuestions.isNotEmpty() &&
@@ -603,7 +640,13 @@ fun PracticeScreen(
 
         val questionCardModifier = if (QuizRepository.swipeNavigationEnabled) {
             Modifier.questionSwipeNavigation(
-                onSwipeLeft = { if (canGoNextPractice) goNextPractice() },
+                onSwipeLeft = {
+                    when {
+                        isResolvingUnsubmitted && nextUnsubmittedIndex != null -> goToNextUnsubmittedQuestion()
+                        canGoNextPractice -> goNextPractice()
+                        shouldOfferUnsubmittedCompletion -> startUnsubmittedReview()
+                    }
+                },
                 onSwipeRight = { if (canGoPreviousPractice) goPreviousPractice() }
             )
         } else {
@@ -737,12 +780,7 @@ fun PracticeScreen(
                                         multiple = question.type == QuestionType.MULTIPLE
                                     )
                                     if (shouldAutoSubmitInstant) {
-                                        val autoNextQuestionId = currentSessionKey
-                                        val autoNextIndex = QuizRepository.practiceIndex
-                                        val submitted = QuizRepository.submitPracticeQuestion()
-                                        if (submitted != null) {
-                                            scheduleInstantAutoNextAfterSubmit(autoNextQuestionId, autoNextIndex, submitted.correct)
-                                        }
+                                        submitCurrentPracticeQuestion()
                                     } else if (shouldBatchAutoNext) {
                                         scheduleBatchAutoNextAfterSelect(currentSessionKey, QuizRepository.practiceIndex)
                                     }
@@ -820,12 +858,7 @@ fun PracticeScreen(
                         fillWidthContent = true,
                         onClick = {
                             if (!isSubmitted) {
-                                val autoNextQuestionId = currentSessionKey
-                                val autoNextIndex = QuizRepository.practiceIndex
-                                val submitted = QuizRepository.submitPracticeQuestion()
-                                if (submitted != null) {
-                                    scheduleInstantAutoNextAfterSubmit(autoNextQuestionId, autoNextIndex, submitted.correct)
-                                }
+                                submitCurrentPracticeQuestion()
                             }
                         }
                     )
@@ -839,12 +872,7 @@ fun PracticeScreen(
                         fillWidthContent = true,
                         onClick = {
                             if (!isSubmitted) {
-                                val autoNextQuestionId = currentSessionKey
-                                val autoNextIndex = QuizRepository.practiceIndex
-                                val submitted = QuizRepository.submitPracticeQuestion()
-                                if (submitted != null) {
-                                    scheduleInstantAutoNextAfterSubmit(autoNextQuestionId, autoNextIndex, submitted.correct)
-                                }
+                                submitCurrentPracticeQuestion()
                             }
                         }
                     )
@@ -868,14 +896,43 @@ fun PracticeScreen(
                 )
                 ActionPillButton(
                     Icons.AutoMirrored.Rounded.ArrowForward,
-                    "下一题",
+                    when {
+                        isResolvingUnsubmitted && nextUnsubmittedIndex != null -> "下一道未提交（$unsubmittedCount）"
+                        isResolvingUnsubmitted -> "当前题未提交"
+                        shouldOfferUnsubmittedCompletion -> "补答未提交（$unsubmittedCount）"
+                        else -> "下一题"
+                    },
                     primary = false,
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp),
                     fillWidthContent = true,
-                    enabled = canGoNextPractice,
-                    onClick = { goNextPractice() }
+                    enabled = when {
+                        isResolvingUnsubmitted -> nextUnsubmittedIndex != null
+                        shouldOfferUnsubmittedCompletion -> firstUnsubmittedIndex != null
+                        else -> canGoNextPractice
+                    },
+                    onClick = {
+                        when {
+                            isResolvingUnsubmitted -> goToNextUnsubmittedQuestion()
+                            shouldOfferUnsubmittedCompletion -> startUnsubmittedReview()
+                            else -> goNextPractice()
+                        }
+                    }
+                )
+            }
+
+            if (shouldOfferUnsubmittedCompletion || isResolvingUnsubmitted) {
+                Spacer(Modifier.height(10.dp))
+                ActionPillButton(
+                    Icons.Rounded.CheckCircle,
+                    "完成练习",
+                    primary = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    fillWidthContent = true,
+                    onClick = { showUnsubmittedCompleteConfirm = true }
                 )
             }
 
@@ -901,6 +958,24 @@ fun PracticeScreen(
                 )
             }
 
+
+            if (showUnsubmittedCompleteConfirm) {
+                UnsubmittedPracticeConfirmDialog(
+                    unansweredCount = unsubmittedCount,
+                    onDismiss = { showUnsubmittedCompleteConfirm = false },
+                    onReturnToAnswer = {
+                        showUnsubmittedCompleteConfirm = false
+                        startUnsubmittedReview()
+                    },
+                    onComplete = {
+                        QuizRepository.submitUnansweredPracticeQuestionsAsBlank()
+                        showUnsubmittedCompleteConfirm = false
+                        isUnsubmittedReviewMode = false
+                        isPracticeProgressExpanded = true
+                        autoNextScope.launch { screenScrollState.scrollTo(0) }
+                    }
+                )
+            }
 
             if (showExitPracticeConfirm) {
                 PracticeExitConfirmDialog(
@@ -2431,6 +2506,30 @@ private fun BatchAnswerNumberChip(
             )
         }
     }
+}
+
+@Composable
+private fun UnsubmittedPracticeConfirmDialog(
+    unansweredCount: Int,
+    onDismiss: () -> Unit,
+    onReturnToAnswer: () -> Unit,
+    onComplete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("还有 $unansweredCount 题未提交") },
+        text = { Text("可以返回补答，或将未提交题按未作答处理后完成练习。") },
+        confirmButton = {
+            TextButton(onClick = onComplete) {
+                Text("按未作答处理并完成")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onReturnToAnswer) {
+                Text("返回补答")
+            }
+        }
+    )
 }
 
 @Composable

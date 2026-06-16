@@ -1926,6 +1926,51 @@ object QuizRepository {
         }
     }
 
+    fun practiceUnsubmittedQuestionIndexes(): List<Int> {
+        if (practiceMode == PRACTICE_MODE_BATCH) return emptyList()
+        return practiceQuestions.indices.filter { index ->
+            val sessionKey = practiceSessionKeyAt(index) ?: return@filter true
+            !practiceAnswerResults.containsKey(sessionKey)
+        }
+    }
+
+    fun submitUnansweredPracticeQuestionsAsBlank(): Int {
+        if (practiceMode == PRACTICE_MODE_BATCH || practiceQuestions.isEmpty()) return 0
+        val unsubmittedIndexes = practiceUnsubmittedQuestionIndexes()
+        if (unsubmittedIndexes.isEmpty()) return 0
+
+        unsubmittedIndexes.forEach { index ->
+            val question = practiceQuestions.getOrNull(index) ?: return@forEach
+            val sessionKey = practiceSessionKeyAt(index) ?: return@forEach
+            val result = evaluateQuestion(question, emptyList())
+            val bank = bankForPracticeIndex(index)
+            practiceSessionResults[sessionKey] = result.correct
+            practiceAnswerResults[sessionKey] = StudyQuestionResult(
+                question = question,
+                userAnswer = result.userAnswer,
+                userBlankAnswers = result.userBlankAnswers,
+                correct = result.correct,
+                answerText = result.answerText,
+                autoScored = result.autoScored,
+                sourceBankId = bank?.id,
+                sourceBankName = bank?.name
+            )
+            if (result.autoScored && result.correct) {
+                markWrongQuestionRight(bank = bank, question = question)
+            } else if (result.autoScored) {
+                addWrongQuestion(
+                    bank = bank,
+                    question = question,
+                    userAnswer = result.userAnswer,
+                    source = currentPracticeWrongSource()
+                )
+            }
+        }
+        restorePracticeSelectionForCurrentQuestion()
+        persist()
+        return unsubmittedIndexes.size
+    }
+
     fun goToPracticeQuestion(index: Int) {
         val questions = activePracticeQuestions()
         if (questions.isEmpty()) return
