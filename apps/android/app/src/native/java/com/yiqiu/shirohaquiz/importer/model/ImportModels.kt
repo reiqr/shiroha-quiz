@@ -9,6 +9,7 @@ data class Question(
     val question: String,
     val options: List<Option> = emptyList(),
     val answer: List<String> = emptyList(),
+    val blankAnswers: List<List<String>> = emptyList(),
     val analysis: String = "",
     val category: String = "",
     val images: List<QuestionImage> = emptyList(),
