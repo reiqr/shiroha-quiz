@@ -152,6 +152,27 @@
       "sample": "samples/21_english_abbreviation_guard.txt",
       "expected": "expected/21_english_abbreviation_guard.json",
       "risk": "Vitamin A/U.S.A./e.g.中字母不应误判为选项标记"
+    },
+    {
+      "id": "22_multi_blank_explicit",
+      "mode": "single",
+      "sample": "samples/22_multi_blank_explicit.txt",
+      "expected": "expected/22_multi_blank_explicit.json",
+      "risk": "填空题有三个显式空位，答案用分号分隔，应逐空拆分"
+    },
+    {
+      "id": "23_multi_blank_filled",
+      "mode": "single",
+      "sample": "samples/23_multi_blank_filled.txt",
+      "expected": "expected/23_multi_blank_filled.json",
+      "risk": "填空题有三个已填括号，应提取答案并替换为空括号"
+    },
+    {
+      "id": "24_single_blank_guard",
+      "mode": "single",
+      "sample": "samples/24_single_blank_guard.txt",
+      "expected": "expected/24_single_blank_guard.json",
+      "risk": "单选题带单个空括号不应被误判为多空填空题"
     }
   ]
 }

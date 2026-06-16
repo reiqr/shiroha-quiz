@@ -1,0 +1,23 @@
+{
+  "id": "22_multi_blank_explicit",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "typeCounts": {
+      "BLANK": 1
+    },
+    "answeredCount": 1,
+    "warningsMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "BLANK",
+        "stemContains": "填入",
+        "stemNotContains": ["（  ）", "（  ）"],
+        "answer": ["2；6；4"],
+        "blankAnswers": [["2"], ["6"], ["4"]],
+        "analysisContains": "三个空"
+      }
+    ]
+  }
+}

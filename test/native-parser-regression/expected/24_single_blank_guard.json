@@ -1,0 +1,22 @@
+{
+  "id": "24_single_blank_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "typeCounts": {
+      "SINGLE": 1
+    },
+    "answeredCount": 1,
+    "warningsMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "下列说法正确的是",
+        "optionCount": 2,
+        "answer": ["B"],
+        "blankAnswers": []
+      }
+    ]
+  }
+}

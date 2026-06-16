@@ -283,6 +283,17 @@ private fun StringBuilder.appendQuestion(question: Question, last: Boolean) {
         append("\"").append(escape(answer)).append("\"")
     }
     append("],\n")
+    append("      \"blankAnswers\": [")
+    question.blankAnswers.forEachIndexed { i, group ->
+        if (i > 0) append(", ")
+        append("[")
+        group.forEachIndexed { j, ans ->
+            if (j > 0) append(", ")
+            append("\"").append(escape(ans)).append("\"")
+        }
+        append("]")
+    }
+    append("],\n")
     field("analysis", question.analysis, comma = true, indent = "      ")
     field("category", question.category, comma = false, indent = "      ")
     append("    }")

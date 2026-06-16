@@ -1,0 +1,23 @@
+{
+  "id": "23_multi_blank_filled",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "typeCounts": {
+      "BLANK": 1
+    },
+    "answeredCount": 1,
+    "warningsMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "BLANK",
+        "stemContains": "属于水果的是",
+        "stemNotContains": ["苹果", "香蕉", "白菜"],
+        "answer": ["苹果；香蕉；白菜"],
+        "blankAnswers": [["苹果"], ["香蕉"], ["白菜"]],
+        "analysisContains": "分类填空"
+      }
+    ]
+  }
+}
