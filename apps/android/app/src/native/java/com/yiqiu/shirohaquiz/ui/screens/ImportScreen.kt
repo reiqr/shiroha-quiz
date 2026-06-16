@@ -7,6 +7,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import android.content.Context
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -216,6 +217,7 @@ fun ImportScreen(
     }
 
     if (rawFullEditorMode) {
+        BackHandler { rawFullEditorMode = false }
         FullImportTextEditorScreen(
             title = if (useDualImport) "编辑题目文本" else "编辑原始文本",
             value = rawText,
@@ -232,6 +234,7 @@ fun ImportScreen(
     }
 
     if (answerFullEditorMode) {
+        BackHandler { answerFullEditorMode = false }
         FullImportTextEditorScreen(
             title = "编辑答案文本",
             value = answerText,
@@ -433,6 +436,13 @@ fun ImportScreen(
 
     val editingReviewIndex = reviewEditingIndex
     if (reviewMode && importResult != null && editingReviewIndex != null && editableQuestions.isNotEmpty()) {
+        BackHandler {
+            reviewEditingIndex = null
+            if (reviewEditFromFilterList) {
+                reviewFilterListFocusTick += 1
+            }
+            reviewEditFromFilterList = false
+        }
         val safeEditingIndex = editingReviewIndex.coerceIn(0, editableQuestions.lastIndex)
         val editingQuestion = editableQuestions[safeEditingIndex]
         ReviewQuestionEditScreen(
@@ -480,6 +490,10 @@ fun ImportScreen(
     }
 
     if (reviewMode && importResult != null) {
+        BackHandler {
+            reviewEditingIndex = null
+            reviewMode = false
+        }
         val warnings = importResult?.warnings.orEmpty()
         val reviewFilter = reviewFilterFromName(reviewFilterName)
         NativeQuestionReviewScreen(

@@ -1,5 +1,6 @@
 package com.yiqiu.shirohaquiz.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -489,6 +490,13 @@ fun PracticeScreen(
         var showBatchSubmitConfirm by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
         var showExitPracticeConfirm by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
         var showBatchAnswerSheet by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
+
+        BackHandler(
+            enabled = !showExitPracticeConfirm && !showBatchSubmitConfirm && !showBatchAnswerSheet
+        ) {
+            showExitPracticeConfirm = true
+        }
+
         var batchReviewWrongOnly by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
         val batchWrongIndexes = if (isBatchSubmitted) QuizRepository.practiceWrongQuestionIndexes() else emptyList()
         if (!isBatchSubmitted && batchReviewWrongOnly) batchReviewWrongOnly = false
