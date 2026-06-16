@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.R
+import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.state.WrongQuestionEntry
@@ -361,7 +362,11 @@ private fun WrongQuestionPreview(entry: WrongQuestionEntry) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            text = "正确答案：${entry.question.answer.joinToString(" / ").ifBlank { "未识别答案" }}",
+            text = if (MultiBlankSupport.hasStructuredAnswers(entry.question)) {
+                "正确答案：\n${MultiBlankSupport.expectedAnswerText(entry.question.blankAnswers)}"
+            } else {
+                "正确答案：${entry.question.answer.joinToString(" / ").ifBlank { "未识别答案" }}"
+            },
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(4.dp))

@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.state.StudyQuestionResult
@@ -239,13 +240,25 @@ private fun QuestionResultCard(
             )
         }
         Spacer(Modifier.height(8.dp))
+        val structuredBlank = MultiBlankSupport.hasStructuredAnswers(question)
+        val shownUserBlankAnswers = result.userBlankAnswers.ifEmpty {
+            if (structuredBlank) result.userAnswer else emptyList()
+        }
         Text(
-            text = "你的答案：${result.userAnswer.joinToString(" / ").ifBlank { "未作答" }}",
+            text = if (structuredBlank) {
+                "你的答案：\n${MultiBlankSupport.userAnswerText(shownUserBlankAnswers)}"
+            } else {
+                "你的答案：${result.userAnswer.joinToString(" / ").ifBlank { "未作答" }}"
+            },
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "正确答案：${result.answerText.ifBlank { question.answer.joinToString(" / ").ifBlank { "未识别答案" } }}",
+            text = if (structuredBlank) {
+                "正确答案：\n${result.answerText.ifBlank { MultiBlankSupport.expectedAnswerText(question.blankAnswers) }}"
+            } else {
+                "正确答案：${result.answerText.ifBlank { question.answer.joinToString(" / ").ifBlank { "未识别答案" } }}"
+            },
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (result.maxScore != null && result.earnedScore != null) {

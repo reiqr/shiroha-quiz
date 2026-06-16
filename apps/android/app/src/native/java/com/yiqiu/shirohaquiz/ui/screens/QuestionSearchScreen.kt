@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.importer.model.Question
+import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.DEFAULT_BANK_GROUP_NAME
 import com.yiqiu.shirohaquiz.state.QuestionSearchEngine
@@ -397,7 +398,11 @@ private fun QuestionSearchResultCard(
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold
         )
-        val answerText = question.answer.joinToString("、")
+        val answerText = if (MultiBlankSupport.hasStructuredAnswers(question)) {
+            MultiBlankSupport.expectedAnswerText(question.blankAnswers)
+        } else {
+            question.answer.joinToString("、")
+        }
         if (answerText.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
             Text(
@@ -461,7 +466,14 @@ private fun FullQuestionInfo(question: Question) {
             Spacer(Modifier.height(4.dp))
         }
     }
-    SearchInfoBlock(label = "正确答案", text = question.answer.joinToString("、").ifBlank { "（未填写）" })
+    SearchInfoBlock(
+        label = "正确答案",
+        text = if (MultiBlankSupport.hasStructuredAnswers(question)) {
+            MultiBlankSupport.expectedAnswerText(question.blankAnswers)
+        } else {
+            question.answer.joinToString("、").ifBlank { "（未填写）" }
+        }
+    )
     if (question.analysis.isNotBlank()) {
         SearchInfoBlock(label = "解析", text = question.analysis)
     }

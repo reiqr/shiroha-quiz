@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.R
+import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
@@ -54,6 +55,7 @@ import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.ui.components.EmptyStateIllustration
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
+import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerEditor
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
 import com.yiqiu.shirohaquiz.ui.components.ShirohaDangerConfirmDialog
@@ -513,7 +515,8 @@ fun BankReviewScreen(
                             editableQuestions[safeIndex] = question.copy(
                                 type = QuestionType.JUDGE,
                                 options = defaultJudgeOptions(),
-                                answer = if (question.answer.isEmpty()) listOf("A") else question.answer
+                                answer = if (question.answer.isEmpty()) listOf("A") else question.answer,
+                                blankAnswers = emptyList()
                             )
                         }
                     )
@@ -527,15 +530,49 @@ fun BankReviewScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = answerInputText(question),
-                    onValueChange = { value ->
-                        editableQuestions[safeIndex] = question.copy(answer = parseReviewAnswer(value, question.type))
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("答案：单选填 A，多选填 ABC 或 A,B,C，判断填 正确/错误") },
-                    singleLine = true
-                )
+                val detectedBlankCount = MultiBlankSupport.countExplicitBlanks(question.question)
+                if (question.type == QuestionType.BLANK && question.blankAnswers.isNotEmpty()) {
+                    MultiBlankAnswerEditor(
+                        blankAnswers = question.blankAnswers,
+                        detectedBlankCount = detectedBlankCount,
+                        onChange = { groups ->
+                            editableQuestions[safeIndex] = MultiBlankSupport.withBlankAnswers(question, groups)
+                        },
+                        onDisable = {
+                            editableQuestions[safeIndex] = question.copy(
+                                answer = MultiBlankSupport.compatibilityAnswer(question.blankAnswers),
+                                blankAnswers = emptyList()
+                            )
+                        }
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = answerInputText(question),
+                        onValueChange = { value ->
+                            editableQuestions[safeIndex] = question.copy(
+                                answer = parseReviewAnswer(value, question.type),
+                                blankAnswers = emptyList()
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("答案：单选填 A，多选填 ABC 或 A,B,C，判断填 正确/错误") },
+                        singleLine = true
+                    )
+                    if (question.type == QuestionType.BLANK && detectedBlankCount > 1) {
+                        Spacer(Modifier.height(10.dp))
+                        ActionPillButton(
+                            icon = Icons.Rounded.Add,
+                            text = "启用多空答案",
+                            primary = false,
+                            onClick = {
+                                editableQuestions[safeIndex] = MultiBlankSupport.withBlankAnswers(
+                                    question,
+                                    MultiBlankSupport.initialGroups(question.question, question.answer)
+                                )
+                            }
+                        )
+                    }
+                }
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = question.analysis,
@@ -638,6 +675,7 @@ private fun bankQuestionMatchesQuery(question: Question, query: String): Boolean
         question.number.lowercase().contains(normalized) ||
         question.category.lowercase().contains(normalized) ||
         question.answer.joinToString(" ").lowercase().contains(normalized) ||
+        question.blankAnswers.flatten().joinToString(" ").lowercase().contains(normalized) ||
         question.options.any { option ->
             option.key.lowercase().contains(normalized) || option.text.lowercase().contains(normalized)
         }
@@ -786,14 +824,15 @@ private fun normalizeAfterTypeChange(question: Question, type: QuestionType): Qu
         QuestionType.JUDGE -> question.copy(
             type = type,
             options = if (question.options.isEmpty()) defaultJudgeOptions() else question.options,
-            answer = normalizeJudgeAnswer(question.answer)
+            answer = normalizeJudgeAnswer(question.answer),
+            blankAnswers = emptyList()
         )
 
         QuestionType.SINGLE,
-        QuestionType.MULTIPLE -> question.copy(type = type)
+        QuestionType.MULTIPLE -> question.copy(type = type, blankAnswers = emptyList())
 
-        QuestionType.BLANK,
-        QuestionType.SHORT -> question.copy(type = type)
+        QuestionType.BLANK -> question.copy(type = type)
+        QuestionType.SHORT -> question.copy(type = type, blankAnswers = emptyList())
     }
 }
 
@@ -821,6 +860,8 @@ private fun nextOptionKey(options: List<Option>): String {
 private fun parseReviewAnswer(text: String, type: QuestionType): List<String> {
     val clean = text.trim()
     if (clean.isBlank()) return emptyList()
+
+    if (type == QuestionType.BLANK || type == QuestionType.SHORT) return listOf(clean)
 
     if (type == QuestionType.JUDGE) {
         normalizeJudgeAnswer(listOf(clean)).takeIf { it.isNotEmpty() }?.let { return it }
@@ -862,6 +903,9 @@ private fun answerInputText(question: Question): String {
 }
 
 private fun answerDisplayText(question: Question): String {
+    if (MultiBlankSupport.hasStructuredAnswers(question)) {
+        return MultiBlankSupport.expectedAnswerText(question.blankAnswers)
+    }
     val value = answerInputText(question)
     return value.ifBlank { "未识别答案" }
 }

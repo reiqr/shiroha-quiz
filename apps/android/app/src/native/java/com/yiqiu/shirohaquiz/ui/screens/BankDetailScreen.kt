@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.R
+import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
@@ -45,6 +46,7 @@ import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.ui.components.EmptyStateIllustration
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
+import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerEditor
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.ShirohaDangerConfirmDialog
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
@@ -388,7 +390,11 @@ private fun QuestionPreviewBlock(
     if (editable) {
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "答案：${question.answer.joinToString(" / ").ifBlank { "未识别" }}",
+            text = if (MultiBlankSupport.hasStructuredAnswers(question)) {
+                "答案：\n${MultiBlankSupport.expectedAnswerText(question.blankAnswers)}"
+            } else {
+                "答案：${question.answer.joinToString(" / ").ifBlank { "未识别" }}"
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold
@@ -406,6 +412,7 @@ private fun QuestionEditDialog(
     var stem by remember(question.id) { mutableStateOf(question.question) }
     var optionsText by remember(question.id) { mutableStateOf(formatOptions(question.options)) }
     var answerText by remember(question.id) { mutableStateOf(question.answer.joinToString(" ")) }
+    var blankAnswerDrafts by remember(question.id) { mutableStateOf(question.blankAnswers) }
     var analysisText by remember(question.id) { mutableStateOf(question.analysis) }
 
     AlertDialog(
@@ -437,13 +444,37 @@ private fun QuestionEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3
                 )
-                OutlinedTextField(
-                    value = answerText,
-                    onValueChange = { answerText = it },
-                    label = { Text("答案，例如 A 或 A B") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                val isStructuredBlank = question.type == QuestionType.BLANK && blankAnswerDrafts.isNotEmpty()
+                val detectedBlankCount = MultiBlankSupport.countExplicitBlanks(stem)
+                if (isStructuredBlank) {
+                    MultiBlankAnswerEditor(
+                        blankAnswers = blankAnswerDrafts,
+                        detectedBlankCount = detectedBlankCount,
+                        onChange = { groups ->
+                            blankAnswerDrafts = groups
+                            answerText = MultiBlankSupport.compatibilityAnswer(groups).firstOrNull().orEmpty()
+                        },
+                        onDisable = {
+                            answerText = MultiBlankSupport.compatibilityAnswer(blankAnswerDrafts).firstOrNull().orEmpty()
+                            blankAnswerDrafts = emptyList()
+                        }
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = answerText,
+                        onValueChange = { answerText = it },
+                        label = { Text("答案，例如 A 或 A B") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    if (question.type == QuestionType.BLANK && detectedBlankCount > 1) {
+                        TextButton(
+                            onClick = {
+                                blankAnswerDrafts = MultiBlankSupport.initialGroups(stem, parseAnswer(answerText, QuestionType.BLANK))
+                            }
+                        ) { Text("启用多空答案") }
+                    }
+                }
                 OutlinedTextField(
                     value = analysisText,
                     onValueChange = { analysisText = it },
@@ -455,7 +486,12 @@ private fun QuestionEditDialog(
                     question = question.copy(
                         question = stem.trim(),
                         options = parseOptions(optionsText),
-                        answer = parseAnswer(answerText),
+                        answer = if (question.type == QuestionType.BLANK && blankAnswerDrafts.isNotEmpty()) {
+                            MultiBlankSupport.compatibilityAnswer(blankAnswerDrafts)
+                        } else {
+                            parseAnswer(answerText, question.type)
+                        },
+                        blankAnswers = if (question.type == QuestionType.BLANK) blankAnswerDrafts else emptyList(),
                         analysis = analysisText.trim()
                     ),
                     currentAnalysis = analysisText,
@@ -470,7 +506,12 @@ private fun QuestionEditDialog(
                         question.copy(
                             question = stem.trim(),
                             options = parseOptions(optionsText),
-                            answer = parseAnswer(answerText),
+                            answer = if (question.type == QuestionType.BLANK && blankAnswerDrafts.isNotEmpty()) {
+                                MultiBlankSupport.compatibilityAnswer(blankAnswerDrafts)
+                            } else {
+                                parseAnswer(answerText, question.type)
+                            },
+                            blankAnswers = if (question.type == QuestionType.BLANK) blankAnswerDrafts else emptyList(),
                             analysis = analysisText.trim()
                         )
                     )
@@ -503,8 +544,11 @@ private fun parseOptions(raw: String): List<Option> {
     }
 }
 
-private fun parseAnswer(raw: String): List<String> {
-    return raw.split(Regex("[\\s,，、/]+"))
+private fun parseAnswer(raw: String, type: QuestionType): List<String> {
+    val clean = raw.trim()
+    if (clean.isBlank()) return emptyList()
+    if (type == QuestionType.BLANK || type == QuestionType.SHORT) return listOf(clean)
+    return clean.split(Regex("[\\s,，、/]+"))
         .map { it.trim().uppercase() }
         .filter { it.isNotBlank() }
         .distinct()

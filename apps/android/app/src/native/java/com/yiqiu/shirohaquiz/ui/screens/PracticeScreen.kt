@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.sp
 import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.ai.AiSingleQuestionAnalysis
 import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
+import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
@@ -92,6 +93,8 @@ import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.IllustrationHeroCard
+import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerEditor
+import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerInputs
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuizOptionCard
 import com.yiqiu.shirohaquiz.ui.components.QuizOptionResultStyle
@@ -446,6 +449,7 @@ fun PracticeScreen(
             QuestionCheckResult(
                 question = question,
                 userAnswer = saved.userAnswer,
+                userBlankAnswers = saved.userBlankAnswers,
                 correct = saved.correct,
                 answerText = saved.answerText,
                 autoScored = saved.autoScored
@@ -741,7 +745,26 @@ fun PracticeScreen(
                     }
                 }
 
-                QuestionType.BLANK,
+                QuestionType.BLANK -> {
+                    if (isReciteMode) {
+                        NoticeCard("背题模式下直接查看参考答案和解析。")
+                    } else if (MultiBlankSupport.hasStructuredAnswers(question)) {
+                        MultiBlankAnswerInputs(
+                            blankCount = question.blankAnswers.size,
+                            values = displayedSelection,
+                            enabled = !isSubmitted && !isBatchSubmitted,
+                            onValueChange = QuizRepository::updatePracticeBlankAnswer
+                        )
+                    } else {
+                        SubjectiveAnswerEditor(
+                            type = question.type,
+                            value = displayedSelection.firstOrNull().orEmpty(),
+                            enabled = !isSubmitted && !isBatchSubmitted,
+                            onValueChange = { QuizRepository.updatePracticeTextAnswer(it) }
+                        )
+                    }
+                }
+
                 QuestionType.SHORT -> {
                     if (isReciteMode) {
                         NoticeCard("背题模式下直接查看参考答案和解析。")
@@ -896,6 +919,11 @@ fun PracticeScreen(
                     QuestionType.MULTIPLE -> practiceAnswersForDisplay(question.answer, displayAnswerMap)
                         .joinToString(" / ")
                         .ifBlank { "未识别答案" }
+                    QuestionType.BLANK -> effectiveResult?.answerText ?: if (MultiBlankSupport.hasStructuredAnswers(question)) {
+                        MultiBlankSupport.expectedAnswerText(question.blankAnswers)
+                    } else {
+                        question.answer.joinToString(" / ").ifBlank { "未识别答案" }
+                    }
                     else -> effectiveResult?.answerText ?: question.answer.joinToString(" / ").ifBlank { "未识别答案" }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -954,8 +982,8 @@ fun PracticeScreen(
                     indexes = batchGroupIndexes,
                     currentIndex = QuizRepository.practiceIndex,
                     submitted = isBatchSubmitted,
-                    isAnswered = { index -> QuizRepository.practiceDraftAnswers[practiceQuestions[index].id]?.isNotEmpty() == true },
-                    isCorrect = { index -> QuizRepository.practiceAnswerResults[practiceQuestions[index].id]?.correct },
+                    isAnswered = QuizRepository::isPracticeDraftAnswered,
+                    isCorrect = QuizRepository::practiceResultCorrectAt,
                     onJump = { index ->
                         QuizRepository.goToPracticeQuestion(index)
                         showBatchAnswerSheet = false
@@ -1012,12 +1040,15 @@ fun PracticeQuickEditScreen(
 
         var questionText by remember(currentSessionKey) { mutableStateOf(question.question) }
         var answerText by remember(currentSessionKey) { mutableStateOf(question.answer.joinToString(" / ")) }
+        var blankAnswerDrafts by remember(currentSessionKey) { mutableStateOf(question.blankAnswers) }
         var analysisText by remember(currentSessionKey) { mutableStateOf(question.analysis) }
         var optionDrafts by remember(currentSessionKey) { mutableStateOf(initialQuickEditOptions(question)) }
         var savedNotice by remember(currentSessionKey) { mutableStateOf("") }
         val isObjective = question.type == QuestionType.SINGLE ||
             question.type == QuestionType.MULTIPLE ||
             question.type == QuestionType.JUDGE
+        val isStructuredBlank = question.type == QuestionType.BLANK && blankAnswerDrafts.isNotEmpty()
+        val detectedBlankCount = MultiBlankSupport.countExplicitBlanks(questionText)
 
         GlassCard {
             FlowRow(
@@ -1108,20 +1139,49 @@ fun PracticeQuickEditScreen(
             }
 
             Spacer(Modifier.height(16.dp))
-            OutlinedTextField(
-                value = answerText,
-                onValueChange = {
-                    answerText = it
-                    savedNotice = ""
-                },
-                label = { Text(if (isObjective) "答案，例如 A 或 A/B" else "参考答案") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = if (isObjective) 1 else 2,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next
+            if (isStructuredBlank) {
+                MultiBlankAnswerEditor(
+                    blankAnswers = blankAnswerDrafts,
+                    detectedBlankCount = detectedBlankCount,
+                    onChange = {
+                        blankAnswerDrafts = it
+                        answerText = MultiBlankSupport.compatibilityAnswer(it).firstOrNull().orEmpty()
+                        savedNotice = ""
+                    },
+                    onDisable = {
+                        answerText = MultiBlankSupport.compatibilityAnswer(blankAnswerDrafts).firstOrNull().orEmpty()
+                        blankAnswerDrafts = emptyList()
+                        savedNotice = "已退出多空模式，保存后按旧版整体答案处理。"
+                    }
                 )
-            )
+            } else {
+                OutlinedTextField(
+                    value = answerText,
+                    onValueChange = {
+                        answerText = it
+                        savedNotice = ""
+                    },
+                    label = { Text(if (isObjective) "答案，例如 A 或 A/B" else "参考答案") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = if (isObjective) 1 else 2,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    )
+                )
+                if (question.type == QuestionType.BLANK && detectedBlankCount > 1) {
+                    Spacer(Modifier.height(8.dp))
+                    ActionPillButton(
+                        icon = Icons.Rounded.Add,
+                        text = "启用多空答案",
+                        primary = false,
+                        onClick = {
+                            blankAnswerDrafts = MultiBlankSupport.initialGroups(questionText, parseQuickEditAnswer(answerText, question.type, emptyList()))
+                            savedNotice = "请按题空顺序填写每一空答案。"
+                        }
+                    )
+                }
+            }
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = analysisText,
@@ -1139,7 +1199,8 @@ fun PracticeQuickEditScreen(
                 question = question.copy(
                     question = questionText.trim(),
                     options = if (isObjective) optionDrafts.map { it.copy(text = it.text.trim()) } else emptyList(),
-                    answer = parseQuickEditAnswer(answerText, question.type, optionDrafts),
+                    answer = if (isStructuredBlank) MultiBlankSupport.compatibilityAnswer(blankAnswerDrafts) else parseQuickEditAnswer(answerText, question.type, optionDrafts),
+                    blankAnswers = if (isStructuredBlank) blankAnswerDrafts else emptyList(),
                     analysis = analysisText.trim()
                 ),
                 currentAnalysis = analysisText,
@@ -1182,7 +1243,8 @@ fun PracticeQuickEditScreen(
                     val updatedQuestion = question.copy(
                         question = questionText.trim(),
                         options = if (isObjective) optionDrafts.map { it.copy(text = it.text.trim()) } else emptyList(),
-                        answer = parseQuickEditAnswer(answerText, question.type, optionDrafts),
+                        answer = if (isStructuredBlank) MultiBlankSupport.compatibilityAnswer(blankAnswerDrafts) else parseQuickEditAnswer(answerText, question.type, optionDrafts),
+                        blankAnswers = if (isStructuredBlank) blankAnswerDrafts else emptyList(),
                         analysis = analysisText.trim()
                     )
                     if (QuizRepository.updateCurrentPracticeQuestion(updatedQuestion)) {
@@ -2734,11 +2796,7 @@ private fun parseQuickEditAnswer(raw: String, type: QuestionType, options: List<
             tokens
         }
         QuestionType.BLANK,
-        QuestionType.SHORT -> trimmed
-            .split(Regex("""[\n/]+"""))
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .ifEmpty { listOf(trimmed) }
+        QuestionType.SHORT -> listOf(trimmed)
     }
 }
 

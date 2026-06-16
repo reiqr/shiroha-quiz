@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.FavoriteQuestionEntry
 import com.yiqiu.shirohaquiz.state.QuizRepository
@@ -144,7 +145,11 @@ private fun FavoriteQuestionPreview(entry: FavoriteQuestionEntry) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            text = "正确答案：${entry.question.answer.joinToString(" / ").ifBlank { "未识别答案" }}",
+            text = if (MultiBlankSupport.hasStructuredAnswers(entry.question)) {
+                "正确答案：\n${MultiBlankSupport.expectedAnswerText(entry.question.blankAnswers)}"
+            } else {
+                "正确答案：${entry.question.answer.joinToString(" / ").ifBlank { "未识别答案" }}"
+            },
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (entry.question.analysis.isNotBlank()) {

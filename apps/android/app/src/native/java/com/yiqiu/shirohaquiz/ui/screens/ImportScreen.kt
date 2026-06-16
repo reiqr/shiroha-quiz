@@ -83,6 +83,7 @@ import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
 import com.yiqiu.shirohaquiz.importer.model.ImportDiagnostics
 import com.yiqiu.shirohaquiz.importer.model.ImportResult
 import com.yiqiu.shirohaquiz.importer.model.ImportWarning
+import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
@@ -99,6 +100,7 @@ import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.LoadingIllustration
+import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerEditor
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
 import com.yiqiu.shirohaquiz.ui.components.ShirohaDangerConfirmDialog
@@ -2640,7 +2642,8 @@ private fun ReviewQuestionEditorContent(
                             question.copy(
                                 type = QuestionType.JUDGE,
                                 options = defaultJudgeOptions(),
-                                answer = if (question.answer.isEmpty()) listOf("A") else question.answer
+                                answer = if (question.answer.isEmpty()) listOf("A") else question.answer,
+                                blankAnswers = emptyList()
                             )
                         )
                     }
@@ -2656,20 +2659,58 @@ private fun ReviewQuestionEditorContent(
             )
             Spacer(Modifier.height(12.dp))
             Text(
-                text = "单选 A，多选 ABC，判断 正确/错误",
+                text = "单选 A，多选 ABC，判断 正确/错误；多空填空可逐空配置主答案与备选答案。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = answerInputText(question),
-                onValueChange = { value ->
-                    onQuestionChange(question.copy(answer = parseReviewAnswer(value, question.type)))
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("答案") },
-                singleLine = true
-            )
+            val detectedBlankCount = MultiBlankSupport.countExplicitBlanks(question.question)
+            if (question.type == QuestionType.BLANK && question.blankAnswers.isNotEmpty()) {
+                MultiBlankAnswerEditor(
+                    blankAnswers = question.blankAnswers,
+                    detectedBlankCount = detectedBlankCount,
+                    onChange = { groups -> onQuestionChange(MultiBlankSupport.withBlankAnswers(question, groups)) },
+                    onDisable = {
+                        onQuestionChange(
+                            question.copy(
+                                answer = MultiBlankSupport.compatibilityAnswer(question.blankAnswers),
+                                blankAnswers = emptyList()
+                            )
+                        )
+                    }
+                )
+            } else {
+                OutlinedTextField(
+                    value = answerInputText(question),
+                    onValueChange = { value ->
+                        onQuestionChange(
+                            question.copy(
+                                answer = parseReviewAnswer(value, question.type),
+                                blankAnswers = emptyList()
+                            )
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("答案") },
+                    singleLine = true
+                )
+                if (question.type == QuestionType.BLANK && detectedBlankCount > 1) {
+                    Spacer(Modifier.height(10.dp))
+                    ActionPillButton(
+                        icon = Icons.Rounded.Add,
+                        text = "启用多空答案",
+                        primary = false,
+                        onClick = {
+                            onQuestionChange(
+                                MultiBlankSupport.withBlankAnswers(
+                                    question,
+                                    MultiBlankSupport.initialGroups(question.question, question.answer)
+                                )
+                            )
+                        }
+                    )
+                }
+            }
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = question.analysis,
@@ -2984,7 +3025,16 @@ private fun String.withImportWarningQuestionId(questionId: String): String {
 private fun isReplaceableLocalImportWarning(warning: ImportWarning): Boolean {
     val message = displayImportWarningMessage(warning.message)
     return message in replaceableLocalImportWarningMessages ||
-        message.startsWith("同一分区/题型内题号重复")
+        message.startsWith("同一分区/题型内题号重复") ||
+        isMultiBlankLocalWarning(message)
+}
+
+private fun isMultiBlankLocalWarning(message: String): Boolean {
+    return (message.contains("个题空") && (
+        message.contains("未识别逐空答案") ||
+            message.contains("答案数量无法对应") ||
+            message.contains("当前配置了")
+        )) || message == "多空填空题存在未配置答案的题空"
 }
 
 private val replaceableLocalImportWarningMessages = setOf(
@@ -3117,7 +3167,10 @@ private fun applyAiReviewSuggestion(question: Question, suggestion: AiReviewSugg
         next = next.copy(options = defaultJudgeOptions())
     }
     if (suggestion.suggestedAnswer.isNotEmpty()) {
-        next = next.copy(answer = normalizeSuggestedAnswer(suggestion.suggestedAnswer, next.type))
+        next = next.copy(
+            answer = normalizeSuggestedAnswer(suggestion.suggestedAnswer, next.type),
+            blankAnswers = emptyList()
+        )
     }
     suggestion.suggestedAnalysis?.let { suggestedAnalysis ->
         next = next.copy(analysis = suggestedAnalysis)
@@ -3458,12 +3511,13 @@ private fun normalizeAfterTypeChange(question: Question, type: QuestionType): Qu
         QuestionType.JUDGE -> question.copy(
             type = type,
             options = if (question.options.isEmpty()) defaultJudgeOptions() else question.options,
-            answer = normalizeJudgeAnswer(question.answer)
+            answer = normalizeJudgeAnswer(question.answer),
+            blankAnswers = emptyList()
         )
         QuestionType.SINGLE,
-        QuestionType.MULTIPLE -> question.copy(type = type)
-        QuestionType.BLANK,
-        QuestionType.SHORT -> question.copy(type = type)
+        QuestionType.MULTIPLE -> question.copy(type = type, blankAnswers = emptyList())
+        QuestionType.BLANK -> question.copy(type = type)
+        QuestionType.SHORT -> question.copy(type = type, blankAnswers = emptyList())
     }
 }
 
@@ -3491,6 +3545,8 @@ private fun nextOptionKey(options: List<Option>): String {
 private fun parseReviewAnswer(text: String, type: QuestionType): List<String> {
     val clean = text.trim()
     if (clean.isBlank()) return emptyList()
+
+    if (type == QuestionType.BLANK || type == QuestionType.SHORT) return listOf(clean)
 
     if (type == QuestionType.JUDGE) {
         normalizeJudgeAnswer(listOf(clean)).takeIf { it.isNotEmpty() }?.let { return it }
@@ -3533,6 +3589,9 @@ private fun answerInputText(question: Question): String {
 }
 
 private fun answerDisplayText(question: Question): String {
+    if (MultiBlankSupport.hasStructuredAnswers(question)) {
+        return MultiBlankSupport.expectedAnswerText(question.blankAnswers)
+    }
     val value = answerInputText(question)
     return value.ifBlank { "未识别答案" }
 }

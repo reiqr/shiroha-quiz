@@ -59,6 +59,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.ExamSummary
@@ -67,6 +68,7 @@ import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.EmptyStateIllustration
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.MetricGlassCard
+import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerInputs
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuizOptionCard
 import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
@@ -860,9 +862,33 @@ private fun ActiveExamPanel(
                 }
             }
 
-            QuestionType.BLANK,
+            QuestionType.BLANK -> {
+                val currentAnswer = QuizRepository.examAnswers[examQuestion.id].orEmpty()
+                if (MultiBlankSupport.hasStructuredAnswers(examQuestion)) {
+                    MultiBlankAnswerInputs(
+                        blankCount = examQuestion.blankAnswers.size,
+                        values = currentAnswer,
+                        enabled = true,
+                        onValueChange = QuizRepository::updateExamBlankAnswer
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = currentAnswer.firstOrNull().orEmpty(),
+                        onValueChange = QuizRepository::updateExamTextAnswer,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("你的答案") },
+                        placeholder = { Text("请输入填空内容") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Done
+                        )
+                    )
+                }
+            }
+
             QuestionType.SHORT -> {
-                NoticeCard("这道题属于 ${typeLabel(examQuestion.type)}。当前考试模式先完成客观题流程。")
+                NoticeCard("这道题属于简答题。当前考试模式暂不自动判分。")
             }
         }
 
@@ -1098,7 +1124,7 @@ private fun ExamAnswerCardDialog(
                         ) {
                             rowQuestions.forEachIndexed { columnIndex, question ->
                                 val index = rowIndex * 5 + columnIndex
-                                val answeredQuestion = QuizRepository.examAnswers[question.id].orEmpty().isNotEmpty()
+                                val answeredQuestion = QuizRepository.isExamQuestionAnswered(question)
                                 val currentQuestion = index == QuizRepository.examIndex
                                 ExamAnswerNumberChip(
                                     text = (index + 1).toString(),
