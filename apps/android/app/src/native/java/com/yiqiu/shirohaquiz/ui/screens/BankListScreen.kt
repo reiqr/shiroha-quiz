@@ -369,9 +369,9 @@ private fun BankCard(
                 Spacer(Modifier.weight(1f))
                 CompactBankStateChip(
                     text = if (isActive) "当前题库" else "设为当前",
-                    selected = isActive,
+                    selected = isActive && isPracticeScope,
                     onClick = {
-                        if (!isActive) onSetActive()
+                        if (!isActive || !isPracticeScope) onSetActive()
                     }
                 )
             }
