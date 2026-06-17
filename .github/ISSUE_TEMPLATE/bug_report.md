@@ -23,9 +23,22 @@ assignees: ""
 ## 使用环境
 
 - 系统：
-- 浏览器 / Android 版本：
-- 项目版本（当前最新 v0.2.0-alpha）：
-- 使用平台：Web / Android WebView 壳
+- Shiroha Quiz 版本号：
+- 设备型号：
+- Android 系统版本（仅原生 Android App / WebView 壳需要）：
+- 浏览器版本（仅 Web 版需要）：
+
+## 使用端 / 平台
+
+请勾选实际出问题的一端：
+
+- [ ] 原生 Android App
+- [ ] Web 版（浏览器 / GitHub Pages）
+- [ ] 后台 / 管理端（本地开发）
+- [ ] WebView 壳过渡版（旧方案，只有明确使用时才选）
+- [ ] 不确定
+
+如果是在手机安装包里遇到问题，通常请选择“原生 Android App”，不要写成 Web 版或 WebView 壳。
 
 ## 补充信息
 
