@@ -18,10 +18,9 @@ Shiroha Quiz 解决一个很实际的问题：
 
 > 你手里有题库——Word、Excel、TXT、JSON，或者题目和答案分开的文件。但格式不统一，整理成本高，即使整理完了也只能翻看，没法真正做题。**Shiroha Quiz 把它们自动识别导入，变成可练习、可考试、可错题复盘的个人题库。**文字层 PDF 作为辅助支持，扫描件 / 图片型 PDF 暂不作为主要推荐格式。
 
-当前项目包含三条线：
+当前项目主要包含两条公开使用线：
 
 - **Web 版**：基础刷题流程完整稳定，题库导入、刷题考试、错题复习均已就绪。
-- **Android WebView 壳版**：Web 资源打包进 APK，离线加载，逻辑与 Web 版一致。
 - **Android 原生 Compose 版**：Kotlin + Compose 原生实现，当前主开发线，暗夜模式、AI 解析、背题模式、斩题功能、智能复习、收藏、快速编辑、错题复盘等增强功能均已落地。
 
 <br style="clear:both">
@@ -36,7 +35,7 @@ Shiroha Quiz 解决一个很实际的问题：
 | 多空填空题 | [刷题与考试](#刷题与考试) |
 | AI 功能 | [AI 智能功能](#ai-智能功能原生版) |
 | 平板体验 | [视觉与体验](#视觉与体验原生版) |
-| 两个 APK 选哪个 | [Android 双版本说明](#android-双版本说明) |
+| Android 版本怎么选 | [Android 版本说明](#android-版本说明) |
 | 怎么用 | [使用说明](#使用说明) |
 | 支持什么格式 | [导入格式与策略](#导入格式与策略) |
 | 怎么下载 | [下载与使用](#下载与使用) |
@@ -47,7 +46,6 @@ Shiroha Quiz 解决一个很实际的问题：
 ## 当前能力
 
 - Web 端功能完整，在线即可使用。
-- Android WebView 版，该版本仅过渡参考。
 - Android 原生 Compose 版：多空填空题、平板侧边导航、暗夜模式、AI 解析/AI 核对/AI 单题分析、表格导入、JSON 多格式导入、背题模式、斩题功能、选项打乱、智能复习、题目收藏、快速编辑、错题作用域切换、顺序练习进度记忆、记录只看错题筛选、错题复盘均已落地。
 - 内置 C1 科目一题库，方便首次体验。
 
@@ -150,38 +148,19 @@ Shiroha Quiz 解决一个很实际的问题：
 
 ---
 
-## Android 双版本说明
+## Android 版本说明
 
-<!-- ![WebView 壳版截图](assets/screenshot-web.png) -->
 <!-- ![原生 Compose 版截图](assets/screenshot-native.png) -->
 
-Releases 页面提供两个 APK，根据需求选择：
-
-### WebView 壳版（`*-web-release.apk`）
-
-- 内置完整 Web 页面，离线可用
-- 功能完整，仅做必要维护，不再作为主要开发线
-- 下载约 6 MB
-
-### 原生 Compose 版（`*-native-release.apk`）
+Releases 页面推荐下载原生 Compose 版 APK：
 
 - Kotlin + Compose 纯原生实现，当前主要开发线
 - 启动更快，界面更流畅，体积更小（约 5.5 MB）
 - **多空填空题**、**分组练习范围**（跨题库出题）、**平板侧边导航**、路由系统升级、暗夜模式、AI 全功能（核对/解析/单题分析/补解析）、表格导入、JSON 多格式导入、选项打乱、背题模式、斩题功能、错题作用域、记录筛选、跨端互通均已落地
 
-| | WebView 壳版 | 原生 Compose 版 |
-|------|-------------|----------------|
-| 定位 | 稳定维护 | 主要开发线 |
-| 流畅度 | 一般 | 高 |
-| 功能完整度 | 完整 | 完整（含 AI/暗夜/背题/斩题/错题复盘等） |
-| APK 大小 | ~6 MB | ~5 MB |
-| 适合人群 | 日常刷题用户 | 想体验原生流畅度的用户 |
+### Android 工程结构
 
-> **两个版本可同时安装，互不冲突（包名不同）。**
-
-### 工程结构
-
-Android 工程通过 `productFlavors` 维护两个版本，共享同一 Gradle 项目：
+Android 工程通过 `productFlavors` 保留历史 WebView 壳与当前原生版本，共享同一 Gradle 项目：
 
 | Flavor | 包名 | 技术路线 |
 |---|---|---|
@@ -259,8 +238,8 @@ shiroha-quiz/
 │   └── android/                     # Android 工程
 │       ├── app/
 │       │   ├── build.gradle.kts
-│       │   ├── src/main/            # 通用入口、Manifest、图标与 WebView 内置 Web 资源
-│       │   ├── src/web/             # WebView 壳版入口
+│       │   ├── src/main/            # 通用入口、Manifest、图标与内置资源
+│       │   ├── src/web/             # 历史 WebView 壳入口
 │       │   ├── src/native/          # 原生 Compose 版源码
 │       │   │   ├── ai/              # AI 客户端与提示词
 │       │   │   ├── importer/        # 题库导入引擎
@@ -325,12 +304,6 @@ https://reiqr.github.io/shiroha-quiz
 cd apps/android
 ```
 
-构建 WebView 壳版本：
-
-```bash
-./gradlew assembleWebRelease
-```
-
 构建原生 Compose 版本：
 
 ```bash
@@ -340,7 +313,6 @@ cd apps/android
 Windows PowerShell 可使用：
 
 ```powershell
-.\gradlew.bat assembleWebRelease
 .\gradlew.bat assembleNativeRelease
 ```
 
@@ -375,7 +347,7 @@ apps/android/app/build/outputs/
 
 ## 开发计划
 
-历史开发计划已归档至 `docs/archive/native/`。当前开发重点见 [原生开发进度](docs/native/原生开发进度.md)，后台化路线见 [后台化开发计划书](docs/native/Shiroha_Quiz_后台化开发计划书.md)（content-admin 分支）。
+历史开发计划已归档至 `docs/archive/`。当前开发重点见 [原生开发进度](docs/native/原生开发进度.md)。
 
 ---
 
