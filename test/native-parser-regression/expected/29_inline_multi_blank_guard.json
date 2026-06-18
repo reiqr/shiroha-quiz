@@ -1,0 +1,51 @@
+{
+  "id": "29_inline_multi_blank_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 6,
+    "answeredCount": 1,
+    "typeCounts": {
+      "SHORT": 6
+    },
+    "warningContains": ["疑似内嵌多空题"],
+    "questions": [
+      {
+        "number": "1",
+        "type": "SHORT",
+        "stemContains": "2021年修订",
+        "mustNotType": "BLANK"
+      },
+      {
+        "number": "2",
+        "type": "SHORT",
+        "stemContains": "功率20kW",
+        "mustNotType": "BLANK"
+      },
+      {
+        "number": "3",
+        "type": "SHORT",
+        "stemContains": "以下简称甲方",
+        "mustNotType": "BLANK"
+      },
+      {
+        "number": "4",
+        "type": "SHORT",
+        "stemContains": "人员管理",
+        "mustNotType": "BLANK"
+      },
+      {
+        "number": "5",
+        "type": "SHORT",
+        "stemContains": "安全第一",
+        "mustNotType": "BLANK"
+      },
+      {
+        "number": "6",
+        "type": "SHORT",
+        "stemContains": "事后处理",
+        "mustNotType": "BLANK",
+        "answerTextContains": "其他内容"
+      }
+    ]
+  }
+}

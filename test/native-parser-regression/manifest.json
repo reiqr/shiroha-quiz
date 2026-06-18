@@ -1,8 +1,8 @@
 {
   "app": "Shiroha Quiz",
   "scope": "native-parser-regression",
-  "version": 4,
-  "note": "外部回归核对包 v4：新增代码表达式、函数调用、字符串/注释、成员访问、数字表达式防误识别，并确认正常括号答案、填空题和标准/紧凑选项不受影响。Runner 以本 manifest 为唯一用例清单。",
+  "version": 5,
+  "note": "外部回归核对包 v5：新增内嵌多空结构识别、填空题分区继承，以及版本/参数/说明性括号和中等置信候选保护。Runner 以本 manifest 为唯一用例清单。",
   "cases": [
     {
       "id": "01_standard_single",
@@ -187,6 +187,27 @@
       "sample": "samples/26_code_guard_normal_format.txt",
       "expected": "expected/26_code_guard_normal_format.json",
       "risk": "代码保护不能破坏正常括号答案、填空题、标准选项和紧凑选项"
+    },
+    {
+      "id": "27_inline_multi_blank_structures",
+      "mode": "single",
+      "sample": "samples/27_inline_multi_blank_structures.txt",
+      "expected": "expected/27_inline_multi_blank_structures.json",
+      "risk": "普通题库中的组成、分类、并列、对应和连续括号结构应高置信识别为多空填空题"
+    },
+    {
+      "id": "28_sectioned_multi_blank_inheritance",
+      "mode": "single",
+      "sample": "samples/28_sectioned_multi_blank_inheritance.txt",
+      "expected": "expected/28_sectioned_multi_blank_inheritance.json",
+      "risk": "填空题分区继承后，弱结构和序号型内嵌多空仍应提取逐空答案"
+    },
+    {
+      "id": "29_inline_multi_blank_guard",
+      "mode": "single",
+      "sample": "samples/29_inline_multi_blank_guard.txt",
+      "expected": "expected/29_inline_multi_blank_guard.json",
+      "risk": "版本、型号、参数、简称、单括号及答案冲突不得被强制转换为多空填空题"
     }
   ]
 }

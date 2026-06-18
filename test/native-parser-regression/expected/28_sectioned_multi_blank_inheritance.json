@@ -1,0 +1,46 @@
+{
+  "id": "28_sectioned_multi_blank_inheritance",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 5,
+    "answeredCount": 5,
+    "typeCounts": {
+      "BLANK": 5
+    },
+    "warningsMax": 0,
+    "stemMustNotContain": ["填空题"],
+    "questions": [
+      {
+        "number": "1",
+        "type": "BLANK",
+        "answer": ["甲；乙"],
+        "blankAnswers": [["甲"], ["乙"]]
+      },
+      {
+        "number": "2",
+        "type": "BLANK",
+        "answer": ["人员管理；设备维护"],
+        "blankAnswers": [["人员管理"], ["设备维护"]]
+      },
+      {
+        "number": "3",
+        "type": "BLANK",
+        "answer": ["时间；距离"],
+        "blankAnswers": [["时间"], ["距离"]]
+      },
+      {
+        "number": "4",
+        "type": "BLANK",
+        "answer": ["低风险；中风险；高风险"],
+        "blankAnswers": [["低风险"], ["中风险"], ["高风险"]]
+      },
+      {
+        "number": "5",
+        "type": "BLANK",
+        "stemContains": "(1)",
+        "answer": ["安全第一；预防为主"],
+        "blankAnswers": [["安全第一"], ["预防为主"]]
+      }
+    ]
+  }
+}

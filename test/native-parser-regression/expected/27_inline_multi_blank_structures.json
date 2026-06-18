@@ -1,0 +1,56 @@
+{
+  "id": "27_inline_multi_blank_structures",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 6,
+    "answeredCount": 6,
+    "typeCounts": {
+      "BLANK": 6
+    },
+    "warningsMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "BLANK",
+        "stemNotContains": ["安全第一", "预防为主", "综合治理"],
+        "answer": ["安全第一；预防为主；综合治理"],
+        "blankAnswers": [["安全第一"], ["预防为主"], ["综合治理"]]
+      },
+      {
+        "number": "2",
+        "type": "BLANK",
+        "stemNotContains": ["输入模块", "处理模块", "输出模块"],
+        "answer": ["输入模块；处理模块；输出模块"],
+        "blankAnswers": [["输入模块"], ["处理模块"], ["输出模块"]]
+      },
+      {
+        "number": "3",
+        "type": "BLANK",
+        "stemNotContains": ["低风险", "中风险", "高风险"],
+        "answer": ["低风险；中风险；高风险"],
+        "blankAnswers": [["低风险"], ["中风险"], ["高风险"]]
+      },
+      {
+        "number": "4",
+        "type": "BLANK",
+        "stemNotContains": ["时间", "距离"],
+        "answer": ["时间；距离"],
+        "blankAnswers": [["时间"], ["距离"]]
+      },
+      {
+        "number": "5",
+        "type": "BLANK",
+        "stemNotContains": ["提高认识", "落实责任"],
+        "answer": ["提高认识；落实责任"],
+        "blankAnswers": [["提高认识"], ["落实责任"]]
+      },
+      {
+        "number": "6",
+        "type": "BLANK",
+        "stemNotContains": ["加强检查", "完善制度", "落实责任"],
+        "answer": ["加强检查；完善制度；落实责任"],
+        "blankAnswers": [["加强检查"], ["完善制度"], ["落实责任"]]
+      }
+    ]
+  }
+}

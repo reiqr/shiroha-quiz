@@ -129,11 +129,18 @@ object StandardQuestionParser {
             stem = extracted.cleanStem
         }
 
+        val inlineBlankAnalysis = MultiBlankQuestionParser.analyzeInlineFilledBlanks(
+            stem = stem,
+            options = options,
+            answerText = answerText,
+            forcedBlankContext = forcedType == QuestionType.BLANK
+        )
         val type = inferType(
             stem = stem,
             options = options,
             answerText = answerText,
-            forcedType = forcedType
+            forcedType = forcedType,
+            inlineBlankAnalysis = inlineBlankAnalysis
         )
         val normalizedOptions = normalizeOptionsForType(options, type)
         val answer = normalizeAnswer(answerText, type)
@@ -142,7 +149,8 @@ object StandardQuestionParser {
             type = type,
             options = normalizedOptions,
             answerText = answerText,
-            normalizedAnswer = answer
+            normalizedAnswer = answer,
+            inlineAnalysis = inlineBlankAnalysis
         )
 
         return Question(
@@ -429,11 +437,15 @@ object StandardQuestionParser {
         stem: String,
         options: List<Option>,
         answerText: String,
-        forcedType: QuestionType?
+        forcedType: QuestionType?,
+        inlineBlankAnalysis: InlineBlankAnalysis
     ): QuestionType {
         if (forcedType != null) return forcedType
 
         if (options.isEmpty()) {
+            if (inlineBlankAnalysis.confidence == InlineBlankConfidence.HIGH) {
+                return QuestionType.BLANK
+            }
             if (AnswerTokenParser.isJudgeAnswerText(answerText)) {
                 return QuestionType.JUDGE
             }
