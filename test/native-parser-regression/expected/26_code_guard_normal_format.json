@@ -1,0 +1,53 @@
+{
+  "id": "26_code_guard_normal_format",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 4,
+    "answeredCount": 4,
+    "typeCounts": {
+      "BLANK": 1,
+      "MULTIPLE": 1,
+      "SINGLE": 2
+    },
+    "warningsMax": 0,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "MULTIPLE",
+        "stemContains": "下列说法正确的是",
+        "optionCount": 4,
+        "answer": ["A", "D"]
+      },
+      {
+        "number": "2",
+        "type": "BLANK",
+        "stemContains": "f(x)=",
+        "optionCount": 0,
+        "answerTextContains": "x+1"
+      },
+      {
+        "number": "3",
+        "type": "SINGLE",
+        "optionCount": 4,
+        "answer": ["A"],
+        "options": {
+          "A": "append 方法用于追加元素",
+          "B": "remove 方法用于删除元素"
+        }
+      },
+      {
+        "number": "4",
+        "type": "SINGLE",
+        "optionCount": 4,
+        "answer": ["C"],
+        "options": {
+          "A": "甲",
+          "B": "乙",
+          "C": "丙",
+          "D": "丁"
+        }
+      }
+    ]
+  }
+}

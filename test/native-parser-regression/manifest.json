@@ -1,8 +1,8 @@
 {
   "app": "Shiroha Quiz",
   "scope": "native-parser-regression",
-  "version": 3,
-  "note": "外部回归核对包 v3：覆盖 v89_14_2 紧凑多选答案归一化、主观枚举保护、整卷前言过滤和双文件密集整卷接管。Runner 以本 manifest 为唯一用例清单。",
+  "version": 4,
+  "note": "外部回归核对包 v4：新增代码表达式、函数调用、字符串/注释、成员访问、数字表达式防误识别，并确认正常括号答案、填空题和标准/紧凑选项不受影响。Runner 以本 manifest 为唯一用例清单。",
   "cases": [
     {
       "id": "01_standard_single",
@@ -173,6 +173,20 @@
       "sample": "samples/24_single_blank_guard.txt",
       "expected": "expected/24_single_blank_guard.json",
       "risk": "单选题带单个空括号不应被误判为多空填空题"
+    },
+    {
+      "id": "25_code_expression_guard",
+      "mode": "single",
+      "sample": "samples/25_code_expression_guard.txt",
+      "expected": "expected/25_code_expression_guard.json",
+      "risk": "函数调用、字符串/注释、成员访问和数字表达式不能被误识别为答案、选项或新题"
+    },
+    {
+      "id": "26_code_guard_normal_format",
+      "mode": "single",
+      "sample": "samples/26_code_guard_normal_format.txt",
+      "expected": "expected/26_code_guard_normal_format.json",
+      "risk": "代码保护不能破坏正常括号答案、填空题、标准选项和紧凑选项"
     }
   ]
 }

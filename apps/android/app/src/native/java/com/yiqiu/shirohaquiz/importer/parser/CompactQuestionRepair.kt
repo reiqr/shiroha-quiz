@@ -59,7 +59,8 @@ object CompactQuestionRepair {
     fun isStandardOptionLine(line: String): Boolean {
         val normalized = line.trimStart()
         val marker = findLeadingMarker(normalized) ?: return false
-        return !looksLikeDottedAbbreviation(normalized, marker)
+        return !looksLikeDottedAbbreviation(normalized, marker) &&
+            !CodeLikeTextGuard.looksLikeLeadingCodeOption(normalized, marker.markerStart, marker.contentStart)
     }
 
     fun repair(raw: String): String {
@@ -152,6 +153,17 @@ object CompactQuestionRepair {
         if (prefix.isNotBlank() && first.key.uppercaseChar() != 'A') return false
         if (first.joinedInsideAsciiWord) return false
 
+        val codeLikeChunks = run.count { marker ->
+            val end = run.firstOrNull { it.markerStart > marker.markerStart }?.markerStart ?: line.length
+            CodeLikeTextGuard.looksLikeCodeOptionChunk(
+                line = line,
+                markerStart = marker.markerStart,
+                contentStart = marker.contentStart,
+                endExclusive = end
+            )
+        }
+        if (codeLikeChunks >= 2) return false
+
         run.forEachIndexed { index, marker ->
             if (marker.joinedInsideAsciiWord && index == 0) return false
             val end = run.getOrNull(index + 1)?.markerStart ?: line.length
@@ -176,7 +188,12 @@ object CompactQuestionRepair {
                 contentStart = match.range.last + 1,
                 joinedInsideAsciiWord = isJoinedInsideAsciiWord(line, start)
             )
-            if (isCandidateBoundaryAllowed(line, marker) && !looksLikeDottedAbbreviation(line, marker)) {
+            if (
+                !CodeLikeTextGuard.isIndexInStringOrComment(line, marker.markerStart) &&
+                isCandidateBoundaryAllowed(line, marker) &&
+                !looksLikeDottedAbbreviation(line, marker) &&
+                !CodeLikeTextGuard.looksLikeLeadingCodeOption(line, marker.markerStart, marker.contentStart)
+            ) {
                 markers += marker
             }
         }
@@ -189,7 +206,11 @@ object CompactQuestionRepair {
                 contentStart = match.range.last + 1,
                 joinedInsideAsciiWord = false
             )
-            if (isCandidateBoundaryAllowed(line, marker)) markers += marker
+            if (
+                !CodeLikeTextGuard.isIndexInStringOrComment(line, marker.markerStart) &&
+                isCandidateBoundaryAllowed(line, marker) &&
+                !CodeLikeTextGuard.looksLikeLeadingCodeOption(line, marker.markerStart, marker.contentStart)
+            ) markers += marker
         }
 
         return markers

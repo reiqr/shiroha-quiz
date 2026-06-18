@@ -1,0 +1,45 @@
+{
+  "id": "25_code_expression_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 4,
+    "answeredCount": 3,
+    "typeCounts": {
+      "SHORT": 3,
+      "SINGLE": 1
+    },
+    "warningsMax": 1,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "ls.append(Da)",
+        "optionCount": 4,
+        "answer": [],
+        "mustNotAnswer": ["A", "D"]
+      },
+      {
+        "number": "2",
+        "type": "SHORT",
+        "stemContains": "A.append(value)",
+        "optionCount": 0,
+        "answerTextContains": "依次调用三个方法"
+      },
+      {
+        "number": "3",
+        "type": "SHORT",
+        "stemContains": "A.id, B.name, C.value",
+        "optionCount": 0,
+        "answerTextContains": "读取三个对象字段"
+      },
+      {
+        "number": "4",
+        "type": "SHORT",
+        "stemContains": "1.0 + 2.0",
+        "optionCount": 0,
+        "answerTextContains": "3.0"
+      }
+    ]
+  }
+}

@@ -19,7 +19,7 @@ object StandardQuestionParser {
         """[\(（]\s*($embeddedChoiceLetterPattern|对|错|正确|错误|是|否|√|×|True|False)\s*[\)）]""",
         RegexOption.IGNORE_CASE
     )
-    private val blankKeywords = Regex("""(填空|填入|补全|补充完整|空白处|空白|空格|横线|横线上|括号内|括号里|_{2,}|[\(（]\s*[\)）])""")
+    private val blankTextKeywords = Regex("""(填空|填入|补全|补充完整|空白处|空白|空格|横线|横线上|括号内|括号里|_{2,})""")
     private val solutionChoiceRegex = Regex(
         """^\s*(?:(?:本题)?(?:答案|正确答案|参考答案|标准答案|正确选项)\s*(?:为|是)|(?:本题)?(?:应选|故选)|(?:分析|解析)\s*[:：]\s*(?:应选|故选|选))\s*($objectiveAnswerValuePattern)\b[.。,:：，、;；]?\s*(.*)$""",
         RegexOption.IGNORE_CASE
@@ -174,7 +174,15 @@ object StandardQuestionParser {
         existingAnswer: String,
         options: List<Option>
     ): EmbeddedStemAnswer? {
-        val matches = embeddedChoiceAnswerRegex.findAll(stem).toList()
+        val matches = embeddedChoiceAnswerRegex.findAll(stem)
+            .filterNot { match ->
+                CodeLikeTextGuard.isProtectedParenthesizedToken(
+                    text = stem,
+                    range = match.range,
+                    token = match.groupValues[1]
+                )
+            }
+            .toList()
         if (matches.isEmpty()) return null
 
         val answerTokens = AnswerTokenParser.parseObjectiveAnswers(existingAnswer)
@@ -341,7 +349,7 @@ object StandardQuestionParser {
     }
 
     private fun looksLikeChoiceStemNeedingOptions(stem: String): Boolean {
-        if (Regex("""[（(]\s*[)）]""").containsMatchIn(stem)) return true
+        if (CodeLikeTextGuard.hasUnprotectedEmptyParentheses(stem)) return true
         return Regex("""(?:下列|以下|哪个|哪项|哪一项|选择|选出|不正确|符合|不符合|可以避免|统计量是)""").containsMatchIn(stem)
     }
 
@@ -372,16 +380,22 @@ object StandardQuestionParser {
                 markerStart = keyGroup.range.first,
                 contentStart = match.range.last + 1
             )
-            if (!looksLikeDottedEnglishAbbreviation(line, marker)) return marker
+            if (
+                !looksLikeDottedEnglishAbbreviation(line, marker) &&
+                !CodeLikeTextGuard.looksLikeLeadingCodeOption(line, marker.markerStart, marker.contentStart)
+            ) return marker
         }
 
         Regex("""^\s*[\(（\[【〔〖《]\s*([A-Ga-g])\s*[\)）\]】〕〗》]""").find(line)?.let { match ->
             val keyGroup = match.groups[1] ?: return@let
-            return OptionMarker(
+            val marker = OptionMarker(
                 key = keyGroup.value.uppercase(),
                 markerStart = match.range.first,
                 contentStart = match.range.last + 1
             )
+            if (!CodeLikeTextGuard.looksLikeLeadingCodeOption(line, marker.markerStart, marker.contentStart)) {
+                return marker
+            }
         }
         return null
     }
@@ -428,10 +442,10 @@ object StandardQuestionParser {
                 if (tokens.all { it == "A" || it == "B" } && shouldInferJudgeFromBinaryOptions(stem, answerText)) {
                     return QuestionType.JUDGE
                 }
-                return if (blankKeywords.containsMatchIn(stem)) QuestionType.BLANK else QuestionType.SHORT
+                return if (containsBlankCue(stem)) QuestionType.BLANK else QuestionType.SHORT
             }
             return when {
-                blankKeywords.containsMatchIn(stem) -> QuestionType.BLANK
+                containsBlankCue(stem) -> QuestionType.BLANK
                 else -> QuestionType.SHORT
             }
         }
@@ -445,6 +459,11 @@ object StandardQuestionParser {
 
         val tokens = AnswerTokenParser.parseObjectiveAnswers(answerText)
         return if (tokens.size > 1) QuestionType.MULTIPLE else QuestionType.SINGLE
+    }
+
+    private fun containsBlankCue(stem: String): Boolean {
+        return blankTextKeywords.containsMatchIn(stem) ||
+            CodeLikeTextGuard.hasUnprotectedEmptyParentheses(stem)
     }
 
     private fun normalizeOptionsForType(options: List<Option>, type: QuestionType): List<Option> {

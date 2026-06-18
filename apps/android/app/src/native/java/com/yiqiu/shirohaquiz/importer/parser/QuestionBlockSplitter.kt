@@ -44,6 +44,10 @@ object QuestionBlockSplitter {
         """^\s*[+-]?\d+(?:\s*[.．]\s*\d+)?(?:[Ee][+-]?\d+)?\s*$""",
         RegexOption.IGNORE_CASE
     )
+    private val unnumberedObjectiveMarkerRegex = Regex(
+        """[（(]\s*(?:([A-Ga-g]{1,7})|(对|错|正确|错误|√|×|True|False))\s*[)）]""",
+        RegexOption.IGNORE_CASE
+    )
     private val pureFrontMatterLineRegex = Regex(
         """^(?:[【\[]?\s*)?(?:绝密|密卷|注意事项(?:\s*[:：].*)?|说明\s*[:：]\s*(?:请|考试|答题|作答|时间|考生).*|请(?:认真|仔细)作答|请在规定时间内完成(?:答题|作答)|请将答案(?:填写|填涂|写在|写到).*|请用\s*2B.*|请勿.*|答题前.*|答题卡.*|考试时间\s*[:：].*|时间\s*[:：].*|在考试结束.*|考试结束.*|全部测验到此结束.*|祝各位考生.*|监考老师.*)(?:\s*[】\]])?\s*[。.!！]?$""",
         RegexOption.IGNORE_CASE
@@ -164,6 +168,7 @@ object QuestionBlockSplitter {
 
     private fun parseQuestionStart(line: String): ParsedQuestionStart? {
         if (looksLikeStandaloneNumericTableValue(line)) return null
+        if (CodeLikeTextGuard.looksLikeNumericCodeOrDataLine(line)) return null
         bracketQuestionStartRegex.find(line)?.let { match ->
             val typed = QuestionTypeLabelParser.extractLeading(match.groupValues[2])
             return ParsedQuestionStart(
@@ -318,12 +323,19 @@ object QuestionBlockSplitter {
             if (typed.remainder.isNotBlank()) return true
         }
         if (embeddedAnswerRegex.containsMatchIn(line)) return true
-        if (Regex("""[（(]\s*(?:[A-Ga-g]{1,7}|对|错|正确|错误|√|×|True|False)\s*[)）]""", RegexOption.IGNORE_CASE).containsMatchIn(line)) return true
-        if (Regex("""[（(]\s*[)）]""").containsMatchIn(line)) return true
+        if (CodeLikeTextGuard.looksLikeStandaloneCodeExpression(line)) return false
+        if (hasUnprotectedObjectiveMarker(line)) return true
+        if (CodeLikeTextGuard.hasUnprotectedEmptyParentheses(line)) return true
         if (Regex("""^(?:问题|题目|请回答|请谈谈|谈谈|你怎么看|你怎么处理)""").containsMatchIn(line)) return true
         if (Regex("""[?？。]$""").containsMatchIn(line)) return true
         return false
     }
 
+    private fun hasUnprotectedObjectiveMarker(line: String): Boolean {
+        return unnumberedObjectiveMarkerRegex.findAll(line).any { match ->
+            val token = match.groupValues[1].ifBlank { match.groupValues[2] }
+            !CodeLikeTextGuard.isProtectedParenthesizedToken(line, match.range, token)
+        }
+    }
 
 }
