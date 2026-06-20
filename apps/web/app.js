@@ -46,6 +46,9 @@ function makeId(prefix='id',...parts){
 function activeBank(){return state.banks.find(b=>b.id===state.activeBankId)||state.banks[0]||{questions:[]}}
 const PRACTICE_SCOPE_BANK_V8916='bank';
 const PRACTICE_SCOPE_GROUP_V8916='group';
+const PRACTICE_START_FROM_V58916='from_start';
+const PRACTICE_START_CONTINUE_V58916='continue';
+const PRACTICE_START_CUSTOM_V58916='custom';
 function normalizePracticeScopeV8916(scope){
   const raw=scope&&typeof scope==='object'?scope:{};
   const type=String(raw.type||'').toLowerCase()===PRACTICE_SCOPE_GROUP_V8916?PRACTICE_SCOPE_GROUP_V8916:PRACTICE_SCOPE_BANK_V8916;
@@ -144,9 +147,9 @@ $('#active-bank-select').onchange=e=>{setPracticeBankScopeV8916(e.target.value,t
 $('#load-sample-btn').onclick=loadSample;$('#import-file').onchange=readImportFile;$('#parse-import-btn').onclick=parseImport;$('#confirm-import-btn').onclick=confirmImport;const findReplaceBtnV51=$('#find-replace-import-btn');if(findReplaceBtnV51)findReplaceBtnV51.onclick=openImportFindReplaceV51;const dualConfirmBtn=$('#dual-confirm-import-btn');if(dualConfirmBtn)dualConfirmBtn.onclick=confirmImport;const importTextAreaV49=$('#import-text');if(importTextAreaV49)importTextAreaV49.addEventListener('input',()=>{if(importTextAreaV49.dataset.tableImportV49==='1'){tableImportResultV49=null;delete importTextAreaV49.dataset.tableImportV49;}});$('#clear-import-btn').onclick=()=>{$('#import-text').value='';if($('#import-text'))delete $('#import-text').dataset.tableImportV49;tableImportResultV49=null;importCache=[];importSelected.clear();importDiagnostics=null;renderImportPreview([])};
 $('#dual-question-file').onchange=e=>readDualFile(e,'question');$('#dual-answer-file').onchange=e=>readDualFile(e,'answer');$('#parse-dual-import-btn').onclick=parseDualImport;$('#clear-dual-import-btn').onclick=()=>{$('#dual-question-text').value='';$('#dual-answer-text').value='';importCache=[];importSelected.clear();importDiagnostics=null;renderImportPreview([])};$('#dual-load-sample-btn').onclick=loadDualSample;$('#revalidate-import-btn').onclick=()=>renderImportPreview(importCache);
 $('#edit-close-btn').onclick=closeEditModal;$('#edit-save-btn').onclick=saveEditQuestion;$('#edit-delete-btn').onclick=deleteEditQuestion;const pf=$('#import-preview-filter');if(pf)pf.onchange=e=>{importPreviewFilter=e.target.value;renderImportPreview(importCache)};const bid=$('#batch-delete-import-btn');if(bid)bid.onclick=batchDeleteImportSelected;const cis=$('#clear-import-selection-btn');if(cis)cis.onclick=()=>{importSelected.clear();renderImportPreview(importCache)};
-$('#dedupe-btn').onclick=dedupeActiveBank;$('#rename-bank-btn').onclick=renameActiveBank;$('#duplicate-bank-btn').onclick=duplicateActiveBank;$('#new-empty-bank-btn').onclick=newEmptyBank;$('#merge-bank-btn').onclick=mergeBankIntoActive;$('#bank-sort-mode').onchange=renderBankList;$('#start-practice-btn').onclick=startPractice;$('#reset-practice-btn').onclick=()=>{exitPracticeFocus();$('#practice-card').innerHTML='<div class="empty">选择条件后点击“开始练习”。</div>';practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};$('#practice-progress').textContent='0 / 0'};
+$('#dedupe-btn').onclick=dedupeActiveBank;$('#rename-bank-btn').onclick=renameActiveBank;$('#duplicate-bank-btn').onclick=duplicateActiveBank;$('#new-empty-bank-btn').onclick=newEmptyBank;$('#merge-bank-btn').onclick=mergeBankIntoActive;$('#bank-sort-mode').onchange=renderBankList;$('#start-practice-btn').onclick=startPractice;$('#reset-practice-btn').onclick=()=>{exitPracticeFocus();$('#practice-card').innerHTML='<div class="empty">选择条件后点击“开始练习”。</div>';practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};$('#practice-progress').textContent='0 / 0';syncPracticeStartUiV58916(true)};
 $('#start-exam-btn').onclick=startExam;$('#submit-exam-btn').onclick=()=>submitExam(false);$('#clear-wrong-btn').onclick=()=>{if(confirm('确定清空当前题库错题本？')){state.wrongBook[activeBank().id]=[];saveSilent();renderAll()}};
-$('#clear-records-btn').onclick=()=>{if(confirm('确定清空全部练习与考试记录？')){state.records=[];saveSilent();renderAll()}};$('#export-records-btn').onclick=exportRecords;$('#record-mode-filter').onchange=renderRecords;$('#record-limit').onchange=renderRecords;$('#record-refresh-btn').onclick=renderRecords;$('#wrong-status-filter').onchange=renderWrongBook;$('#wrong-sort-mode').onchange=renderWrongBook;$('#practice-wrong-btn').onclick=startWrongPractice;const practiceFavBtnV596=$('#practice-favorites-btn-v596');if(practiceFavBtnV596)practiceFavBtnV596.onclick=()=>switchPracticeSourceV27('favorite');const clearFavBtnV596=$('#clear-favorites-btn-v596');if(clearFavBtnV596)clearFavBtnV596.onclick=clearCurrentFavoritesV596;const exportJsonBtn=$('#export-json-btn');if(exportJsonBtn)exportJsonBtn.onclick=exportCurrentBank;const exportAllBtn=$('#export-all-btn');if(exportAllBtn)exportAllBtn.onclick=exportAll;const importBackupQuickBtnV598=$('#import-backup-quick-btn-v598');if(importBackupQuickBtnV598)importBackupQuickBtnV598.onclick=()=>{backupImportModeV23=$('#settings-backup-mode-v23')?.value||'overwrite';$('#backup-json-file-v23')?.click()};$('#reset-data-btn').onclick=resetData;bindLimitControlsV60();
+$('#clear-records-btn').onclick=()=>{if(confirm('确定清空全部练习与考试记录？')){state.records=[];saveSilent();renderAll()}};$('#export-records-btn').onclick=exportRecords;$('#record-mode-filter').onchange=renderRecords;$('#record-limit').onchange=renderRecords;$('#record-refresh-btn').onclick=renderRecords;$('#wrong-status-filter').onchange=renderWrongBook;$('#wrong-sort-mode').onchange=renderWrongBook;$('#practice-wrong-btn').onclick=startWrongPractice;const practiceFavBtnV596=$('#practice-favorites-btn-v596');if(practiceFavBtnV596)practiceFavBtnV596.onclick=()=>switchPracticeSourceV27('favorite');const clearFavBtnV596=$('#clear-favorites-btn-v596');if(clearFavBtnV596)clearFavBtnV596.onclick=clearCurrentFavoritesV596;const exportJsonBtn=$('#export-json-btn');if(exportJsonBtn)exportJsonBtn.onclick=exportCurrentBank;const exportAllBtn=$('#export-all-btn');if(exportAllBtn)exportAllBtn.onclick=exportAll;const importBackupQuickBtnV598=$('#import-backup-quick-btn-v598');if(importBackupQuickBtnV598)importBackupQuickBtnV598.onclick=()=>{backupImportModeV23=$('#settings-backup-mode-v23')?.value||'overwrite';$('#backup-json-file-v23')?.click()};$('#reset-data-btn').onclick=resetData;bindLimitControlsV60();bindPracticeStartControlsV58916();
 }
 
 function cleanImportBankNameFromFile(fileName){
@@ -5802,6 +5805,7 @@ function finishPractice(exited=false){
   const total=practice.answered;
   const groupMode=practice.scopeType==='GROUP';const rec={id:makeId('rec','practice'),mode:'练习',bankId:groupMode?'':(practice.items[0]?.bankId||activeBank().id),bankName:groupMode?(practice.scopeName||'分组练习'):(practice.items[0]?.bankName||activeBank().name),scopeType:practice.scopeType||'BANK',scopeName:practice.scopeName||practiceItemBankNameV8916(practice.items[0]),total:practice.items.length,answered:total,correct:practice.correct,wrong:practice.wrong,accuracy:total?Math.round(practice.correct/total*100):0,score:null,date:now(),duration:Math.round((Date.now()-practice.start)/1000),details:practice.details||[]};
   if(total||exited)state.records.unshift(rec);
+  updatePracticeProgressV58916();
   saveSilent();
   if(exited){
     exitPracticeFocus();
@@ -6011,6 +6015,7 @@ function upgradeState(){
   state.records=Array.isArray(state.records)?state.records:[];
   state.wrongBook=state.wrongBook&&typeof state.wrongBook==='object'?state.wrongBook:{};
   state.settings=state.settings&&typeof state.settings==='object'?state.settings:{};
+  state.settings.practiceProgressV58916=state.settings.practiceProgressV58916&&typeof state.settings.practiceProgressV58916==='object'&&!Array.isArray(state.settings.practiceProgressV58916)?state.settings.practiceProgressV58916:{};
   state.favorites=state.favorites&&typeof state.favorites==='object'?state.favorites:{};
   state.crossPlatformMeta=state.crossPlatformMeta&&typeof state.crossPlatformMeta==='object'?state.crossPlatformMeta:{favoriteQuestions:{}};
   state.crossPlatformMeta.favoriteQuestions=state.crossPlatformMeta.favoriteQuestions&&typeof state.crossPlatformMeta.favoriteQuestions==='object'?state.crossPlatformMeta.favoriteQuestions:{};
@@ -6029,7 +6034,7 @@ function upgradeState(){
   ensurePracticeScopeV8916();
 }
 function serializeState(){return JSON.stringify({...state,schemaVersion:CURRENT_SCHEMA_VERSION,favorites:state.favorites||{}})}
-function renderAll(){ensureBankGroupUiV58();ensurePracticeScopeV8916();renderStats();renderBankSelect();renderMergeSelect();renderBankList();renderBankPreview();renderWrongBook();renderFavoritesPageV596();renderRecords();renderBankInputs();renderBuiltInPanelV252();renderPracticeScopeUiV8916();if(typeof renderExportBankSelectorV23==='function')renderExportBankSelectorV23();renderImportTargetBankOptionsV59();syncImportAppendUiV59();syncHomeVersionPromptV586();}
+function renderAll(){ensureBankGroupUiV58();ensurePracticeScopeV8916();renderStats();renderBankSelect();renderMergeSelect();renderBankList();renderBankPreview();renderWrongBook();renderFavoritesPageV596();renderRecords();renderBankInputs();renderBuiltInPanelV252();renderPracticeScopeUiV8916();if(typeof renderExportBankSelectorV23==='function')renderExportBankSelectorV23();renderImportTargetBankOptionsV59();syncImportAppendUiV59();syncHomeVersionPromptV586();syncPracticeStartUiV58916(true);}
 function bindV25ToV28Events(){
   ['#load-built-in-bank-btn','#load-built-in-bank-btn-banks'].forEach(sel=>{const btn=$(sel);if(btn)btn.onclick=()=>loadBuiltInBankV252();});
 }
@@ -6127,14 +6132,99 @@ function filteredPracticeItemsV8916(source,type,order,limit,customCount,scopeOve
   return applyQuestionLimitV60(items,limit,customCount);
 }
 
+
+/* SHIROHA_WEB_V58_9_16_PRACTICE_PROGRESS_START
+   顺序练习进度记忆与自选题号。进度只保存在 Web settings，不写入跨端业务层。 */
+function practiceProgressStoreV58916(){
+  state.settings=state.settings&&typeof state.settings==='object'?state.settings:{};
+  const current=state.settings.practiceProgressV58916;
+  state.settings.practiceProgressV58916=current&&typeof current==='object'&&!Array.isArray(current)?current:{};
+  return state.settings.practiceProgressV58916;
+}
+function practiceProgressKeyV58916(scope,source,type){
+  const normalized=normalizePracticeScopeV8916(scope);
+  return JSON.stringify([normalized.type,normalized.value,String(source||'all'),String(type||'all')]);
+}
+function practiceBaseItemsV58916(source,type,scopeOverride){
+  const banks=practiceScopeBanksV8916(scopeOverride);let items=practiceSessionItemsForBanksV8916(banks);
+  if(source==='wrong'){const byBank=new Map(banks.map(b=>[b.id,new Set(getWrongEntries(b.id).filter(e=>e.status!=='已掌握').map(e=>e.id))]));items=items.filter(item=>byBank.get(item.bankId)?.has(item.question.id))}
+  if(source==='favorite'){const byBank=new Map(banks.map(b=>[b.id,new Set(getFavoriteIdsV27(b.id))]));items=items.filter(item=>byBank.get(item.bankId)?.has(item.question.id))}
+  if(type&&type!=='all'){const t=type==='multi'?'multiple':type;items=items.filter(item=>item.question.type===t)}
+  return items;
+}
+function resolvePracticeProgressV58916(scope,source,type,baseItems){
+  const key=practiceProgressKeyV58916(scope,source,type);const saved=practiceProgressStoreV58916()[key];
+  if(!saved||!baseItems.length)return null;
+  const keys=baseItems.map(practiceItemKeyV8916);let index=keys.indexOf(String(saved.nextSessionKey||''));
+  if(index<0){const fallback=Math.floor(Number(saved.nextIndex));if(Number.isFinite(fallback)&&fallback>=0&&fallback<baseItems.length)index=fallback}
+  return index>=0&&index<baseItems.length?{key,index,item:baseItems[index],saved}:null;
+}
+function parsePracticeNumberRangeV58916(raw,max){
+  const text=String(raw||'').trim();if(!text)return {indexes:[],error:'请输入题号，例如 1,3,5-10,20。'};
+  const selected=new Set();const invalid=[];
+  text.split(/[，,、；;\s]+/).filter(Boolean).forEach(token=>{
+    const single=token.match(/^(\d+)$/);const range=token.match(/^(\d+)\s*(?:-|~|—|至)\s*(\d+)$/);
+    if(single){const value=Number(single[1]);if(value>=1&&value<=max)selected.add(value-1);else invalid.push(token);return}
+    if(range){const start=Number(range[1]),end=Number(range[2]);if(start<1||end<start||end>max){invalid.push(token);return}for(let n=start;n<=end;n++)selected.add(n-1);return}
+    invalid.push(token);
+  });
+  if(invalid.length)return {indexes:[],error:`题号格式或范围有误：${invalid.slice(0,5).join('、')}${invalid.length>5?'…':''}`};
+  const indexes=[...selected].sort((a,b)=>a-b);return indexes.length?{indexes,error:''}:{indexes:[],error:'没有可用的题号。'};
+}
+function syncPracticeStartModeFieldsV58916(){
+  const select=$('#practice-start-mode-v58916');const rangeInput=$('#practice-number-range-v58916');const limitControl=$('#practice-limit-control-v58916');const rangeLabel=$('#practice-range-label-v58916');if(!select||!rangeInput||!limitControl)return;
+  const custom=select.value===PRACTICE_START_CUSTOM_V58916;
+  rangeInput.hidden=!custom;rangeInput.disabled=!custom;limitControl.hidden=custom;if(rangeLabel)rangeLabel.textContent=custom?'自选题号':'题量';
+}
+function syncPracticeStartUiV58916(preferContinue=false){
+  const select=$('#practice-start-mode-v58916');if(!select)return;
+  const order=$('#practice-order')?.value||'sequence';const source=$('#practice-source')?.value||'all';const type=$('#practice-type')?.value||'all';const scope=practiceScopeV8916();const baseItems=practiceBaseItemsV58916(source,type,scope);const progress=order==='sequence'?resolvePracticeProgressV58916(scope,source,type,baseItems):null;
+  const fromOption=select.querySelector(`option[value="${PRACTICE_START_FROM_V58916}"]`);const continueOption=select.querySelector(`option[value="${PRACTICE_START_CONTINUE_V58916}"]`);
+  if(fromOption)fromOption.textContent=order==='random'?'全部范围':'从头开始';
+  if(continueOption){continueOption.hidden=order!=='sequence';continueOption.disabled=!progress;continueOption.textContent=progress?`继续上次 · 第${progress.index+1}题`:'继续上次 · 暂无进度'}
+  if(order!=='sequence'&&select.value===PRACTICE_START_CONTINUE_V58916)select.value=PRACTICE_START_FROM_V58916;
+  else if(preferContinue&&progress)select.value=PRACTICE_START_CONTINUE_V58916;
+  else if(select.value===PRACTICE_START_CONTINUE_V58916&&!progress)select.value=PRACTICE_START_FROM_V58916;
+  syncPracticeStartModeFieldsV58916();
+}
+function bindPracticeStartControlsV58916(){
+  const select=$('#practice-start-mode-v58916');if(select&&!select.dataset.boundV58916){select.dataset.boundV58916='1';select.addEventListener('change',syncPracticeStartModeFieldsV58916)}
+  ['#practice-type','#practice-source','#practice-order'].forEach(selector=>{const el=$(selector);if(el&&!el.dataset.practiceStartBoundV58916){el.dataset.practiceStartBoundV58916='1';el.addEventListener('change',()=>syncPracticeStartUiV58916(true))}});
+  syncPracticeStartUiV58916(true);
+}
+function buildPracticeSelectionV58916(scope,source,type,order,limit,customCount){
+  const baseItems=practiceBaseItemsV58916(source,type,scope);let startMode=$('#practice-start-mode-v58916')?.value||PRACTICE_START_FROM_V58916;
+  if(order!=='sequence'&&startMode===PRACTICE_START_CONTINUE_V58916)startMode=PRACTICE_START_FROM_V58916;
+  const progressKey=practiceProgressKeyV58916(scope,source,type);let startIndex=0;let items=[];
+  if(startMode===PRACTICE_START_CUSTOM_V58916){const parsed=parsePracticeNumberRangeV58916($('#practice-number-range-v58916')?.value||'',baseItems.length);if(parsed.error)return {error:parsed.error,items:[],baseItems,startMode,progressKey,startIndex};items=parsed.indexes.map(index=>baseItems[index]).filter(Boolean);if(order==='random')items=shuffle(items)}
+  else if(order==='sequence'){
+    if(startMode===PRACTICE_START_CONTINUE_V58916){const progress=resolvePracticeProgressV58916(scope,source,type,baseItems);if(progress)startIndex=progress.index;else startMode=PRACTICE_START_FROM_V58916}
+    items=applyQuestionLimitV60(baseItems.slice(startIndex),limit,customCount);
+  }else items=applyQuestionLimitV60(shuffle([...baseItems]),limit,customCount);
+  return {items,baseItems,startMode,progressKey,startIndex,error:''};
+}
+function updatePracticeProgressV58916(){
+  if(practice.order!=='sequence'||![PRACTICE_START_FROM_V58916,PRACTICE_START_CONTINUE_V58916].includes(practice.startMode)||!practice.progressKey||!Array.isArray(practice.baseItemKeys)||!practice.baseItemKeys.length||!practice.items?.length)return;
+  const itemKeys=practice.items.map(practiceItemKeyV8916);let nextKey='';
+  for(const key of itemKeys){const answer=getPracticeAnswerStateV26(key);if(!answer.answered&&!answer.revealed){nextKey=key;break}}
+  let nextIndex=nextKey?practice.baseItemKeys.indexOf(nextKey):-1;
+  if(nextIndex<0){const lastIndex=practice.baseItemKeys.indexOf(itemKeys[itemKeys.length-1]);nextIndex=lastIndex>=0?lastIndex+1:practice.startIndex+practice.items.length}
+  const store=practiceProgressStoreV58916();
+  if(nextIndex>=practice.baseItemKeys.length)delete store[practice.progressKey];
+  else store[practice.progressKey]={nextSessionKey:practice.baseItemKeys[nextIndex],nextIndex,updatedAt:now(),scopeType:practice.scopeType||'BANK',scopeValue:practice.scopeValue||'',source:practice.source||'all',type:practice.type||'all'};
+}
+/* SHIROHA_WEB_V58_9_16_PRACTICE_PROGRESS_END */
+
 function startPractice(scopeOverrideV8916){
   const overrideType=String(scopeOverrideV8916&&scopeOverrideV8916.type||'').toLowerCase();const override=[PRACTICE_SCOPE_BANK_V8916,PRACTICE_SCOPE_GROUP_V8916].includes(overrideType)?normalizePracticeScopeV8916(scopeOverrideV8916):null;
   const limit=$('#practice-limit')?.value||'custom';const customCount=readCustomCountV60('#practice-custom-count',20);syncLimitControlV60('practice');
-  const scope=override||practiceScopeV8916();
-  practice={items:filteredPracticeItemsV8916($('#practice-source').value,$('#practice-type').value,$('#practice-order').value,limit,customCount,scope),idx:0,answered:0,correct:0,wrong:0,start:Date.now(),details:[],answerState:{},scopeType:scope.type===PRACTICE_SCOPE_GROUP_V8916?'GROUP':'BANK',scopeName:practiceScopeLabelV8916(scope),scopeValue:scope.value};
+  const scope=override||practiceScopeV8916();const source=$('#practice-source')?.value||'all';const type=$('#practice-type')?.value||'all';const order=$('#practice-order')?.value||'sequence';const selection=buildPracticeSelectionV58916(scope,source,type,order,limit,customCount);
+  if(selection.error){$('#practice-card').innerHTML=`<div class="empty">${esc(selection.error)}</div>`;showNotice('无法开始练习',selection.error,'warn');return}
+  practice={items:selection.items,idx:0,answered:0,correct:0,wrong:0,start:Date.now(),details:[],answerState:{},scopeType:scope.type===PRACTICE_SCOPE_GROUP_V8916?'GROUP':'BANK',scopeName:practiceScopeLabelV8916(scope),scopeValue:scope.value,source,type,order,startMode:selection.startMode,startIndex:selection.startIndex,progressKey:selection.progressKey,baseItemKeys:selection.baseItems.map(practiceItemKeyV8916)};
   if(!practice.items.length){$('#practice-card').innerHTML='<div class="empty">当前条件下没有题目。</div>';showNotice('无法开始练习','当前筛选条件下没有题目。','warn');return}
-  if(practice.items.length>200&&(limit==='all'||limit==='half'||limit==='custom'||Number(limit)>200)){const msg=practice.items.length>500?`本轮将练习 ${practice.items.length} 道题，题量很大，手机 WebView 可能明显卡顿，建议减少题量或使用电脑端。是否继续？`:`本轮将练习 ${practice.items.length} 道题，手机 WebView 可能出现轻微卡顿，是否继续？`;if(!confirm(msg)){practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0,details:[],answerState:{}};return}}
-  enterPracticeFocus();showNotice('练习开始',`${practice.scopeName} · 本轮共 ${practice.items.length} 道题。`,'ok');renderPracticeQuestion();
+  if(practice.items.length>200&&(limit==='all'||limit==='half'||limit==='custom'||Number(limit)>200||selection.startMode===PRACTICE_START_CUSTOM_V58916)){const msg=practice.items.length>500?`本轮将练习 ${practice.items.length} 道题，题量很大，手机 WebView 可能明显卡顿，建议减少题量或使用电脑端。是否继续？`:`本轮将练习 ${practice.items.length} 道题，手机 WebView 可能出现轻微卡顿，是否继续？`;if(!confirm(msg)){practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0,details:[],answerState:{}};return}}
+  const startText=selection.startMode===PRACTICE_START_CONTINUE_V58916?` · 从第 ${selection.startIndex+1} 题继续`:selection.startMode===PRACTICE_START_CUSTOM_V58916?' · 自选题号':'';
+  enterPracticeFocus();showNotice('练习开始',`${practice.scopeName}${startText} · 本轮共 ${practice.items.length} 道题。`,'ok');renderPracticeQuestion();
 }
 function renderPracticeQuestion(done=false){
   $('#practice-progress').textContent=`${Math.min(practice.idx+1,practice.items.length)} / ${practice.items.length}`;

@@ -7466,3 +7466,29 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
   .multi-blank-comparison-row-v58914{grid-template-columns:1fr;gap:4px}
 }
 /* SHIROHA_WEB_V58_9_14_MULTI_BLANK_SYNC_END */
+
+/* SHIROHA_WEB_V58_9_16_PRACTICE_PROGRESS_START
+   练习起点与自选题号复用现有第二行，不新增独立配置区。 */
+.practice-start-field-v58916,
+.practice-range-field-v58916{
+  min-width:0 !important;
+}
+#practice-start-mode-v58916,
+.practice-number-range-v58916{
+  width:100% !important;
+  min-width:0 !important;
+  height:44px !important;
+}
+.practice-number-range-v58916[hidden],
+#practice-limit-control-v58916[hidden]{
+  display:none !important;
+}
+#practice-start-mode-v58916 option:disabled{
+  color:#94a3b8;
+}
+@media(max-width:760px){
+  .practice-number-range-v58916{
+    font-size:14px !important;
+  }
+}
+/* SHIROHA_WEB_V58_9_16_PRACTICE_PROGRESS_END */
