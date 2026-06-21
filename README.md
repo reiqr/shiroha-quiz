@@ -27,19 +27,18 @@ Shiroha Quiz 解决一个很实际的问题：
 
 ---
 
-### 快速导览
+### 快速入口
 
-| 想了解什么 | 跳转 |
-|-----------|------|
-| 有哪些功能 | [当前能力](#当前能力) |
-| 多空填空题 | [刷题与考试](#刷题与考试) |
-| AI 功能 | [AI 智能功能](#ai-智能功能原生版) |
-| 平板体验 | [视觉与体验](#视觉与体验原生版) |
-| Android 版本怎么选 | [Android 版本说明](#android-版本说明) |
-| 怎么用 | [使用说明](#使用说明) |
-| 支持什么格式 | [导入格式与策略](#导入格式与策略) |
-| 怎么下载 | [下载与使用](#下载与使用) |
-| 怎么参与 | [参与贡献 / 提交反馈](#参与贡献--提交反馈) |
+| 想做什么 | 入口 |
+| --- | --- |
+| 直接体验 Web 版 | [下载与使用](#下载与使用) |
+| 下载 Android 安装包 | [下载与使用](#下载与使用) |
+| 了解原生版和 Web 版区别 | [Android 版本说明](#android-版本说明) |
+| 查看主要功能 | [当前能力](#当前能力) |
+| 导入自己的题库 | [导入格式与策略](#导入格式与策略) |
+| 本地运行项目 | [本地运行](#本地运行) |
+| 跑解析器回归测试 | [测试与回归](#测试与回归) |
+| 提交问题或建议 | [参与贡献 / 提交反馈](#参与贡献--提交反馈) |
 
 ---
 
@@ -262,9 +261,13 @@ shiroha-quiz/
 │       ├── gradle.properties
 │       └── gradlew / gradlew.bat
 ├── docs/                            # 使用说明、导入格式、架构与开发文档
-│   ├── web/
+│   ├── 标准题库格式示例/
+│   ├── 题库导入格式支持说明/
+│   ├── 题库导入策略与使用指南/
+│   ├── 题目导入解析方法说明/
 │   ├── native/
-│   └── universal/
+│   ├── universal/
+│   └── archive/
 ├── test/                            # 解析器回归测试
 │   └── native-parser-regression/
 ├── assets/                          # 宣传图与素材源文件
@@ -321,6 +324,36 @@ Windows PowerShell 可使用：
 ```text
 apps/android/app/build/outputs/
 ```
+
+---
+
+## 测试与回归
+
+原生解析器有一套外部回归测试，用真实题库样例验证导入解析逻辑是否被新改动误伤。
+
+推荐入口：
+
+```powershell
+.\run-regression.ps1
+```
+
+也可以只运行外部回归包：
+
+```powershell
+cd test\native-parser-regression
+.\run-external-regression.ps1
+```
+
+回归测试会读取 `test/native-parser-regression/manifest.json`，将 `samples/` 里的样例解析为 `actual/`，再与 `expected/` 对比。失败时先查看：
+
+- `test/native-parser-regression/actual/REGRESSION_REPORT.md`
+- `test/native-parser-regression/actual/runner-summary.json`
+- `test/native-parser-regression/actual/comparison-summary.json`
+
+说明文档：
+
+- [解析器回归测试说明](docs/native/解析器回归测试说明.md)
+- [外部回归测试包说明](test/native-parser-regression/README.md)
 
 ---
 
