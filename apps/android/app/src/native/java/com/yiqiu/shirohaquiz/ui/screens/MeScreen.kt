@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -379,36 +380,44 @@ private fun BankExportDialog(
                         )
                         Text("全选")
                     }
-                    banks.forEach { bank ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .shirohaNoRippleClickable {
-                                    onSelectedChange(
-                                        if (bank.id in selectedBankIds) selectedBankIds - bank.id else selectedBankIds + bank.id
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        banks.forEach { bank ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .shirohaNoRippleClickable {
+                                        onSelectedChange(
+                                            if (bank.id in selectedBankIds) selectedBankIds - bank.id else selectedBankIds + bank.id
+                                        )
+                                    },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = bank.id in selectedBankIds,
+                                    onCheckedChange = { checked ->
+                                        onSelectedChange(if (checked) selectedBankIds + bank.id else selectedBankIds - bank.id)
+                                    }
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = bank.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
-                                },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = bank.id in selectedBankIds,
-                                onCheckedChange = { checked ->
-                                    onSelectedChange(if (checked) selectedBankIds + bank.id else selectedBankIds - bank.id)
+                                    Text(
+                                        text = "${bank.questions.size} 题",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = bank.name,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "${bank.questions.size} 题",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
                     }
