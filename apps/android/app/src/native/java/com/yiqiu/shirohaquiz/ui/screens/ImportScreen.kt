@@ -725,6 +725,11 @@ fun ImportScreen(
             }
         }
 
+        val generalStatusText = statusText.takeIf { !shouldShowAiStatusInImport(it) }
+        if (generalStatusText != null && (isStatusWarn || !isImportBusy)) {
+            NoticeCard(generalStatusText, warning = isStatusWarn)
+        }
+
         if (isImportBusy) {
             LoadingIllustration(
                 text = busyText.ifBlank { "正在处理导入任务……" },
