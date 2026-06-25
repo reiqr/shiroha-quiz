@@ -99,16 +99,7 @@ fun WrongBookScreen(
 ) {
     val banks = QuizRepository.banks.toList()
     val allWrongBook = QuizRepository.wrongBook.toList()
-    val activeBank = QuizRepository.activeBank()
-    val initialScopeKey = if (
-        QuizRepository.wrongBookScopeMode == QuizRepository.WRONG_BOOK_SCOPE_CURRENT_BANK &&
-        activeBank != null
-    ) {
-        WRONG_BOOK_PAGE_SCOPE_BANK_PREFIX + activeBank.id
-    } else {
-        WRONG_BOOK_PAGE_SCOPE_ALL
-    }
-    var selectedScopeKey by rememberSaveable { mutableStateOf(initialScopeKey) }
+    var selectedScopeKey by rememberSaveable { mutableStateOf(WRONG_BOOK_PAGE_SCOPE_ALL) }
     var showScopeDialog by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf(WrongBookFilter.NOT_MASTERED) }
     var sort by remember { mutableStateOf(WrongBookSort.RECENT_WRONG) }
@@ -134,25 +125,30 @@ fun WrongBookScreen(
     val scopeLabel = selectedBank?.name ?: "全部题库"
     val isSingleBankScope = selectedBank != null
 
+    val advancedReviewSettingsEnabled = QuizRepository.wrongBookAdvancedReviewSettingsEnabled
     val masteryFilteredEntries = remember(wrongBook, filter) {
         wrongBook.filterBy(filter)
     }
     val availableTypes = remember(masteryFilteredEntries) {
         QuestionType.entries.filter { type -> masteryFilteredEntries.any { it.question.type == type } }
     }
-    val filteredEntries = remember(masteryFilteredEntries, selectedTypes, sort) {
+    val filteredEntries = remember(masteryFilteredEntries, selectedTypes, sort, advancedReviewSettingsEnabled) {
         masteryFilteredEntries
-            .filter { it.question.type in selectedTypes }
+            .filter { entry -> !advancedReviewSettingsEnabled || entry.question.type in selectedTypes }
             .sortBy(sort)
     }
     val reviewCandidates = filteredEntries.filter {
         it.status != WrongStatus.MASTERED.label && !QuizRepository.isQuestionSlashed(it.bankId, it.question)
     }
-    val selectedReviewCount = resolveWrongBookReviewCount(
-        mode = reviewCountMode,
-        customCount = customReviewCount,
-        availableCount = reviewCandidates.size
-    )
+    val selectedReviewCount = if (advancedReviewSettingsEnabled) {
+        resolveWrongBookReviewCount(
+            mode = reviewCountMode,
+            customCount = customReviewCount,
+            availableCount = reviewCandidates.size
+        )
+    } else {
+        reviewCandidates.size
+    }
     val reviewEntries = reviewCandidates.take(selectedReviewCount)
     val notMasteredCount = wrongBook.count { it.status != WrongStatus.MASTERED.label }
     val masteredCount = wrongBook.count { it.status == WrongStatus.MASTERED.label }
@@ -393,92 +389,95 @@ fun WrongBookScreen(
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    text = "题型",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(8.dp))
-                if (availableTypes.isEmpty()) {
-                    NoticeCard("当前掌握筛选下没有可选择的题型。")
-                } else {
+                if (advancedReviewSettingsEnabled) {
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        text = "题型",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    if (availableTypes.isEmpty()) {
+                        NoticeCard("当前掌握筛选下没有可选择的题型。")
+                    } else {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val allAvailableSelected = availableTypes.all { it in selectedTypes }
+                            ActionPillButton(
+                                icon = Icons.Rounded.CheckCircle,
+                                text = "全部题型",
+                                primary = allAvailableSelected,
+                                modifier = Modifier.height(42.dp),
+                                onClick = { selectedTypes = QuestionType.entries.toSet() }
+                            )
+                            availableTypes.forEach { type ->
+                                val count = masteryFilteredEntries.count { it.question.type == type }
+                                ActionPillButton(
+                                    icon = Icons.Rounded.CheckCircle,
+                                    text = "${typeLabel(type)} $count",
+                                    primary = type in selectedTypes,
+                                    modifier = Modifier.height(42.dp),
+                                    onClick = {
+                                        selectedTypes = if (type in selectedTypes) {
+                                            selectedTypes - type
+                                        } else {
+                                            selectedTypes + type
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        text = "单次复习数量",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "当前可复习 ${reviewCandidates.size} 题",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val allAvailableSelected = availableTypes.all { it in selectedTypes }
-                        ActionPillButton(
-                            icon = Icons.Rounded.CheckCircle,
-                            text = "全部题型",
-                            primary = allAvailableSelected,
-                            modifier = Modifier.height(42.dp),
-                            onClick = { selectedTypes = QuestionType.entries.toSet() }
-                        )
-                        availableTypes.forEach { type ->
-                            val count = masteryFilteredEntries.count { it.question.type == type }
+                        WrongBookReviewCountMode.entries.forEach { item ->
+                            val label = when (item) {
+                                WrongBookReviewCountMode.CUSTOM -> {
+                                    if (reviewCountMode == WrongBookReviewCountMode.CUSTOM) "自定义 ${selectedReviewCount}题" else item.label
+                                }
+                                WrongBookReviewCountMode.ALL -> "全部 ${reviewCandidates.size}题"
+                                else -> item.label
+                            }
                             ActionPillButton(
-                                icon = Icons.Rounded.CheckCircle,
-                                text = "${typeLabel(type)} $count",
-                                primary = type in selectedTypes,
+                                icon = Icons.Rounded.PlayArrow,
+                                text = label,
+                                primary = reviewCountMode == item,
+                                enabled = reviewCandidates.isNotEmpty(),
                                 modifier = Modifier.height(42.dp),
                                 onClick = {
-                                    selectedTypes = if (type in selectedTypes) {
-                                        selectedTypes - type
+                                    if (item == WrongBookReviewCountMode.CUSTOM) {
+                                        customReviewCountText = customReviewCount
+                                            .coerceIn(1, reviewCandidates.size.coerceAtLeast(1))
+                                            .toString()
+                                        showCustomReviewCountDialog = true
                                     } else {
-                                        selectedTypes + type
+                                        reviewCountMode = item
                                     }
                                 }
                             )
                         }
                     }
-                }
 
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    text = "单次复习数量",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "当前可复习 ${reviewCandidates.size} 题",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    WrongBookReviewCountMode.entries.forEach { item ->
-                        val label = when (item) {
-                            WrongBookReviewCountMode.CUSTOM -> {
-                                if (reviewCountMode == WrongBookReviewCountMode.CUSTOM) "自定义 ${selectedReviewCount}题" else item.label
-                            }
-                            WrongBookReviewCountMode.ALL -> "全部 ${reviewCandidates.size}题"
-                            else -> item.label
-                        }
-                        ActionPillButton(
-                            icon = Icons.Rounded.PlayArrow,
-                            text = label,
-                            primary = reviewCountMode == item,
-                            enabled = reviewCandidates.isNotEmpty(),
-                            modifier = Modifier.height(42.dp),
-                            onClick = {
-                                if (item == WrongBookReviewCountMode.CUSTOM) {
-                                    customReviewCountText = customReviewCount
-                                        .coerceIn(1, reviewCandidates.size.coerceAtLeast(1))
-                                        .toString()
-                                    showCustomReviewCountDialog = true
-                                } else {
-                                    reviewCountMode = item
-                                }
-                            }
-                        )
-                    }
                 }
 
                 Spacer(Modifier.height(14.dp))
@@ -514,7 +513,11 @@ fun WrongBookScreen(
                 ) {
                     ActionPillButton(
                         icon = Icons.Rounded.PlayArrow,
-                        text = if (reviewEntries.isNotEmpty()) "开始复习 ${reviewEntries.size} 题" else "暂无可复习题目",
+                        text = when {
+                            reviewEntries.isEmpty() -> "暂无可复习题目"
+                            advancedReviewSettingsEnabled -> "开始复习 ${reviewEntries.size} 题"
+                            else -> "刷错题"
+                        },
                         primary = reviewEntries.isNotEmpty(),
                         enabled = reviewEntries.isNotEmpty(),
                         modifier = Modifier
@@ -543,7 +546,7 @@ fun WrongBookScreen(
                     Spacer(Modifier.height(12.dp))
                     NoticeCard(
                         text = when {
-                            selectedTypes.none { it in availableTypes } -> "请至少选择一种有错题的题型。"
+                            advancedReviewSettingsEnabled && selectedTypes.none { it in availableTypes } -> "请至少选择一种有错题的题型。"
                             filter == WrongBookFilter.MASTERED -> "已掌握题不会进入手动复习。需要复习时可先标为未掌握。"
                             else -> "当前筛选下没有需要复习的错题。"
                         }

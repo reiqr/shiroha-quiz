@@ -650,49 +650,26 @@ fun WrongBookPreferenceScreen(
         )
 
         GlassCard {
-            val scopeMode = QuizRepository.wrongBookScopeMode
-            val activeBankName = QuizRepository.activeBank()?.name ?: "未选择题库"
             Text(
-                text = "错题显示范围",
+                text = "错题练习面板",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "错题练习高级设置",
+                desc = "开启后可筛选题型并设置单次复习数量；关闭后使用原来的简洁练习面板。",
+                checked = QuizRepository.wrongBookAdvancedReviewSettingsEnabled,
+                onCheckedChange = { enabled ->
+                    QuizRepository.setWrongBookAdvancedReviewSettingsEnabled(context, enabled)
+                }
+            )
+            Spacer(Modifier.height(10.dp))
             Text(
-                text = "控制错题本、首页错题数量、刷错题和今日复习使用当前题库还是全部题库。当前题库：$activeBankName",
+                text = "关闭后仍保留题库范围、掌握筛选、排序和今日复习，并默认复习当前筛选下的全部题型与全部可练习错题。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ActionPillButton(
-                    icon = Icons.Rounded.Tune,
-                    text = "当前题库",
-                    primary = scopeMode == QuizRepository.WRONG_BOOK_SCOPE_CURRENT_BANK,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp),
-                    fillWidthContent = true,
-                    onClick = {
-                        QuizRepository.setWrongBookScopeMode(context, QuizRepository.WRONG_BOOK_SCOPE_CURRENT_BANK)
-                    }
-                )
-                ActionPillButton(
-                    icon = Icons.Rounded.Tune,
-                    text = "全部题库",
-                    primary = scopeMode == QuizRepository.WRONG_BOOK_SCOPE_ALL_BANKS,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp),
-                    fillWidthContent = true,
-                    onClick = {
-                        QuizRepository.setWrongBookScopeMode(context, QuizRepository.WRONG_BOOK_SCOPE_ALL_BANKS)
-                    }
-                )
-            }
         }
 
         WrongBookExplanationCard(

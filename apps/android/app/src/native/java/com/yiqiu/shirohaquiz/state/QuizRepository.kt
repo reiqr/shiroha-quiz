@@ -188,6 +188,7 @@ object QuizRepository {
     private const val KEY_EXAM_OPTION_SHUFFLE_ENABLED = "exam_option_shuffle_enabled"
     private const val KEY_WRONG_BOOK_SMART_REVIEW_ENABLED = "wrong_book_smart_review_enabled"
     private const val KEY_WRONG_BOOK_SCOPE_MODE = "wrong_book_scope_mode"
+    private const val KEY_WRONG_BOOK_ADVANCED_REVIEW_SETTINGS_ENABLED = "wrong_book_advanced_review_settings_enabled"
     private const val KEY_PRACTICE_PREFERRED_COUNT_MODE = "practice_preferred_count_mode"
     private const val KEY_PRACTICE_PREFERRED_CUSTOM_COUNT = "practice_preferred_custom_count"
     private const val KEY_PRACTICE_PREFERRED_ORDER_MODE = "practice_preferred_order_mode"
@@ -282,6 +283,8 @@ object QuizRepository {
     var wrongBookSmartReviewEnabled by mutableStateOf(false)
         private set
     var wrongBookScopeMode by mutableStateOf(WRONG_BOOK_SCOPE_ALL_BANKS)
+        private set
+    var wrongBookAdvancedReviewSettingsEnabled by mutableStateOf(true)
         private set
     var preferredPracticeQuestionCountMode by mutableStateOf("custom")
         private set
@@ -483,6 +486,10 @@ object QuizRepository {
         wrongBookSmartReviewEnabled = prefs.getBoolean(KEY_WRONG_BOOK_SMART_REVIEW_ENABLED, false)
         wrongBookScopeMode = normalizeWrongBookScopeMode(
             prefs.getString(KEY_WRONG_BOOK_SCOPE_MODE, WRONG_BOOK_SCOPE_ALL_BANKS) ?: WRONG_BOOK_SCOPE_ALL_BANKS
+        )
+        wrongBookAdvancedReviewSettingsEnabled = prefs.getBoolean(
+            KEY_WRONG_BOOK_ADVANCED_REVIEW_SETTINGS_ENABLED,
+            true
         )
         preferredPracticeQuestionCountMode = normalizePracticeCountMode(
             prefs.getString(KEY_PRACTICE_PREFERRED_COUNT_MODE, "custom") ?: "custom"
@@ -1268,18 +1275,11 @@ object QuizRepository {
     }
 
     fun wrongBookEntriesForCurrentScope(): List<WrongQuestionEntry> {
-        return when (wrongBookScopeMode) {
-            WRONG_BOOK_SCOPE_CURRENT_BANK -> {
-                val currentBankId = activeBankId ?: activeBank()?.id ?: return emptyList()
-                wrongBook.filter { it.bankId == currentBankId }
-            }
-            else -> wrongBook.toList()
-        }
+        // 题库范围已改由错题本页面临时选择。旧设置字段仅保留数据兼容，不再裁剪全局错题数据。
+        return wrongBook.toList()
     }
 
-    fun currentWrongBookScopeLabel(): String {
-        return if (wrongBookScopeMode == WRONG_BOOK_SCOPE_CURRENT_BANK) "当前题库" else "全部题库"
-    }
+    fun currentWrongBookScopeLabel(): String = "全部题库"
 
     fun reviewDueWrongEntries(): List<WrongQuestionEntry> {
         return wrongBookEntriesForCurrentScope()
@@ -1319,13 +1319,8 @@ object QuizRepository {
     }
 
     fun clearWrongBookForCurrentScope() {
-        if (wrongBookScopeMode == WRONG_BOOK_SCOPE_CURRENT_BANK) {
-            val currentBankId = activeBankId ?: activeBank()?.id ?: return
-            wrongBook.removeAll { it.bankId == currentBankId }
-        } else {
-            wrongBook.clear()
-        }
-        persist()
+        // 保留旧 API 兼容调用；页面已自行处理具体题库清空，因此这里统一视为全部范围。
+        clearWrongBook()
     }
 
     fun slashedQuestionCount(bankId: String): Int {
@@ -1582,6 +1577,12 @@ object QuizRepository {
     fun setWrongBookScopeMode(context: Context, mode: String) {
         appContext = context.applicationContext
         wrongBookScopeMode = normalizeWrongBookScopeMode(mode)
+        persist()
+    }
+
+    fun setWrongBookAdvancedReviewSettingsEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        wrongBookAdvancedReviewSettingsEnabled = enabled
         persist()
     }
 
@@ -4061,6 +4062,7 @@ object QuizRepository {
             .putBoolean(KEY_EXAM_OPTION_SHUFFLE_ENABLED, examOptionShuffleEnabled)
             .putBoolean(KEY_WRONG_BOOK_SMART_REVIEW_ENABLED, wrongBookSmartReviewEnabled)
             .putString(KEY_WRONG_BOOK_SCOPE_MODE, wrongBookScopeMode)
+            .putBoolean(KEY_WRONG_BOOK_ADVANCED_REVIEW_SETTINGS_ENABLED, wrongBookAdvancedReviewSettingsEnabled)
             .putString(KEY_PRACTICE_PREFERRED_COUNT_MODE, preferredPracticeQuestionCountMode)
             .putInt(KEY_PRACTICE_PREFERRED_CUSTOM_COUNT, preferredPracticeCustomQuestionCount)
             .putString(KEY_PRACTICE_PREFERRED_ORDER_MODE, preferredPracticeOrderMode)
