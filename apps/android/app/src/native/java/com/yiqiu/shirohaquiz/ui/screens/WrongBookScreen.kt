@@ -1,5 +1,6 @@
 package com.yiqiu.shirohaquiz.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
@@ -17,19 +19,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Done
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
+import com.yiqiu.shirohaquiz.state.DEFAULT_BANK_GROUP_NAME
+import com.yiqiu.shirohaquiz.state.QuizBank
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.state.WrongQuestionEntry
 import com.yiqiu.shirohaquiz.state.WrongStatus
@@ -49,9 +59,13 @@ import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.ShirohaDangerConfirmDialog
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
+import com.yiqiu.shirohaquiz.ui.components.shirohaNoRippleClickable
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -74,17 +88,28 @@ private enum class WrongBookReviewCountMode(val label: String) {
     ALL("全部")
 }
 
+private const val WRONG_BOOK_PAGE_SCOPE_ALL = "all"
+private const val WRONG_BOOK_PAGE_SCOPE_BANK_PREFIX = "bank:"
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun WrongBookScreen(
     onBack: () -> Unit,
     onGoPractice: () -> Unit
 ) {
-    val wrongBook = QuizRepository.wrongBookEntriesForCurrentScope()
+    val banks = QuizRepository.banks.toList()
     val allWrongBook = QuizRepository.wrongBook.toList()
-    val scopeLabel = QuizRepository.currentWrongBookScopeLabel()
-    val scopeMode = QuizRepository.wrongBookScopeMode
     val activeBank = QuizRepository.activeBank()
+    val initialScopeKey = if (
+        QuizRepository.wrongBookScopeMode == QuizRepository.WRONG_BOOK_SCOPE_CURRENT_BANK &&
+        activeBank != null
+    ) {
+        WRONG_BOOK_PAGE_SCOPE_BANK_PREFIX + activeBank.id
+    } else {
+        WRONG_BOOK_PAGE_SCOPE_ALL
+    }
+    var selectedScopeKey by rememberSaveable { mutableStateOf(initialScopeKey) }
+    var showScopeDialog by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf(WrongBookFilter.NOT_MASTERED) }
     var sort by remember { mutableStateOf(WrongBookSort.RECENT_WRONG) }
     var selectedTypes by remember { mutableStateOf(QuestionType.entries.toSet()) }
@@ -93,6 +118,22 @@ fun WrongBookScreen(
     var customReviewCountText by remember { mutableStateOf("10") }
     var showCustomReviewCountDialog by remember { mutableStateOf(false) }
     var showClearWrongBookConfirm by remember { mutableStateOf(false) }
+
+    val selectedBankId = selectedScopeKey
+        .takeIf { it.startsWith(WRONG_BOOK_PAGE_SCOPE_BANK_PREFIX) }
+        ?.removePrefix(WRONG_BOOK_PAGE_SCOPE_BANK_PREFIX)
+    val selectedBank = selectedBankId?.let { id -> banks.firstOrNull { it.id == id } }
+    val effectiveScopeKey = if (selectedBankId == null || selectedBank != null) {
+        selectedScopeKey
+    } else {
+        WRONG_BOOK_PAGE_SCOPE_ALL
+    }
+    val wrongBook = selectedBank?.let { bank ->
+        allWrongBook.filter { it.bankId == bank.id }
+    } ?: allWrongBook
+    val scopeLabel = selectedBank?.name ?: "全部题库"
+    val isSingleBankScope = selectedBank != null
+
     val masteryFilteredEntries = remember(wrongBook, filter) {
         wrongBook.filterBy(filter)
     }
@@ -116,21 +157,41 @@ fun WrongBookScreen(
     val notMasteredCount = wrongBook.count { it.status != WrongStatus.MASTERED.label }
     val masteredCount = wrongBook.count { it.status == WrongStatus.MASTERED.label }
     val smartReviewEnabled = QuizRepository.wrongBookSmartReviewEnabled
-    val smartReviewSummary = QuizRepository.todayWrongBookSmartReviewSummary()
-    val isCurrentBankScope = scopeMode == QuizRepository.WRONG_BOOK_SCOPE_CURRENT_BANK
+    val smartReviewEntries = remember(wrongBook, smartReviewEnabled) {
+        if (!smartReviewEnabled) {
+            emptyList()
+        } else {
+            val now = System.currentTimeMillis()
+            wrongBook
+                .filterNot { QuizRepository.isQuestionSlashed(it.bankId, it.question) }
+                .filter { entry -> isWrongEntryDueForPageReview(entry, now) }
+                .sortedWith(
+                    compareBy<WrongQuestionEntry> { if (it.status == WrongStatus.MASTERED.label) 1 else 0 }
+                        .thenBy { it.nextReviewAt ?: 0L }
+                        .thenByDescending { it.wrongCount }
+                        .thenByDescending { it.lastWrongAt }
+                )
+        }
+    }
+    val smartReviewNotMastered = smartReviewEntries.count { it.status != WrongStatus.MASTERED.label }
+    val smartReviewMastered = smartReviewEntries.count { it.status == WrongStatus.MASTERED.label }
 
     if (showClearWrongBookConfirm) {
         ShirohaDangerConfirmDialog(
-            title = if (isCurrentBankScope) "确认清空当前题库错题？" else "确认清空全部错题？",
-            message = if (isCurrentBankScope) {
-                "这会移除当前题库错题记录，包括错题次数、掌握状态和复习统计。其他题库错题不会受影响。"
+            title = if (isSingleBankScope) "确认清空“${selectedBank?.name.orEmpty()}”错题？" else "确认清空全部错题？",
+            message = if (isSingleBankScope) {
+                "这会移除该题库的错题记录，包括错题次数、掌握状态和复习统计。其他题库错题不会受影响。"
             } else {
                 "这会移除全部题库的错题记录，包括错题次数、掌握状态和复习统计。操作不可撤销。"
             },
-            confirmText = if (isCurrentBankScope) "清空当前题库" else "清空全部",
+            confirmText = if (isSingleBankScope) "清空当前范围" else "清空全部",
             onDismiss = { showClearWrongBookConfirm = false },
             onConfirm = {
-                QuizRepository.clearWrongBookForCurrentScope()
+                if (selectedBank == null) {
+                    QuizRepository.clearWrongBook()
+                } else {
+                    wrongBook.toList().forEach(QuizRepository::removeWrongQuestion)
+                }
                 showClearWrongBookConfirm = false
             }
         )
@@ -150,6 +211,20 @@ fun WrongBookScreen(
         )
     }
 
+    if (showScopeDialog) {
+        WrongBookScopeDialog(
+            banks = banks,
+            wrongBook = allWrongBook,
+            selectedScopeKey = effectiveScopeKey,
+            onSelect = { key ->
+                selectedScopeKey = key
+                selectedTypes = QuestionType.entries.toSet()
+                showScopeDialog = false
+            },
+            onDismiss = { showScopeDialog = false }
+        )
+    }
+
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
@@ -162,15 +237,10 @@ fun WrongBookScreen(
             subtitle = ""
         )
 
-        if (wrongBook.isEmpty()) {
+        if (allWrongBook.isEmpty()) {
             EmptyStateIllustration(
-                title = if (allWrongBook.isEmpty()) "错题本还是空的" else "${scopeLabel}暂无错题",
-                message = when {
-                    allWrongBook.isEmpty() -> "继续练习或考试后，错题会自动进入这里。"
-                    isCurrentBankScope && activeBank == null -> "请先在题库管理中设为当前题库，或到设置中切换为全部题库错题。"
-                    isCurrentBankScope -> "当前题库没有错题。需要查看其他错题时，可到 我的 → 错题本 中切换为全部题库。"
-                    else -> "当前范围下没有错题。"
-                },
+                title = "错题本还是空的",
+                message = "继续练习或考试后，错题会自动进入这里。",
                 imageRes = R.drawable.illus_wrongbook_hint_webp,
                 action = {
                     Spacer(Modifier.height(12.dp))
@@ -206,7 +276,7 @@ fun WrongBookScreen(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold
                         )
-                        StatusChip(scopeLabel, selected = isCurrentBankScope)
+                        StatusChip(if (isSingleBankScope) "单题库" else "全部题库", selected = isSingleBankScope)
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -219,218 +289,386 @@ fun WrongBookScreen(
                     icon = Icons.Rounded.DeleteOutline,
                     text = "清空",
                     primary = false,
+                    enabled = wrongBook.isNotEmpty(),
                     modifier = Modifier.height(42.dp),
                     onClick = { showClearWrongBookConfirm = true }
                 )
             }
 
-            if (smartReviewEnabled) {
-                Spacer(Modifier.height(16.dp))
-                WrongBookSmartReviewSection(
-                    total = smartReviewSummary.total,
-                    notMastered = smartReviewSummary.notMastered,
-                    masteredReview = smartReviewSummary.masteredReview,
-                    onStart = {
-                        if (QuizRepository.startTodayWrongBookReview()) {
-                            onGoPractice()
-                        }
-                    }
-                )
-            }
-
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "掌握筛选",
-                style = MaterialTheme.typography.titleMedium,
+                text = "错题范围",
+                style = MaterialTheme.typography.labelLarge,
+                color = ShirohaColors.TextSecondary,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shirohaNoRippleClickable { showScopeDialog = true },
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(ShirohaRadius.Md),
+                color = ShirohaColors.CardWhite86,
+                border = BorderStroke(1.dp, ShirohaColors.LineStrong)
             ) {
-                WrongBookFilter.entries.forEach { item ->
-                    ActionPillButton(
-                        icon = Icons.Rounded.CheckCircle,
-                        text = item.label,
-                        primary = filter == item,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp),
-                        fillWidthContent = true,
-                        onClick = { filter = item }
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = scopeLabel,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = selectedBank?.let { bank ->
+                                val groupName = bank.groupName.ifBlank { DEFAULT_BANK_GROUP_NAME }
+                                "$groupName · 错题 ${wrongBook.size} 条"
+                            } ?: "当前显示全部题库的 ${allWrongBook.size} 道错题",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Rounded.ExpandMore,
+                        contentDescription = "选择错题范围",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
-            Text(
-                text = "题型",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(Modifier.height(8.dp))
-            if (availableTypes.isEmpty()) {
-                NoticeCard("当前掌握筛选下没有可选择的题型。")
+            if (wrongBook.isEmpty()) {
+                Spacer(Modifier.height(14.dp))
+                NoticeCard("当前题库暂无错题。可以切换到其他题库或全部题库。")
             } else {
+                if (smartReviewEnabled) {
+                    Spacer(Modifier.height(16.dp))
+                    WrongBookSmartReviewSection(
+                        total = smartReviewEntries.size,
+                        notMastered = smartReviewNotMastered,
+                        masteredReview = smartReviewMastered,
+                        onStart = {
+                            if (
+                                smartReviewEntries.isNotEmpty() &&
+                                QuizRepository.startWrongBookPractice(
+                                    entries = smartReviewEntries,
+                                    includeMastered = true,
+                                    sourceLabel = "今日复习"
+                                )
+                            ) {
+                                onGoPractice()
+                            }
+                        }
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "掌握筛选",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    WrongBookFilter.entries.forEach { item ->
+                        ActionPillButton(
+                            icon = Icons.Rounded.CheckCircle,
+                            text = item.label,
+                            primary = filter == item,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp),
+                            fillWidthContent = true,
+                            onClick = { filter = item }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "题型",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(8.dp))
+                if (availableTypes.isEmpty()) {
+                    NoticeCard("当前掌握筛选下没有可选择的题型。")
+                } else {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val allAvailableSelected = availableTypes.all { it in selectedTypes }
+                        ActionPillButton(
+                            icon = Icons.Rounded.CheckCircle,
+                            text = "全部题型",
+                            primary = allAvailableSelected,
+                            modifier = Modifier.height(42.dp),
+                            onClick = { selectedTypes = QuestionType.entries.toSet() }
+                        )
+                        availableTypes.forEach { type ->
+                            val count = masteryFilteredEntries.count { it.question.type == type }
+                            ActionPillButton(
+                                icon = Icons.Rounded.CheckCircle,
+                                text = "${typeLabel(type)} $count",
+                                primary = type in selectedTypes,
+                                modifier = Modifier.height(42.dp),
+                                onClick = {
+                                    selectedTypes = if (type in selectedTypes) {
+                                        selectedTypes - type
+                                    } else {
+                                        selectedTypes + type
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "单次复习数量",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "当前可复习 ${reviewCandidates.size} 题",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val allAvailableSelected = availableTypes.all { it in selectedTypes }
-                    ActionPillButton(
-                        icon = Icons.Rounded.CheckCircle,
-                        text = "全部题型",
-                        primary = allAvailableSelected,
-                        modifier = Modifier.height(42.dp),
-                        onClick = { selectedTypes = QuestionType.entries.toSet() }
-                    )
-                    availableTypes.forEach { type ->
-                        val count = masteryFilteredEntries.count { it.question.type == type }
+                    WrongBookReviewCountMode.entries.forEach { item ->
+                        val label = when (item) {
+                            WrongBookReviewCountMode.CUSTOM -> {
+                                if (reviewCountMode == WrongBookReviewCountMode.CUSTOM) "自定义 ${selectedReviewCount}题" else item.label
+                            }
+                            WrongBookReviewCountMode.ALL -> "全部 ${reviewCandidates.size}题"
+                            else -> item.label
+                        }
                         ActionPillButton(
-                            icon = Icons.Rounded.CheckCircle,
-                            text = "${typeLabel(type)} $count",
-                            primary = type in selectedTypes,
+                            icon = Icons.Rounded.PlayArrow,
+                            text = label,
+                            primary = reviewCountMode == item,
+                            enabled = reviewCandidates.isNotEmpty(),
                             modifier = Modifier.height(42.dp),
                             onClick = {
-                                selectedTypes = if (type in selectedTypes) {
-                                    selectedTypes - type
+                                if (item == WrongBookReviewCountMode.CUSTOM) {
+                                    customReviewCountText = customReviewCount
+                                        .coerceIn(1, reviewCandidates.size.coerceAtLeast(1))
+                                        .toString()
+                                    showCustomReviewCountDialog = true
                                 } else {
-                                    selectedTypes + type
+                                    reviewCountMode = item
                                 }
                             }
                         )
                     }
                 }
-            }
 
-            Spacer(Modifier.height(14.dp))
-            Text(
-                text = "单次复习数量",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "当前可复习 ${reviewCandidates.size} 题",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(8.dp))
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                WrongBookReviewCountMode.entries.forEach { item ->
-                    val label = when (item) {
-                        WrongBookReviewCountMode.CUSTOM -> {
-                            if (reviewCountMode == WrongBookReviewCountMode.CUSTOM) "自定义 ${selectedReviewCount}题" else item.label
-                        }
-                        WrongBookReviewCountMode.ALL -> "全部 ${reviewCandidates.size}题"
-                        else -> item.label
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "排序",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    WrongBookSort.entries.forEach { item ->
+                        ActionPillButton(
+                            icon = Icons.Rounded.PlayArrow,
+                            text = item.label,
+                            primary = sort == item,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 44.dp),
+                            fillWidthContent = true,
+                            textMaxLines = 2,
+                            onClick = { sort = item }
+                        )
                     }
+                }
+
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     ActionPillButton(
                         icon = Icons.Rounded.PlayArrow,
-                        text = label,
-                        primary = reviewCountMode == item,
-                        enabled = reviewCandidates.isNotEmpty(),
-                        modifier = Modifier.height(42.dp),
+                        text = if (reviewEntries.isNotEmpty()) "开始复习 ${reviewEntries.size} 题" else "暂无可复习题目",
+                        primary = reviewEntries.isNotEmpty(),
+                        enabled = reviewEntries.isNotEmpty(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp),
+                        fillWidthContent = true,
                         onClick = {
-                            if (item == WrongBookReviewCountMode.CUSTOM) {
-                                customReviewCountText = customReviewCount
-                                    .coerceIn(1, reviewCandidates.size.coerceAtLeast(1))
-                                    .toString()
-                                showCustomReviewCountDialog = true
-                            } else {
-                                reviewCountMode = item
+                            if (reviewEntries.isNotEmpty() && QuizRepository.startWrongBookPractice(reviewEntries)) {
+                                onGoPractice()
                             }
                         }
                     )
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-            Text(
-                text = "排序",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                WrongBookSort.entries.forEach { item ->
                     ActionPillButton(
-                        icon = Icons.Rounded.PlayArrow,
-                        text = item.label,
-                        primary = sort == item,
+                        icon = Icons.AutoMirrored.Rounded.Undo,
+                        text = "返回",
+                        primary = false,
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 44.dp),
+                            .height(50.dp),
                         fillWidthContent = true,
-                        textMaxLines = 2,
-                        onClick = { sort = item }
+                        onClick = onBack
+                    )
+                }
+
+                if (reviewEntries.isEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    NoticeCard(
+                        text = when {
+                            selectedTypes.none { it in availableTypes } -> "请至少选择一种有错题的题型。"
+                            filter == WrongBookFilter.MASTERED -> "已掌握题不会进入手动复习。需要复习时可先标为未掌握。"
+                            else -> "当前筛选下没有需要复习的错题。"
+                        }
                     )
                 }
             }
-
-            Spacer(Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                ActionPillButton(
-                    icon = Icons.Rounded.PlayArrow,
-                    text = if (reviewEntries.isNotEmpty()) "开始复习 ${reviewEntries.size} 题" else "暂无可复习题目",
-                    primary = reviewEntries.isNotEmpty(),
-                    enabled = reviewEntries.isNotEmpty(),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp),
-                    fillWidthContent = true,
-                    onClick = {
-                        if (reviewEntries.isNotEmpty() && QuizRepository.startWrongBookPractice(reviewEntries)) {
-                            onGoPractice()
-                        }
-                    }
-                )
-                ActionPillButton(
-                    icon = Icons.AutoMirrored.Rounded.Undo,
-                    text = "返回",
-                    primary = false,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp),
-                    fillWidthContent = true,
-                    onClick = onBack
-                )
-            }
-
-            if (reviewEntries.isEmpty()) {
-                Spacer(Modifier.height(12.dp))
-                NoticeCard(
-                    text = when {
-                        selectedTypes.none { it in availableTypes } -> "请至少选择一种有错题的题型。"
-                        filter == WrongBookFilter.MASTERED -> "已掌握题不会进入手动复习。需要复习时可先标为未掌握。"
-                        else -> "当前筛选下没有需要复习的错题。"
-                    }
-                )
-            }
         }
 
-        if (filteredEntries.isEmpty()) {
-            GlassCard { NoticeCard("当前筛选下没有错题。") }
-        } else {
-            filteredEntries.forEach { entry ->
-                WrongQuestionPreview(entry)
+        if (wrongBook.isNotEmpty()) {
+            if (filteredEntries.isEmpty()) {
+                GlassCard { NoticeCard("当前筛选下没有错题。") }
+            } else {
+                filteredEntries.forEach { entry ->
+                    WrongQuestionPreview(entry)
+                }
             }
         }
     }
 }
 
+@Composable
+private fun WrongBookScopeDialog(
+    banks: List<QuizBank>,
+    wrongBook: List<WrongQuestionEntry>,
+    selectedScopeKey: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val wrongCountByBank = wrongBook.groupingBy { it.bankId }.eachCount()
+    val groupedBanks = banks
+        .groupBy { it.groupName.ifBlank { DEFAULT_BANK_GROUP_NAME } }
+        .entries
+        .sortedBy { entry -> if (entry.key == DEFAULT_BANK_GROUP_NAME) "" else entry.key }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择错题范围") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                WrongBookScopeOption(
+                    title = "全部题库",
+                    desc = "共 ${wrongBook.size} 道错题",
+                    selected = selectedScopeKey == WRONG_BOOK_PAGE_SCOPE_ALL,
+                    onClick = { onSelect(WRONG_BOOK_PAGE_SCOPE_ALL) }
+                )
+                groupedBanks.forEach { entry ->
+                    Text(
+                        text = entry.key,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = ShirohaColors.TextSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    entry.value.forEach { bank ->
+                        val key = WRONG_BOOK_PAGE_SCOPE_BANK_PREFIX + bank.id
+                        WrongBookScopeOption(
+                            title = bank.name,
+                            desc = "错题 ${wrongCountByBank[bank.id] ?: 0} 题 · 共 ${bank.questions.size} 题",
+                            selected = selectedScopeKey == key,
+                            onClick = { onSelect(key) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("关闭") }
+        }
+    )
+}
+
+@Composable
+private fun WrongBookScopeOption(
+    title: String,
+    desc: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shirohaNoRippleClickable(onClick = onClick),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(ShirohaRadius.Md),
+        color = if (selected) ShirohaColors.BrandPrimarySoft else Color.Transparent,
+        border = BorderStroke(
+            1.dp,
+            if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = desc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Rounded.Done,
+                    contentDescription = "已选择",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun WrongBookReviewCountDialog(
@@ -621,6 +859,24 @@ private fun resolveWrongBookReviewCount(
         WrongBookReviewCountMode.CUSTOM -> customCount.coerceIn(1, availableCount)
         WrongBookReviewCountMode.ALL -> availableCount
     }
+}
+
+private fun isWrongEntryDueForPageReview(entry: WrongQuestionEntry, now: Long): Boolean {
+    val dueAt = entry.nextReviewAt ?: when (entry.status) {
+        WrongStatus.MASTERED.label -> return false
+        else -> startOfPageDay(now)
+    }
+    return dueAt <= now
+}
+
+private fun startOfPageDay(timestamp: Long): Long {
+    return Calendar.getInstance().apply {
+        timeInMillis = timestamp
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
 }
 
 private fun statusRank(status: String): Int = when (status) {
