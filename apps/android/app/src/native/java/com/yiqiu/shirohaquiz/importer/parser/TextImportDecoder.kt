@@ -7,6 +7,19 @@ import java.util.zip.ZipInputStream
 
 object TextImportDecoder {
     private const val MAX_OMML_DEPTH = 32
+    private const val WORD_MANUAL_BREAK_MARKER = "\uE000SHIROHA_WORD_MANUAL_BREAK\uE001"
+
+    private const val answerLabelPattern =
+        "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
+    private const val analysisLabelPattern =
+        "答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明"
+
+    private val answerLabelAtLineStartRegex = Regex(
+        """^\s*(?:(?:[\[【]\s*(?:$answerLabelPattern)\s*[\]】])|(?:(?:本题)?(?:$answerLabelPattern)\s*(?:[:：]|为|是)))"""
+    )
+    private val analysisLabelAtLineStartRegex = Regex(
+        """^\s*(?:(?:[\[【]\s*(?:$analysisLabelPattern)\s*[\]】])|(?:(?:$analysisLabelPattern)\s*[:：]))"""
+    )
 
     sealed class DecodeResult {
         data class Success(val text: String) : DecodeResult()
@@ -203,35 +216,62 @@ object TextImportDecoder {
 
     internal fun extractTextFromWordParagraphXml(xml: String): String {
         val tokenRegex = Regex(
-            """<m:oMathPara\b[\s\S]*?</m:oMathPara>|<m:oMath\b[\s\S]*?</m:oMath>|<w:r\b[\s\S]*?</w:r>|<w:tab\s*/>|<w:br\s*/>|<w:t\b[^>]*>[\s\S]*?</w:t>"""
+            """<m:oMathPara\b[\s\S]*?</m:oMathPara>|<m:oMath\b[\s\S]*?</m:oMath>|<w:r\b[\s\S]*?</w:r>|<w:tab\s*/>|<w:(?:br|cr)\b[^>]*/>|<w:t\b[^>]*>[\s\S]*?</w:t>"""
         )
         val matches = tokenRegex.findAll(xml).toList()
         if (matches.isEmpty()) return extractPlainTextFromXml(xml)
 
-        return buildString {
+        val extracted = buildString {
             matches.forEach { match ->
                 val token = match.value
                 when {
                     token.startsWith("<w:tab") -> append('\t')
-                    token.startsWith("<w:br") -> append('\n')
+                    token.startsWith("<w:br") || token.startsWith("<w:cr") -> append(extractWordBreak(token))
                     token.startsWith("<m:oMath") -> append(extractOmmlText(token))
                     token.startsWith("<w:r") -> append(extractWordRunText(token))
                     token.startsWith("<w:t") -> append(extractTextTagValue(token))
                 }
             }
         }.replace(Regex("""[ \t]{2,}"""), " ")
+
+        return restoreAnswerAnalysisManualBreaks(extracted)
+    }
+
+    private fun extractWordBreak(token: String): String {
+        if (Regex("""<w:br\s*/>""").matches(token)) return "\n"
+        val isTextWrappingBreak = token.startsWith("<w:cr") ||
+            Regex("""\bw:type\s*=\s*["']textWrapping["']""").containsMatchIn(token)
+        return if (isTextWrappingBreak) WORD_MANUAL_BREAK_MARKER else ""
+    }
+
+    private fun restoreAnswerAnalysisManualBreaks(text: String): String {
+        if (WORD_MANUAL_BREAK_MARKER !in text) return text
+        val parts = text.split(WORD_MANUAL_BREAK_MARKER)
+        return buildString(text.length) {
+            append(parts.first())
+            parts.drop(1).forEach { rightPart ->
+                val leftLine = toString().substringAfterLast('\n').trimStart()
+                val rightLine = rightPart.substringBefore('\n').trimStart()
+                if (answerLabelAtLineStartRegex.containsMatchIn(leftLine) &&
+                    analysisLabelAtLineStartRegex.containsMatchIn(rightLine)
+                ) {
+                    append('\n')
+                }
+                append(rightPart)
+            }
+        }
     }
 
     private fun extractWordRunText(xml: String): String {
         if ("<m:oMath" in xml || "<m:oMathPara" in xml) return extractOmmlText(xml)
         val script = detectVertAlign(xml)
-        val tokenRegex = Regex("""<w:tab\s*/>|<w:br\s*/>|<(?:w|m):t\b[^>]*>[\s\S]*?</(?:w|m):t>""")
+        val tokenRegex = Regex("""<w:tab\s*/>|<w:(?:br|cr)\b[^>]*/>|<(?:w|m):t\b[^>]*>[\s\S]*?</(?:w|m):t>""")
         return buildString {
             tokenRegex.findAll(xml).forEach { match ->
                 val token = match.value
                 when {
                     token.startsWith("<w:tab") -> append('\t')
-                    token.startsWith("<w:br") -> append('\n')
+                    token.startsWith("<w:br") || token.startsWith("<w:cr") -> append(extractWordBreak(token))
                     else -> append(convertScript(extractTextTagValue(token), script))
                 }
             }
@@ -540,14 +580,15 @@ object TextImportDecoder {
     }
 
     private fun extractPlainTextFromXml(xml: String): String {
-        return xml
+        val extracted = xml
             .replace(Regex("""<(?:w|m|a|r|v|is|si|c|row)?:?t\b[^>]*>([\s\S]*?)</(?:w|m|a|r|v|is|si|c|row)?:?t>""")) { match ->
                 decodeXmlEntities(match.groupValues[1])
             }
             .replace(Regex("""<w:tab\s*/>"""), "\t")
-            .replace(Regex("""<w:br\s*/>"""), "\n")
+            .replace(Regex("""<w:(?:br|cr)\b[^>]*/>""")) { match -> extractWordBreak(match.value) }
             .replace(Regex("""<[^>]+>"""), "")
             .let(::decodeXmlEntities)
+        return restoreAnswerAnalysisManualBreaks(extracted)
     }
 
     private fun extractTextTagValue(xml: String): String {
