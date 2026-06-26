@@ -1277,7 +1277,11 @@ const ZIP_MAX_TOTAL_UNCOMPRESSED_V33=160*1024*1024;
 function isSafeZipEntryNameV33(name){
   name=String(name||'').trim();
   if(!name||name.includes('\0')||name.includes('\\')||name.startsWith('/')||name.startsWith('./')||/^[A-Za-z]:/.test(name))return false;
-  return name.split('/').every(part=>part&&part!=='.'&&part!=='..');
+  // DOCX/XLSX may contain explicit directory entries such as "word/".
+  // Allow one trailing slash, while continuing to reject empty middle segments and path traversal.
+  const normalized=name.endsWith('/')?name.slice(0,-1):name;
+  if(!normalized)return false;
+  return normalized.split('/').every(part=>part&&part!=='.'&&part!=='..');
 }
 function assertZipEntrySafeV33(e,bufLength){
   if(!e||!isSafeZipEntryNameV33(e.name))throw new Error('ZIP entry name is unsafe.');
@@ -5711,11 +5715,25 @@ function pickRichOptionTextV57(q,index,opt){
   }
   return sanitizeRichTextValueV57(fallback);
 }
-function sanitizeRichTextValueV57(value){
-  let s=String(value||'');
-  if(s.length>200000)s=s.slice(0,200000);
-  return stripUnsafeImageDataUrisV83(s);
+/* SHIROHA_WEB_V58_9_19_DOCX_ANALYSIS_IMAGE_TRUNCATION_FIX_START */
+function truncateRichTextPreservingImagesV58919(text,maxPlainLength=200000){
+  const images=[];
+  const protect=image=>{
+    const index=images.push(image)-1;
+    return `\uE000SHIROHA_RICH_IMAGE_${index}\uE001`;
+  };
+  let masked=String(text||'').replace(markdownImageRegexV83(),match=>protect(match));
+  masked=masked.replace(/data:image\/(?:png|jpeg|jpg|gif|webp|bmp);base64,[A-Za-z0-9+/=\r\n]+/gi,match=>questionImageDataUriRegexV83().test(match)?protect(match):'[图片已移除]');
+  if(masked.length>maxPlainLength)masked=masked.slice(0,maxPlainLength);
+  return masked.replace(/\uE000SHIROHA_RICH_IMAGE_(\d+)\uE001/g,(_,index)=>images[Number(index)]||'');
 }
+function sanitizeRichTextValueV57(value){
+  const safe=stripUnsafeImageDataUrisV83(String(value||''));
+  if(safe.length<=200000)return safe;
+  // 只限制普通文本长度，不能在合法 Base64 图片中间截断，否则图片会变成无法渲染的残缺 Markdown。
+  return truncateRichTextPreservingImagesV58919(safe,200000);
+}
+/* SHIROHA_WEB_V58_9_19_DOCX_ANALYSIS_IMAGE_TRUNCATION_FIX_END */
 function detectRichFeaturesV57(text,extraImages){
   const s=String(text||'');
   const features=[];
