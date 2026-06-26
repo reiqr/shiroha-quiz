@@ -7,7 +7,8 @@ data class QuestionBlock(
     val lines: List<String>,
     val category: String = "",
     val forcedType: QuestionType? = null,
-    val sequence: Int = 0
+    val sequence: Int = 0,
+    val numberGenerated: Boolean = false
 )
 
 object QuestionBlockSplitter {
@@ -83,6 +84,7 @@ object QuestionBlockSplitter {
         var currentCategory = category
         var currentSectionForcedType = forcedType
         var currentForcedType = forcedType
+        var currentNumberGenerated = false
         var syntheticNumber = 0
         var sequence = 0
         var skippingGlobalAnswerSection = false
@@ -97,12 +99,14 @@ object QuestionBlockSplitter {
                     lines = cleanLines,
                     category = currentCategory,
                     forcedType = currentForcedType,
-                    sequence = sequence++
+                    sequence = sequence++,
+                    numberGenerated = currentNumberGenerated
                 )
             }
             currentNumber = null
             currentLines = mutableListOf()
             currentForcedType = currentSectionForcedType
+            currentNumberGenerated = false
         }
 
         val sourceLines = text.lineSequence().toList()
@@ -166,6 +170,7 @@ object QuestionBlockSplitter {
                 flush()
                 skippingMaterialIntro = false
                 currentNumber = explicitStart.number
+                currentNumberGenerated = false
                 currentForcedType = explicitStart.forcedType ?: currentSectionForcedType
                 currentLines = mutableListOf<String>().apply {
                     val remainder = explicitStart.remainder.trim()
@@ -179,6 +184,7 @@ object QuestionBlockSplitter {
                 if (allowUnnumbered && (isLikelyUnnumberedQuestionLine(line) || isLikelyTypedQuestionLine(line, forcedType))) {
                     syntheticNumber += 1
                     currentNumber = syntheticNumber.toString()
+                    currentNumberGenerated = true
                     val typed = QuestionTypeLabelParser.extractLeading(line)
                     currentForcedType = typed?.type ?: currentSectionForcedType
                     currentLines += typed?.remainder?.takeIf { it.isNotBlank() } ?: line
@@ -191,6 +197,7 @@ object QuestionBlockSplitter {
                 flush()
                 syntheticNumber += 1
                 currentNumber = syntheticQuestionNumber(parentNumber, syntheticNumber)
+                currentNumberGenerated = true
                 val typed = QuestionTypeLabelParser.extractLeading(line)
                 currentForcedType = typed?.type ?: currentSectionForcedType
                 currentLines += typed?.remainder?.takeIf { it.isNotBlank() } ?: line
@@ -200,11 +207,43 @@ object QuestionBlockSplitter {
         }
 
         flush()
-        return blocks
+        return normalizeGeneratedQuestionNumbers(blocks)
+    }
+
+    private fun normalizeGeneratedQuestionNumbers(blocks: List<QuestionBlock>): List<QuestionBlock> {
+        if (blocks.none { it.numberGenerated }) return blocks
+
+        // Explicit numbers remain untouched. Auto-generated numbers are assigned from the
+        // final question order so an unnumbered paper is displayed as 1, 2, 3, ... instead
+        // of exposing temporary parent-child numbers such as 1-2 or 1-3.
+        val explicitNumericNumbers = blocks
+            .asSequence()
+            .filterNot { it.numberGenerated }
+            .mapNotNull { it.number.trim().toIntOrNull() }
+            .filter { it > 0 }
+            .toMutableSet()
+        val generatedNumbers = mutableSetOf<Int>()
+
+        return blocks.mapIndexed { index, block ->
+            if (!block.numberGenerated) return@mapIndexed block
+
+            var candidate = index + 1
+            while (candidate in explicitNumericNumbers || candidate in generatedNumbers) {
+                candidate += 1
+            }
+            generatedNumbers += candidate
+            block.copy(number = candidate.toString())
+        }
     }
 
     private fun syntheticQuestionNumber(parentNumber: String?, syntheticIndex: Int): String {
-        val base = parentNumber?.trim().orEmpty()
+        // A previous synthetic split may already have appended a suffix (for example, 1-2).
+        // Always reuse the original root number so later splits become 1-3, 1-4, ...
+        // instead of recursively growing into 1-2-3-4-....
+        val base = parentNumber
+            ?.trim()
+            ?.substringBefore('-')
+            .orEmpty()
         return if (base.isNotBlank()) "$base-$syntheticIndex" else syntheticIndex.toString()
     }
 
