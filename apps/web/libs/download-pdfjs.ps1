@@ -2,8 +2,9 @@
 .SYNOPSIS
   PDF.js 5.7.284 完整离线包下载脚本
 .DESCRIPTION
-  从 jsDelivr CDN 下载完整 PDF.js 到 apps/web/libs/
-  包含 CMaps（中日韩字符映射）、标准字体、图片解码器。
+  从 jsDelivr CDN 下载 PDF.js 到 apps/web/libs/
+  包含 CMaps（中日韩字符映射）+ 沙箱文件。
+  核心库（pdf.min.mjs / pdf.worker.min.mjs）已内置在仓库中。
   下载后 Web 端 PDF 导入优先使用本地文件，无需联网。
   如果不想下载，CDN 会自动兜底（jsDelivr / unpkg）。
 #>
@@ -11,9 +12,9 @@
 $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $version = "5.7.284"
-$baseUrl = "https://cdn.jsdelivr.net/npm/pdfjs-dist@$version/build"
+$baseUrl = "https://cdn.jsdelivr.net/npm/pdfjs-dist@$version"
 
-# CMaps — 中日韩字符映射（约 200+ 个文件）
+# CMaps — 中日韩字符映射（约 166 个文件，~2 MB）
 $cmaps = @(
     "78-EUC-H.bcmap","78-EUC-V.bcmap","78-H.bcmap","78-RKSJ-H.bcmap","78-RKSJ-V.bcmap",
     "78-V.bcmap","78ms-RKSJ-H.bcmap","78ms-RKSJ-V.bcmap","83pv-RKSJ-H.bcmap","90ms-RKSJ-H.bcmap",
@@ -57,53 +58,30 @@ $cmaps = @(
     "WP-Symbol.bcmap","Wansung-EUC-H.bcmap","Wansung-EUC-V.bcmap","Wansung-H.bcmap","Wansung-V.bcmap"
 )
 
-# 标准字体（约 14 个）
-$fonts = @(
-    "FoxitDingbats.pfb","FoxitFixed.pfb","FoxitFixedBold.pfb","FoxitFixedBoldItalic.pfb",
-    "FoxitFixedItalic.pfb","FoxitSans.pfb","FoxitSansBold.pfb","FoxitSansBoldItalic.pfb",
-    "FoxitSansItalic.pfb","FoxitSerif.pfb","FoxitSerifBold.pfb","FoxitSerifBoldItalic.pfb",
-    "FoxitSerifItalic.pfb","FoxitSymbol.pfb"
-)
+Write-Host "PDF.js $version CMaps 下载" -ForegroundColor Cyan
+Write-Host "目标位置：$scriptDir/cmaps/" -ForegroundColor Gray
 
-# 核心 JS 文件
-$jsFiles = @(
-    "pdf.min.mjs","pdf.worker.min.mjs","pdf.image_decoders.min.js","pdf.sandbox.min.mjs"
-)
-
-Write-Host "PDF.js $version 完整离线包下载" -ForegroundColor Cyan
-Write-Host "目标位置：$scriptDir" -ForegroundColor Gray
-Write-Host "包含：核心库 + CMaps + 标准字体 + 图片解码器" -ForegroundColor Gray
-
-$total = $jsFiles.Count + $cmaps.Count + $fonts.Count
-$done = 0
-$downloaded = 0
-
-# 下载核心 JS
-Write-Host "`n[核心库]" -ForegroundColor Yellow
-foreach ($name in $jsFiles) {
-    $done++
-    $url = "$baseUrl/$name"
-    $outPath = Join-Path $scriptDir $name
-    Write-Progress -Activity "下载 PDF.js 完整包" -Status "$done / $total  $name" -PercentComplete ($done * 100 / $total)
-    Write-Host "  $name ... " -NoNewline
-    try {
-        Invoke-WebRequest -Uri $url -OutFile $outPath -UseBasicParsing -ErrorAction Stop
-        Write-Host "OK" -ForegroundColor Green
-        $downloaded++
-    } catch {
-        Write-Host "失败" -ForegroundColor Red
+$cmapDir = Join-Path $scriptDir "cmaps"
+if (Test-Path $cmapDir) {
+    $existing = (Get-ChildItem $cmapDir -File | Measure-Object).Count
+    if ($existing -ge $cmaps.Count / 2) {
+        Write-Host "已存在 $existing 个 CMaps 文件，跳过下载。" -ForegroundColor Yellow
+        Write-Host "如需重新下载，请先删除 cmaps/ 目录再运行此脚本。"
+        exit 0
     }
 }
 
-# 下载 CMaps
-$cmapDir = Join-Path $scriptDir "cmaps"
 if (!(Test-Path $cmapDir)) { New-Item -ItemType Directory -Path $cmapDir -Force | Out-Null }
-Write-Host "`n[CMaps]" -ForegroundColor Yellow
+
+$total = $cmaps.Count
+$done = 0
+$downloaded = 0
+
 foreach ($name in $cmaps) {
     $done++
     $url = "$baseUrl/cmaps/$name"
     $outPath = Join-Path $cmapDir $name
-    Write-Progress -Activity "下载 PDF.js 完整包" -Status "$done / $total  cmaps/$name" -PercentComplete ($done * 100 / $total)
+    Write-Progress -Activity "下载 PDF.js CMaps" -Status "$done / $total  $name" -PercentComplete ($done * 100 / $total)
     try {
         Invoke-WebRequest -Uri $url -OutFile $outPath -UseBasicParsing -ErrorAction Stop
         $downloaded++
@@ -111,27 +89,8 @@ foreach ($name in $cmaps) {
         # 静默跳过不存在的 cmap
     }
 }
-Write-Host "  已下载 CMaps 文件到 cmaps/" -ForegroundColor Gray
 
-# 下载标准字体
-$fontDir = Join-Path $scriptDir "standard_fonts"
-if (!(Test-Path $fontDir)) { New-Item -ItemType Directory -Path $fontDir -Force | Out-Null }
-Write-Host "`n[标准字体]" -ForegroundColor Yellow
-foreach ($name in $fonts) {
-    $done++
-    $url = "$baseUrl/standard_fonts/$name"
-    $outPath = Join-Path $fontDir $name
-    Write-Progress -Activity "下载 PDF.js 完整包" -Status "$done / $total  standard_fonts/$name" -PercentComplete ($done * 100 / $total)
-    try {
-        Invoke-WebRequest -Uri $url -OutFile $outPath -UseBasicParsing -ErrorAction Stop
-        $downloaded++
-    } catch {
-        # 静默跳过不存在的字体
-    }
-}
-Write-Host "  已下载标准字体到 standard_fonts/" -ForegroundColor Gray
-
-Write-Progress -Activity "下载 PDF.js 完整包" -Completed
+Write-Progress -Activity "下载 PDF.js CMaps" -Completed
 Write-Host ""
-Write-Host "完成。Web 端 PDF 导入将优先使用本地完整 PDF.js。" -ForegroundColor Green
-Write-Host "如只需最小版，删除 cmaps/ 和 standard_fonts/ 即可。" -ForegroundColor Gray
+Write-Host "完成：$downloaded / $total 个 CMaps 文件已下载。" -ForegroundColor Green
+Write-Host "Web 端 PDF 导入将优先使用本地完整 PDF.js（含 CJK 字符映射）。" -ForegroundColor Gray

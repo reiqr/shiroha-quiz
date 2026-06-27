@@ -2,7 +2,7 @@
 
 以下功能默认使用 CDN 加载，如需离线使用请运行对应脚本：
 
-  download-pdfjs.ps1     → 下载 PDF.js 5.7.284 完整包（含 CMaps + 字体 + 图片解码，约 12 MB）
+  download-pdfjs.ps1     → 下载 PDF.js 5.7.284 完整包（含 CMaps + 沙箱，约 4 MB）
   download-mathjax.ps1   → 下载 MathJax 3.2.2（约 24 MB）
 
 不运行脚本也可正常使用——CDN 会自动兜底。
