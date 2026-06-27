@@ -4836,15 +4836,26 @@ function normalizeOptionKey(k){
   return k;
 }
 function splitInlineOptions(line){
-  const s=String(line||'');
+  const rawLine=String(line||'');
+  if(/^\s*(?:[oOxXuUyYvV√✔✓]\s*)?[A-Ga-g]\s*[、.．:：，,]/.test(rawLine))return [];
+  const s=maskLatexForOptionDetectionV58920(rawLine);
   const re=/([oOxXuUyYvV√✔✓])?\s*[（(]\s*([A-Ga-g1-9])\s*[）)]/g;
   const hits=[];let m;
   while((m=re.exec(s)))hits.push({idx:m.index,len:m[0].length,correct:!!m[1],key:m[2]});
+  for(let i=hits.length-1;i>=0;i--){
+    const h=hits[i];
+    const key=String(h.key||'');
+    if(/^\d$/.test(key)){
+      const before=rawLine.slice(Math.max(0,h.idx-3),h.idx);
+      const after=rawLine.slice(h.idx+h.len,h.idx+h.len+3);
+      if(/第\s*$/.test(before)||/^\s*(?:步|式|项|問|问|题|處|处|次)/.test(after))hits.splice(i,1);
+    }
+  }
   if(hits.length<1)return[];
   if(hits.length===1 && hits[0].idx>3)return[];
   return hits.map((h,i)=>{
-    const start=h.idx+h.len;const end=i+1<hits.length?hits[i+1].idx:s.length;
-    return {key:h.key,correct:h.correct,text:s.slice(start,end).trim().replace(/[;；，,]+$/,'').trim()};
+    const start=h.idx+h.len;const end=i+1<hits.length?hits[i+1].idx:rawLine.length;
+    return {key:h.key,correct:h.correct,text:rawLine.slice(start,end).trim().replace(/[;；，,]+$/,'').trim()};
   }).filter(o=>o.text||o.correct);
 }
 function repairEmbeddedOptions(options){
@@ -5085,9 +5096,12 @@ function cleanQuestionStemAndAnswer(question,answer=[],type='',options=[]){
   const ex=extractTrailingAnswerFromText(q,type);
   if(ex.answer.length){ans=ans.concat(ex.answer);q=ex.text}
   const optionTexts=(options||[]).map(o=>String(o.text||'')).filter(Boolean);
+  const latexMaskV58920=maskLatexForOptionDetectionV58920(q);
+  const inLatexV58920=(offset,len)=>/^\s+$/.test(latexMaskV58920.slice(offset,offset+len));
   const answerKeys=ans.map(a=>String(a||'').trim().toUpperCase()).filter(a=>/^[A-G]$/.test(a));
   const correctOptionTexts=(options||[]).filter(o=>answerKeys.includes(String(o.key||'').toUpperCase())).map(o=>String(o.text||''));
-  q=q.replace(/[\uFF08(]\s*([^()\uFF08\uFF09]{1,120})\s*[\uFF09)\u3015]/g,(m,inner)=>{
+  q=q.replace(/[\uFF08(]\s*([^()\uFF08\uFF09]{1,120})\s*[\uFF09)\u3015]/g,(m,inner,offset)=>{
+    if(inLatexV58920(offset,m.length))return m;
     const raw=String(inner||'').trim();
     if(!raw)return '（ ）';
     const compact=raw.replace(/[\s,??;?/\\]+/g,'').toUpperCase();
@@ -5114,7 +5128,8 @@ function cleanQuestionStemAndAnswer(question,answer=[],type='',options=[]){
     if((matchesCorrectOption||matchesOption) && !/预案|方案|队站|站|县级以上|市级以上/.test(raw))return '（ ）';
     return m;
   });
-  q=q.replace(/[\uFF08(]\s*([A-Ga-g][A-Ga-g\s,，、;；/\\]{0,12}|[1-9][1-9\s,，、;；/\\]{0,12}|对|错|正确|错误|是|否|\u221A|\u00D7|X|v|V|T|F|True|False)\s*$/g,(m,inner)=>{
+  q=q.replace(/[\uFF08(]\s*([A-Ga-g][A-Ga-g\s,，、;；/\\]{0,12}|[1-9][1-9\s,，、;；/\\]{0,12}|对|错|正确|错误|是|否|\u221A|\u00D7|X|v|V|T|F|True|False)\s*$/g,(m,inner,offset)=>{
+    if(inLatexV58920(offset,m.length))return m;
     const compact=String(inner||'').replace(/[\s,，、;；/\\]+/g,'').toUpperCase();
     const isChoice=/^[A-G]{1,7}$/.test(compact)||/^[1-9]{1,9}$/.test(compact);
     if(type==='judge'&&isChoice)return m;
@@ -5151,9 +5166,44 @@ function selectOrderedOptionHits(hits){
   }
   return de;
 }
+
+function maskLatexForOptionDetectionV58920(text){
+  const raw=String(text||'');
+  if(!raw)return raw;
+  let out='';
+  for(let i=0;i<raw.length;){
+    if(raw[i]==='\\' && (raw[i+1]==='(' || raw[i+1]==='[')){
+      const close=raw[i+1]==='('?'\\)':'\\]';
+      const end=raw.indexOf(close,i+2);
+      if(end>=0){const seg=raw.slice(i,end+2);out+=' '.repeat(seg.length);i=end+2;continue;}
+    }
+    if(raw[i]==='$'){
+      let j=i+1;
+      if(raw[j]==='$')j++;
+      const double=raw[i+1]==='$';
+      let end=-1;
+      for(let k=j;k<raw.length;k++){
+        if(raw[k]==='\\'){k++;continue;}
+        if(raw[k]==='$'){
+          if(double){if(raw[k+1]==='$'){end=k+2;break;}}
+          else{end=k+1;break;}
+        }
+      }
+      if(end>i){const seg=raw.slice(i,end);out+=' '.repeat(seg.length);i=end;continue;}
+    }
+    if(raw.startsWith('【DOCX公式OMML：',i)){
+      const end=raw.indexOf('】',i);
+      if(end>=0){const seg=raw.slice(i,end+1);out+=' '.repeat(seg.length);i=end+1;continue;}
+    }
+    out+=raw[i];i++;
+  }
+  return out;
+}
+
 function extractInlineOptionsRich(line){
-  const s=String(line||'').trim();
-  if(!s)return null;
+  const rawLine=String(line||'').trim();
+  if(!rawLine)return null;
+  const s=maskLatexForOptionDetectionV58920(rawLine);
   // 兼容答案选项本身也是字母的紧凑行：A.D B.C C.B D.A
   if(!/[\u4e00-\u9fa5]/.test(s)){
     const vals=[];let vm;const vre=/([A-Ga-g])\s*[.．、:：]\s*([A-Ga-g])(?=\s|$|[A-Ga-g]\s*[.．、:：])/g;
@@ -5176,10 +5226,10 @@ function extractInlineOptionsRich(line){
     }
     const seq=selectOrderedOptionHits(gh);
     if(seq.length>=3 && String(seq[0].key).toUpperCase()==='A'){
-      const prefix=s.slice(0,seq[0].idx).trim().replace(/[;；，,、]+$/,'').trim();
+      const prefix=rawLine.slice(0,seq[0].idx).trim().replace(/[;；，,、]+$/,'').trim();
       const options=seq.map((h,i)=>{
         const start=h.idx+h.len;const end=i+1<seq.length?seq[i+1].idx:s.length;
-        let txt=s.slice(start,end).trim().replace(/^[;；，,、]+/,'').replace(/[;；，,、]+$/,'').trim();
+        let txt=rawLine.slice(start,end).trim().replace(/^[;；，,、]+/,'').replace(/[;；，,、]+$/,'').trim();
         const ex=extractTrailingAnswerFromText(txt,'');
         return {key:normalizeOptionKey(h.key),correct:false,text:ex.text,extraAnswer:ex.answer};
       }).filter(o=>o.text||o.extraAnswer.length);
@@ -5229,12 +5279,12 @@ function extractInlineOptionsRich(line){
   }
   let uniq=selectOrderedOptionHits(hits);
   if(uniq.length<2)return null;
-  const prefix=s.slice(0,uniq[0].idx).trim().replace(/[;；，,、]+$/,'').trim();
+  const prefix=rawLine.slice(0,uniq[0].idx).trim().replace(/[;；，,、]+$/,'').trim();
   // 如果第一组选项标记前只有题号，例如“86. A级油井水泥……”，这里的 A 是题干首字母，不是 A 选项。
   if(/^\s*(?:第\s*)?\d{1,4}\s*(?:题)?[、.．:：]\s*$/.test(prefix))return null;
   const options=uniq.map((h,i)=>{
     const start=h.idx+h.len;const end=i+1<uniq.length?uniq[i+1].idx:s.length;
-    let txt=s.slice(start,end).trim().replace(/^[;；，,、]+/,'').replace(/[;；，,、]+$/,'').trim();
+    let txt=rawLine.slice(start,end).trim().replace(/^[;；，,、]+/,'').replace(/[;；，,、]+$/,'').trim();
     const ex=extractTrailingAnswerFromText(txt,'');
     return {key:normalizeOptionKey(h.key),correct:h.correct,text:ex.text,extraAnswer:ex.answer};
   }).filter(o=>o.text||o.correct||o.extraAnswer.length);
