@@ -5857,16 +5857,51 @@ function ensureMathJaxV56(){
   return window.__shirohaMathJaxLoadingV56;
 }
 
+function prewarmMathJaxV56(){
+  if(typeof window==='undefined'||typeof document==='undefined')return;
+  if(window.MathJax&&typeof window.MathJax.typesetPromise==='function')return;
+  if(window.__shirohaMathJaxLoadingV56||window.__shirohaMathJaxFailedV56)return;
+  const run=()=>ensureMathJaxV56().catch(err=>warnDev&&warnDev('MathJax 预热失败',err));
+  if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(run,{timeout:800});
+  else setTimeout(run,0);
+}
+
+function mathJaxDefaultScopesV56(){
+  if(typeof document==='undefined')return [];
+  if(document.body.classList.contains('practice-focus')){
+    const card=$('#practice-card');
+    if(card)return [card];
+  }
+  if(document.body.classList.contains('exam-focus')){
+    const card=$('#exam-card');
+    if(card)return [card];
+  }
+  const active=$('.view.active');
+  if(active)return [active];
+  return [document.body];
+}
+
 function scheduleMathJaxTypesetV56(scope){
   if(typeof window==='undefined'||typeof document==='undefined')return;
-  clearTimeout(window.__shirohaMathJaxTimerV56);
-  window.__shirohaMathJaxTimerV56=setTimeout(()=>{
+  window.__shirohaMathJaxPendingScopesV56=window.__shirohaMathJaxPendingScopesV56||new Set();
+  if(scope)window.__shirohaMathJaxPendingScopesV56.add(scope);
+  else window.__shirohaMathJaxUseDefaultScopeV56=true;
+  if(window.__shirohaMathJaxRafV56)return;
+  const schedule=window.requestAnimationFrame?window.requestAnimationFrame.bind(window):((fn)=>setTimeout(fn,0));
+  window.__shirohaMathJaxRafV56=schedule(()=>{
+    window.__shirohaMathJaxRafV56=0;
+    const pending=window.__shirohaMathJaxPendingScopesV56||new Set();
+    const scopes=window.__shirohaMathJaxUseDefaultScopeV56?mathJaxDefaultScopesV56():[...pending].filter(el=>el&&el.isConnected);
+    window.__shirohaMathJaxPendingScopesV56=new Set();
+    window.__shirohaMathJaxUseDefaultScopeV56=false;
+    if(!scopes.length)return;
     ensureMathJaxV56().then(mj=>{
       if(mj&&typeof mj.typesetPromise==='function'){
-        mj.typesetPromise(scope?[scope]:[document.body]).catch(err=>warnDev&&warnDev('MathJax 渲染失败',err));
+        if(typeof mj.typesetClear==='function')mj.typesetClear(scopes);
+        mj.typesetPromise(scopes).catch(err=>warnDev&&warnDev('MathJax 渲染失败',err));
       }
     });
-  },80);
+  });
 }
 function renderDocxTableBlockV55(block){
   const rows=parseDocxMarkdownTableBlockV55(block);
@@ -6530,7 +6565,7 @@ function startPractice(scopeOverrideV8916){
   if(!practice.items.length){$('#practice-card').innerHTML='<div class="empty">当前条件下没有题目。</div>';showNotice('无法开始练习','当前筛选条件下没有题目。','warn');return}
   if(practice.items.length>200&&(limit==='all'||limit==='half'||limit==='custom'||Number(limit)>200||selection.startMode===PRACTICE_START_CUSTOM_V58916)){const msg=practice.items.length>500?`本轮将练习 ${practice.items.length} 道题，题量很大，手机 WebView 可能明显卡顿，建议减少题量或使用电脑端。是否继续？`:`本轮将练习 ${practice.items.length} 道题，手机 WebView 可能出现轻微卡顿，是否继续？`;if(!confirm(msg)){practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0,details:[],answerState:{}};return}}
   const startText=selection.startMode===PRACTICE_START_CONTINUE_V58916?` · 从第 ${selection.startIndex+1} 题继续`:selection.startMode===PRACTICE_START_CUSTOM_V58916?' · 自选题号':'';
-  enterPracticeFocus();showNotice('练习开始',`${practice.scopeName}${startText} · 本轮共 ${practice.items.length} 道题。`,'ok');renderPracticeQuestion();
+  enterPracticeFocus();prewarmMathJaxV56();showNotice('练习开始',`${practice.scopeName}${startText} · 本轮共 ${practice.items.length} 道题。`,'ok');renderPracticeQuestion();
 }
 function renderPracticeQuestion(done=false){
   $('#practice-progress').textContent=`${Math.min(practice.idx+1,practice.items.length)} / ${practice.items.length}`;
@@ -6584,7 +6619,7 @@ function startSingleFavoritePracticeV596(id){
   const q=activeBank().questions.find(x=>x.id===id);if(!q){toast('未找到这道收藏题。','warn');return}
   $$('.nav').forEach(b=>b.classList.remove('active'));document.querySelector('[data-view="practice"]').classList.add('active');$$('.view').forEach(v=>v.classList.remove('active'));$('#practice').classList.add('active');$('#page-title').textContent='刷题练习';
   practice={items:practiceSessionItemsForBanksV8916([{...activeBank(),questions:[q]}]),idx:0,answered:0,correct:0,wrong:0,start:Date.now(),details:[],answerState:{},scopeType:'BANK',scopeName:activeBank().name,scopeValue:activeBank().id};
-  enterPracticeFocus();showNotice('练习开始','本轮共 1 道收藏题。','ok');updateShellLayoutByView('practice');renderPracticeQuestion();
+  enterPracticeFocus();prewarmMathJaxV56();showNotice('练习开始','本轮共 1 道收藏题。','ok');updateShellLayoutByView('practice');renderPracticeQuestion();
 }
 function renderWrongBook(){
   const bid=activeBank().id;let entries=getWrongEntries(bid);const filter=$('#wrong-status-filter')?.value||'active';if(filter==='active')entries=entries.filter(e=>e.status!=='已掌握');else if(filter!=='all')entries=entries.filter(e=>e.status===filter);const sort=$('#wrong-sort-mode')?.value||'lastWrong';if(sort==='wrongCount')entries.sort((a,b)=>b.wrongCount-a.wrongCount);else if(sort==='status')entries.sort((a,b)=>String(a.status).localeCompare(String(b.status),'zh-CN'));else entries.sort((a,b)=>String(b.lastWrongAt||'').localeCompare(String(a.lastWrongAt||'')));const map=new Map(activeBank().questions.map(q=>[q.id,q]));const rows=entries.map(e=>({e,q:map.get(e.id)})).filter(x=>x.q);$('#wrongbook-list').innerHTML=rows.length?rows.map(({e,q})=>`<div class="wrong-item"><div class="section-head"><div><b>${label(q.type)}｜${esc(short(q.question,80))}</b><p class="muted">答案：${esc(q.answer.join(''))}｜状态：${esc(e.status)}｜错误 ${e.wrongCount} 次｜做对 ${e.rightCount} 次${e.lastWrongAt?'｜最近错：'+fmt(e.lastWrongAt):''}${q.analysis?'｜解析：'+esc(short(q.analysis,80)):''}</p></div><div class="row-actions"><button class="ghost mini-btn" data-toggle-master-wrong="${esc(q.id)}">${e.status==='已掌握'?'取消掌握':'标记已掌握'}</button><button class="ghost mini-btn" data-fav-wrong="${esc(q.id)}">${isFavoriteV27(q.id)?'取消收藏':'收藏'}</button><button class="ghost danger mini-btn" data-remove-wrong="${esc(q.id)}">移出</button></div></div></div>`).join(''):'<p class="muted">当前条件下暂无错题。</p>';$$('[data-remove-wrong]').forEach(b=>b.onclick=()=>{if(confirm('确定将这道题移出错题本？')){removeWrong(b.dataset.removeWrong);saveSilent();renderAll()}});$$('[data-toggle-master-wrong]').forEach(b=>b.onclick=()=>{const arr=getWrongEntries();const e=arr.find(x=>x.id===b.dataset.toggleMasterWrong);if(e){if(e.status==='已掌握'){e.status='复习中';e.rightCount=Math.min(e.rightCount||0,1)}else{e.status='已掌握';e.lastCorrectAt=now();e.rightCount=Math.max(e.rightCount||0,2)}setWrongEntries(arr);saveSilent();renderAll()}});$$('[data-fav-wrong]').forEach(b=>b.onclick=()=>{toggleFavoriteV27(b.dataset.favWrong);renderAll()});
@@ -6939,6 +6974,7 @@ function startExam(){
   document.body.classList.add('exam-focus');
   autoCollapseSidebarForFocusV47();
   updateShellLayoutByView('exam');
+  prewarmMathJaxV56();
   renderExamPaper();
 }
 function updateTimer(){
