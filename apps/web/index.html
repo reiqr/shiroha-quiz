@@ -146,6 +146,28 @@
             <label>上传文件<input id="import-file" type="file" accept=".txt,.json,.csv,.xlsx,.docx,.doc,.pdf" /></label>
           </div>
           <textarea id="import-text" placeholder="把题库文本粘贴到这里，或上传 .docx / .xlsx / .csv / .txt / .json / 文字型 PDF 后导入。支持：A、选项(正确答案)、答案：D、答案：A/B/C、解析：……"></textarea>
+          <div class="ocr-panel hidden" id="ocr-panel">
+            <div class="ocr-panel-head">
+              <div>
+                <p class="kicker">OCR 扫描件兜底</p>
+                <h3>扫描 PDF 转文字 / DOCX</h3>
+              </div>
+              <span class="ocr-badge">Web 实验功能</span>
+            </div>
+            <p class="muted">仅在文字层 PDF 提取失败或文字过少时使用。OCR 会先生成可编辑文本，建议人工核对后再导入题库。</p>
+            <div class="ocr-options">
+              <label>识别页数<input id="ocr-page-limit" type="number" min="1" max="200" value="20" /></label>
+              <label>语言<select id="ocr-language"><option value="chi_sim+eng" selected>简体中文 + 英文</option><option value="chi_sim">简体中文</option><option value="eng">英文</option></select></label>
+            </div>
+            <div class="actions ocr-actions">
+              <button id="ocr-start-btn" class="primary" type="button">尝试 OCR 识别</button>
+              <button id="ocr-use-text-btn" class="ghost" type="button" disabled>填入导入文本</button>
+              <button id="ocr-copy-btn" class="ghost" type="button" disabled>复制 OCR 文本</button>
+              <button id="ocr-download-docx-btn" class="ghost" type="button" disabled>下载 DOCX</button>
+            </div>
+            <div class="notice" id="ocr-status">选择 PDF 后可使用 OCR。首次使用会加载 OCR 扩展资源，速度取决于设备性能。</div>
+            <textarea id="ocr-result" class="ocr-result" placeholder="OCR 识别结果会显示在这里，可核对后填入导入文本或下载 DOCX。"></textarea>
+          </div>
           <div class="actions import-actions-v51"><button id="parse-import-btn" class="primary">开始识别</button><button id="confirm-import-btn" class="primary" disabled>确认导入</button><button id="clear-import-btn" class="ghost">清空</button><span class="import-actions-spacer-v51" aria-hidden="true"></span><button id="find-replace-import-btn" class="ghost import-find-replace-trigger-v51" type="button">查找替换</button></div>
         </div>
         <div class="card">

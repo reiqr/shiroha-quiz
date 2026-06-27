@@ -196,6 +196,50 @@ textarea{
   line-height:1.6;
   font-family:"Consolas","Microsoft YaHei",monospace
 }
+.ocr-panel{
+  margin-top:16px;
+  padding:18px;
+  border:1px solid rgba(37,99,235,.16);
+  border-radius:22px;
+  background:linear-gradient(135deg,rgba(239,246,255,.92),rgba(255,255,255,.96));
+  box-shadow:0 16px 36px rgba(37,99,235,.08)
+}
+.ocr-panel.hidden{
+  display:none
+}
+.ocr-panel-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:8px
+}
+.ocr-badge{
+  display:inline-flex;
+  align-items:center;
+  border-radius:999px;
+  padding:7px 10px;
+  color:#1d4ed8;
+  background:#dbeafe;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap
+}
+.ocr-options{
+  display:grid;
+  grid-template-columns:160px minmax(180px,260px);
+  gap:12px;
+  margin:12px 0
+}
+.ocr-actions{
+  flex-wrap:wrap;
+  margin-top:8px
+}
+.ocr-result{
+  min-height:150px;
+  margin-top:12px;
+  background:rgba(255,255,255,.9)
+}
 .actions{
   display:flex;
   gap:10px;
