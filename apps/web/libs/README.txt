@@ -25,4 +25,7 @@ MathJax 本地加载说明
 本地 MathJax 来自官方 npm 包：
 - mathjax@3.2.2
 
+可选离线脚本：download-mathjax.ps1（从 CDN 拉取完整 MathJax 组件）
+不运行脚本也可正常使用——CDN 会自动兜底。
+
 为保证离线公式渲染和字体加载稳定，mathjax/ 目录保留完整 es5 组件，不只保留入口 js。
