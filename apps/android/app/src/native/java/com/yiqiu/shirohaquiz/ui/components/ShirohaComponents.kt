@@ -162,7 +162,7 @@ fun GlassCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .cardRiseMotion(animated),
+            .cardRiseMotion(animated && QuizRepository.cardAnimationEnabled),
         shape = RoundedCornerShape(ShirohaRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = ShirohaColors.CardSoft),
         border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft),

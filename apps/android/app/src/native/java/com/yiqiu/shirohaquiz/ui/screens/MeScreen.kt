@@ -152,7 +152,7 @@ fun MeScreen(
             FeaturePlanStrip(
                 icon = Icons.Rounded.DarkMode,
                 title = "外观偏好",
-                desc = "主题、Shiroha 模式、开屏图和应用图标。",
+                desc = "主题、卡片动画、Shiroha 模式、开屏图和应用图标。",
                 onClick = onOpenAppearancePreference
             )
             Spacer(Modifier.height(10.dp))
@@ -491,7 +491,7 @@ fun AppearancePreferenceScreen(
         ShirohaHeader(
             kicker = "Appearance",
             title = "外观偏好",
-            subtitle = "管理主题、Shiroha 模式、开屏图和应用图标。"
+            subtitle = "管理主题、卡片动画、Shiroha 模式、开屏图和应用图标。"
         )
 
         GlassCard {
@@ -506,6 +506,13 @@ fun AppearancePreferenceScreen(
             ThemeChoiceRow(
                 darkThemeEnabled = QuizRepository.darkThemeEnabled,
                 onThemeChange = { enabled -> QuizRepository.setDarkThemeEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "卡片动画",
+                desc = "显示卡片轻微淡入上移动画；如果设备性能较弱或遇到页面卡顿，可尝试关闭。",
+                checked = QuizRepository.cardAnimationEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setCardAnimationEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(

@@ -206,6 +206,7 @@ object QuizRepository {
     private const val KEY_EXAM_PREFERRED_TYPE_SCORES = "exam_preferred_type_scores"
     private const val KEY_STARTUP_SPLASH_ENABLED = "startup_splash_enabled"
     private const val KEY_DARK_THEME_ENABLED = "dark_theme_enabled"
+    private const val KEY_CARD_ANIMATION_ENABLED = "card_animation_enabled"
     private const val KEY_SHIROHA_MODE_ENABLED = "shiroha_mode_enabled"
     private const val KEY_TABLET_SIDE_NAVIGATION_ENABLED = "tablet_side_navigation_enabled"
     private const val KEY_QUESTION_ID_INTEGRITY_MIGRATION_VERSION = "question_id_integrity_migration_version"
@@ -314,6 +315,8 @@ object QuizRepository {
     var startupSplashEnabled by mutableStateOf(true)
         private set
     var darkThemeEnabled by mutableStateOf(false)
+        private set
+    var cardAnimationEnabled by mutableStateOf(true)
         private set
     var shirohaModeEnabled by mutableStateOf(false)
         private set
@@ -519,6 +522,7 @@ object QuizRepository {
         preferredExamTypeScoresText = prefs.getString(KEY_EXAM_PREFERRED_TYPE_SCORES, "") ?: ""
         startupSplashEnabled = prefs.getBoolean(KEY_STARTUP_SPLASH_ENABLED, true)
         darkThemeEnabled = prefs.getBoolean(KEY_DARK_THEME_ENABLED, false)
+        cardAnimationEnabled = prefs.getBoolean(KEY_CARD_ANIMATION_ENABLED, true)
         shirohaModeEnabled = prefs.getBoolean(KEY_SHIROHA_MODE_ENABLED, false)
         tabletSideNavigationEnabled = prefs.getBoolean(KEY_TABLET_SIDE_NAVIGATION_ENABLED, false)
         questionFontSizeMode = normalizeReadingSizeMode(prefs.getString(KEY_QUESTION_FONT_SIZE_MODE, "standard"))
@@ -1680,6 +1684,12 @@ object QuizRepository {
     fun setDarkThemeEnabled(context: Context, enabled: Boolean) {
         appContext = context.applicationContext
         darkThemeEnabled = enabled
+        persist()
+    }
+
+    fun setCardAnimationEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        cardAnimationEnabled = enabled
         persist()
     }
 
@@ -4079,6 +4089,7 @@ object QuizRepository {
             .putString(KEY_EXAM_PREFERRED_TYPE_SCORES, preferredExamTypeScoresText)
             .putBoolean(KEY_STARTUP_SPLASH_ENABLED, startupSplashEnabled)
             .putBoolean(KEY_DARK_THEME_ENABLED, darkThemeEnabled)
+            .putBoolean(KEY_CARD_ANIMATION_ENABLED, cardAnimationEnabled)
             .putBoolean(KEY_SHIROHA_MODE_ENABLED, shirohaModeEnabled)
             .putBoolean(KEY_TABLET_SIDE_NAVIGATION_ENABLED, tabletSideNavigationEnabled)
             .putString(KEY_QUESTION_FONT_SIZE_MODE, questionFontSizeMode)

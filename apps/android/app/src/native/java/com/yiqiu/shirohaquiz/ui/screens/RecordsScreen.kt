@@ -385,8 +385,7 @@ private fun RecordCard(
     val footerText = recordFooterText(record)
 
     GlassCard(
-        modifier = Modifier.shirohaNoRippleClickable(onClick = onClick),
-        animated = false
+        modifier = Modifier.shirohaNoRippleClickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),

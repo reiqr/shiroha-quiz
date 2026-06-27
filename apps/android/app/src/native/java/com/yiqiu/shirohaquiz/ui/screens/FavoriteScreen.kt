@@ -359,7 +359,7 @@ private fun FavoriteScopeOption(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FavoriteQuestionPreview(entry: FavoriteQuestionEntry) {
-    GlassCard(animated = false) {
+    GlassCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top

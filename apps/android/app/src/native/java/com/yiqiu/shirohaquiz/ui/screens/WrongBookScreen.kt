@@ -782,7 +782,7 @@ private fun WrongQuestionPreview(entry: WrongQuestionEntry) {
         )
     }
 
-    GlassCard(animated = false) {
+    GlassCard {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             StatusChip(displayWrongStatus(entry.status), selected = entry.status != WrongStatus.MASTERED.label)
             StatusChip(typeLabel(entry.question.type))

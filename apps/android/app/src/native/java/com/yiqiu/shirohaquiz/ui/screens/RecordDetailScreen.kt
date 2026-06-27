@@ -219,7 +219,7 @@ private fun QuestionResultCard(
     result: StudyQuestionResult
 ) {
     val question = result.question
-    GlassCard(animated = false) {
+    GlassCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
