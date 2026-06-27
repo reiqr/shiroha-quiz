@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.app.ShirohaAppShell
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
@@ -56,13 +59,27 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         QuizRepository.init(applicationContext)
         LauncherIconSwitcher.applyShirohaMode(applicationContext, QuizRepository.shirohaModeEnabled)
+        applyStatusBarTheme(QuizRepository.darkThemeEnabled)
         setContent {
-            ShirohaQuizTheme(darkTheme = QuizRepository.darkThemeEnabled) {
+            val darkTheme = QuizRepository.darkThemeEnabled
+            SideEffect {
+                applyStatusBarTheme(darkTheme)
+            }
+            ShirohaQuizTheme(darkTheme = darkTheme) {
                 ShirohaStartupGate {
                     ShirohaAppShell()
                 }
             }
         }
+    }
+
+    private fun applyStatusBarTheme(darkTheme: Boolean) {
+        window.statusBarColor = if (darkTheme) {
+            Color(0xFF0E1627).toArgb()
+        } else {
+            Color(0xFFF7F9FF).toArgb()
+        }
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !darkTheme
     }
 }
 
