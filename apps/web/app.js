@@ -1,5 +1,5 @@
 (function(){
-const APP_VERSION='V35：分组练习与学习体验优化版';
+const APP_VERSION='V36：OCR测试版';
 const RICH_CONTENT_VERSION_V57='shiroha-web-rich-v1';
 const BANK_DEFAULT_GROUP_V58='未分组';
 const CURRENT_SCHEMA_VERSION=1;
@@ -1614,7 +1614,7 @@ async function extractPdfText(file){
   const text=await extractPdfTextLite(data);
   const chars=text.replace(/\s/g,'').length;
   if(chars<20){
-    throw new Error('该 PDF 未提取到足够文字，可能是扫描版/图片版 PDF。当前版本只支持文字型 PDF；可先复制 PDF 文本粘贴导入，或等待后续 OCR 版本。');
+    throw new Error('该 PDF 未提取到足够文字，可能是扫描版/图片版 PDF。可先复制 PDF 文本粘贴导入，或使用导入页 OCR 测试功能转成可编辑文本 / DOCX 后再核对导入。');
   }
   return text.replace(/\n{3,}/g,'\n\n').trim();
 }

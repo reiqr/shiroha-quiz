@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#F6F7FB" />
-  <title>Shiroha Quiz - V35：分组练习与学习体验优化版</title>
+  <title>Shiroha Quiz - V36：OCR测试版</title>
   <link rel="icon" type="image/png" href="./app-icon.png" />
   <link rel="apple-touch-icon" href="./app-icon.png" />
   <link rel="preload" as="image" href="./media/peeking.webp" />
@@ -55,8 +55,8 @@
         <div class="hero-card dashboard-home-hero">
           <div class="dashboard-home-main">
             <p class="kicker">当前版本</p>
-            <h2 id="home-version-label">V35：分组练习与学习体验优化版</h2>
-            <p class="dashboard-home-desc">支持一级分组直接练习，并完善题库管理、学习记录与跨端数据兼容。</p><div id="home-practice-scope-v8916" class="practice-scope-summary-v8916 home-practice-scope-v8916"></div>
+            <h2 id="home-version-label">V36：OCR测试版</h2>
+            <p class="dashboard-home-desc">新增扫描 PDF 的 OCR 兜底识别，可生成可编辑文本、下载 DOCX，并继续进入题库导入预览。</p><div id="home-practice-scope-v8916" class="practice-scope-summary-v8916 home-practice-scope-v8916"></div>
             <div class="dashboard-action-grid" aria-label="首页快捷入口">
               <button type="button" class="dashboard-action-card blue" onclick="var n=document.querySelector('.nav[data-view=&quot;practice&quot;]');if(n)n.click();">
                 <span>开始刷题</span><small>顺序练习</small>
@@ -127,8 +127,8 @@
           <div class="section-head"><div><p class="kicker">Import</p><h2>单文件智能导入</h2></div><button id="load-sample-btn" class="ghost">填入示例</button></div>
           <div class="import-stage-panel">
             <div class="import-stage-copy">
-              <b>先导入，再核对，最后开始练习。</b>
-              <p>这一页优先保证清晰、稳定和适合手指操作。先上传题库，再在预览区确认识别结果，最后一键创建题库。</p>
+              <b>标准导入优先，扫描件再用 OCR 兜底。</b>
+              <p>Word、Excel、TXT、JSON 和文字层 PDF 会优先走普通导入；扫描 PDF 可先 OCR 成可编辑文本或 DOCX，再人工核对并导入题库。</p>
               <div class="import-stage-tags">
                 <span class="stage-tag active">1 导入文件</span>
                 <span class="stage-tag">2 核对结果</span>
@@ -145,16 +145,16 @@
             <label>解析策略<select id="import-strategy"><option value="auto" selected>自动推荐</option><option value="standard">标准逐行解析</option><option value="volume">分卷分区三层解析</option><option value="compact">紧凑格式解析</option></select></label>
             <label>上传文件<input id="import-file" type="file" accept=".txt,.json,.csv,.xlsx,.docx,.doc,.pdf" /></label>
           </div>
-          <textarea id="import-text" placeholder="把题库文本粘贴到这里，或上传 .docx / .xlsx / .csv / .txt / .json / 文字型 PDF 后导入。支持：A、选项(正确答案)、答案：D、答案：A/B/C、解析：……"></textarea>
+          <textarea id="import-text" placeholder="把题库文本粘贴到这里，或上传 .docx / .xlsx / .csv / .txt / .json / 文字层 PDF 后导入。扫描 PDF 请先使用下方 OCR 测试功能转成文本或 DOCX，再核对导入。支持：A、选项(正确答案)、答案：D、答案：A/B/C、解析：……"></textarea>
           <div class="ocr-panel hidden" id="ocr-panel">
             <div class="ocr-panel-head">
               <div>
                 <p class="kicker">OCR 扫描件兜底</p>
                 <h3>扫描 PDF 转文字 / DOCX</h3>
               </div>
-              <span class="ocr-badge">Web 实验功能</span>
+              <span class="ocr-badge">V36 OCR测试</span>
             </div>
-            <p class="muted">仅在文字层 PDF 提取失败或文字过少时使用。OCR 会先生成可编辑文本，建议人工核对后再导入题库。</p>
+            <p class="muted">仅建议在文字层 PDF 提取失败、扫描件或图片型 PDF 场景使用。OCR 会先生成可编辑文本，并可下载 DOCX；请人工核对后再导入题库。</p>
             <div class="ocr-options">
               <label>识别页数<input id="ocr-page-limit" type="number" min="1" max="200" value="20" /></label>
               <label>语言<select id="ocr-language"><option value="chi_sim+eng" selected>简体中文 + 英文</option><option value="chi_sim">简体中文</option><option value="eng">英文</option></select></label>
@@ -165,14 +165,14 @@
               <button id="ocr-copy-btn" class="ghost" type="button" disabled>复制 OCR 文本</button>
               <button id="ocr-download-docx-btn" class="ghost" type="button" disabled>下载 DOCX</button>
             </div>
-            <div class="notice" id="ocr-status">选择 PDF 后可使用 OCR。首次使用会加载 OCR 扩展资源，速度取决于设备性能。</div>
+            <div class="notice" id="ocr-status">选择 PDF 后可使用 OCR 测试功能。首次使用会加载 OCR 扩展资源，识别速度取决于设备性能。</div>
             <textarea id="ocr-result" class="ocr-result" placeholder="OCR 识别结果会显示在这里，可核对后填入导入文本或下载 DOCX。"></textarea>
           </div>
           <div class="actions import-actions-v51"><button id="parse-import-btn" class="primary">开始识别</button><button id="confirm-import-btn" class="primary" disabled>确认导入</button><button id="clear-import-btn" class="ghost">清空</button><span class="import-actions-spacer-v51" aria-hidden="true"></span><button id="find-replace-import-btn" class="ghost import-find-replace-trigger-v51" type="button">查找替换</button></div>
         </div>
         <div class="card">
           <div class="section-head"><div><p class="kicker">Dual File Import</p><h2>双文件导入：题目文件 + 答案文件</h2></div><button id="dual-load-sample-btn" class="ghost">填入双文件示例</button></div>
-          <p class="muted">适用于“一个文件只写题目，另一个文件只写答案”的试卷/答案卷。题目文件支持 .docx / .txt / .json / 文字型 .pdf；答案文件支持 .docx / .txt / 文字型 .pdf。文字型 PDF 使用本地文本提取能力，不依赖 OCR。</p>
+          <p class="muted">适用于“一个文件只写题目，另一个文件只写答案”的试卷/答案卷。题目文件支持 .docx / .txt / .json / 文字层 .pdf；答案文件支持 .docx / .txt / 文字层 .pdf。双文件导入仍建议使用文字层 PDF；扫描 PDF 请先在 OCR 测试区转成文本后再整理导入。</p>
           <div class="form-grid">
             <label>题目文件<input id="dual-question-file" type="file" accept=".txt,.json,.csv,.docx,.doc,.pdf" /></label>
             <label>答案文件<input id="dual-answer-file" type="file" accept=".txt,.csv,.docx,.doc,.pdf" /></label>
@@ -187,7 +187,7 @@
 
         <details class="card import-help import-help-details"><summary>查看导入格式说明</summary>
           <h2>支持的题库格式</h2>
-          <p>支持 Word / TXT / PDF / JSON 等常见题库来源。普通文本题库会进入识别流程；从 Shiroha Quiz 导出的完整备份 JSON/ZIP、题库集合 JSON 或配置文件，请到“设置/导出”页使用“导入备份 JSON/ZIP”，不要当作普通题库文本解析。</p>
+          <p>支持 Word / Excel / TXT / 普通题库 JSON / 文字层 PDF 等常见题库来源。普通题库会进入识别预览；扫描 PDF 可先用 OCR 测试功能转成可编辑文本或 DOCX，再人工核对后导入。从 Shiroha Quiz 导出的完整备份 JSON/ZIP、题库集合 JSON 或配置文件，请到“设置/导出”页使用“导入备份 JSON/ZIP”，不要当作普通题库文本解析。</p>
           <div class="help-grid">
             <div><b>单选题</b><code>1. 下列说法正确的是？
 A. 选项一
@@ -205,6 +205,9 @@ C. 判断题
             <div><b>双文件导入</b><code>题目文件：只放题目和选项
 答案文件：1. A / 2. ACD / 3. 正确
 系统会按题号或顺序匹配</code></div>
+            <div><b>OCR 测试</b><code>扫描 PDF → OCR 识别文本
+可复制文本 / 下载 DOCX
+核对后再填入导入文本</code></div>
             <div><b>备份 JSON</b><code>由“设置/导出”页导出的完整备份生成
 包含题库、错题本、收藏夹、记录和设置</code></div>
           </div>
