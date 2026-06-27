@@ -14,3 +14,15 @@ https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.min.mjs
 https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.worker.min.mjs
 
 注意：当前版本只支持文字型 PDF，不支持扫描版/图片版 PDF OCR。
+
+MathJax 本地加载说明
+
+公式渲染顺序：
+1. 优先加载本地文件：libs/mathjax/tex-mml-chtml.js
+2. 如果本地文件不存在，联网加载 CDN：jsDelivr 上的 mathjax@3
+3. 如果本地与 CDN 都不可用，公式会降级为基础文本显示
+
+本地 MathJax 来自官方 npm 包：
+- mathjax@3.2.2
+
+为保证离线公式渲染和字体加载稳定，mathjax/ 目录保留完整 es5 组件，不只保留入口 js。

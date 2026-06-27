@@ -73,6 +73,9 @@ assets/*.zip
 run-regression.ps1
 .gradle-user-home/
 
+# MathJax temp extraction
+.tmp-mathjax/
+
 # Private / personal
 docs/copyright/
 
