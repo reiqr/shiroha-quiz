@@ -60,6 +60,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -73,6 +74,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -577,10 +579,41 @@ fun ImportScreen(
     }
 
     val shouldPickAnswerFile = useDualImport && selectedFileName != "未选择文件"
+    val importScrollState = rememberScrollState()
+    var importViewportHeightPx by remember { mutableIntStateOf(0) }
+    var importTopContentHeightPx by remember { mutableIntStateOf(0) }
+    var importEditorHeaderHeightPx by remember { mutableIntStateOf(0) }
+    val importLayoutDensity = LocalDensity.current
+    val useAdaptiveInitialEditorHeight = !isImportBusy &&
+        !useDualImport &&
+        importResult == null &&
+        rawText.isBlank() &&
+        selectedFileName == "未选择文件"
+    val adaptiveInitialEditorHeight = if (
+        useAdaptiveInitialEditorHeight &&
+        importViewportHeightPx > 0 &&
+        importTopContentHeightPx > 0 &&
+        importEditorHeaderHeightPx > 0
+    ) {
+        with(importLayoutDensity) {
+            (importViewportHeightPx - importTopContentHeightPx - importEditorHeaderHeightPx).toDp()
+                .minus(ShirohaSpacing.Sm)
+                .minus(ShirohaSpacing.Xxl)
+                .minus(ShirohaSpacing.Lg)
+                .minus(ShirohaSpacing.Xl)
+                .minus(ShirohaSpacing.Xl)
+                .minus(12.dp)
+                .coerceAtLeast(104.dp)
+        }
+    } else {
+        104.dp
+    }
 
     Column(
         modifier = Modifier
-            .verticalScroll(rememberScrollState())
+            .fillMaxSize()
+            .onSizeChanged { importViewportHeightPx = it.height }
+            .verticalScroll(importScrollState)
             .padding(
                 start = ShirohaSpacing.Xl,
                 top = ShirohaSpacing.Sm,
@@ -589,15 +622,21 @@ fun ImportScreen(
             ),
         verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
     ) {
-        ShirohaHeader(
-            kicker = "Import",
-            title = "导入题库",
-            subtitle = ""
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged { importTopContentHeightPx = it.height },
+            verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
+        ) {
+            ShirohaHeader(
+                kicker = "Import",
+                title = "导入题库",
+                subtitle = ""
+            )
 
-        ImportStepHeroCard()
+            ImportStepHeroCard()
 
-        GlassCard {
+            GlassCard {
             Text(
                 text = "导入方式",
                 style = MaterialTheme.typography.titleLarge,
@@ -732,9 +771,10 @@ fun ImportScreen(
             }
         }
 
-        val generalStatusText = statusText.takeIf { it.isNotBlank() && !shouldShowAiStatusInImport(it) }
-        if (generalStatusText != null && (isStatusWarn || !isImportBusy)) {
-            NoticeCard(generalStatusText, warning = isStatusWarn)
+            val generalStatusText = statusText.takeIf { it.isNotBlank() && !shouldShowAiStatusInImport(it) }
+            if (generalStatusText != null && (isStatusWarn || !isImportBusy)) {
+                NoticeCard(generalStatusText, warning = isStatusWarn)
+            }
         }
 
         if (isImportBusy) {
@@ -759,7 +799,9 @@ fun ImportScreen(
                 val rawTextActionButtonWidth = 128.dp
                 val rawTextActionButtonHeight = ShirohaDimens.ActionButtonMinHeight
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onSizeChanged { importEditorHeaderHeightPx = it.height },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -815,7 +857,7 @@ fun ImportScreen(
                                 when {
                                     useDualImport -> 160.dp
                                     hasRawText || hasSelectedFile -> 190.dp
-                                    else -> 104.dp
+                                    else -> adaptiveInitialEditorHeight
                                 }
                             ),
                         enabled = true,
