@@ -35,7 +35,9 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -73,6 +75,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -288,6 +291,22 @@ fun PracticeScreen(
     val practiceAccuracy = if (practiceAutoScoredAnsweredCount == 0) 0 else practiceCorrectCount * 100 / practiceAutoScoredAnsweredCount
 
     val screenScrollState = rememberScrollState()
+    var practiceViewportHeightPx by remember { mutableIntStateOf(0) }
+    var practiceSetupTopHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val practiceSetupPanelMinHeight = if (
+        !isPracticeRunning && practiceViewportHeightPx > 0 && practiceSetupTopHeightPx > 0
+    ) {
+        with(density) {
+            (practiceViewportHeightPx - practiceSetupTopHeightPx).toDp()
+                .minus(ShirohaSpacing.Sm)
+                .minus(ShirohaSpacing.Xxl)
+                .minus(ShirohaSpacing.Lg)
+                .coerceAtLeast(0.dp)
+        }
+    } else {
+        0.dp
+    }
     LaunchedEffect(isPracticeRunning, practiceScopeKey) {
         if (!isPracticeRunning) {
             screenScrollState.scrollTo(0)
@@ -296,51 +315,69 @@ fun PracticeScreen(
 
     Column(
         modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { practiceViewportHeightPx = it.height }
             .verticalScroll(screenScrollState)
-            .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
+            .padding(
+                start = ShirohaSpacing.Xl,
+                top = ShirohaSpacing.Sm,
+                end = ShirohaSpacing.Xl,
+                bottom = ShirohaSpacing.Xxl
+            ),
         verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Sm)) {
-            Text(
-                text = "Practice",
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.labelLarge
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Column(
+            modifier = if (!isPracticeRunning) {
+                Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { practiceSetupTopHeightPx = it.height }
+            } else {
+                Modifier.fillMaxWidth()
+            },
+            verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Sm)) {
                 Text(
-                    text = "练习模式",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.SemiBold
+                    text = "Practice",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge
                 )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.Bottom
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isPracticeRunning && !isPracticeProgressExpanded) {
-                        PracticeAccuracyCapsule(
-                            accuracy = practiceAccuracy,
-                            modifier = Modifier.height(34.dp),
-                            onClick = { isPracticeProgressExpanded = true }
+                    Text(
+                        text = "练习模式",
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        if (isPracticeRunning && !isPracticeProgressExpanded) {
+                            PracticeAccuracyCapsule(
+                                accuracy = practiceAccuracy,
+                                modifier = Modifier.height(34.dp),
+                                onClick = { isPracticeProgressExpanded = true }
+                            )
+                        }
+                        ActionPillButton(
+                            icon = Icons.Rounded.Timer,
+                            text = "切换考试",
+                            primary = false,
+                            modifier = Modifier.height(44.dp),
+                            onClick = onGoExam
                         )
                     }
-                    ActionPillButton(
-                        icon = Icons.Rounded.Timer,
-                        text = "切换考试",
-                        primary = false,
-                        modifier = Modifier.height(44.dp),
-                        onClick = onGoExam
-                    )
                 }
             }
-        }
 
-        if (!isPracticeRunning) {
-            CompactPracticeSetupHero()
+            if (!isPracticeRunning) {
+                CompactPracticeSetupHero()
+            }
         }
 
         if (practiceCandidateQuestions.isEmpty()) {
@@ -352,6 +389,9 @@ fun PracticeScreen(
 
         if (QuizRepository.practiceQuestions.isEmpty()) {
             PracticeSetupPanel(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = practiceSetupPanelMinHeight),
                 bankName = practiceScopeLabel,
                 scopeSummary = practiceScopeSummary,
                 totalQuestions = practiceCandidateQuestions.size,
@@ -1346,6 +1386,7 @@ fun PracticeQuickEditScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PracticeSetupPanel(
+    modifier: Modifier = Modifier,
     bankName: String,
     scopeSummary: String,
     totalQuestions: Int,
@@ -1385,7 +1426,7 @@ private fun PracticeSetupPanel(
         mutableStateOf(sequentialCustomStartNumber.coerceIn(1, selectedAvailable.coerceAtLeast(1)).toString())
     }
 
-    GlassCard {
+    GlassCard(modifier = modifier) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),

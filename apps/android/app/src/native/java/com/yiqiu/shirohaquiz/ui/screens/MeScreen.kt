@@ -95,7 +95,12 @@ fun MeScreen(
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
+            .padding(
+                start = ShirohaSpacing.Xl,
+                top = ShirohaSpacing.Sm,
+                end = ShirohaSpacing.Xl,
+                bottom = ShirohaSpacing.Xxl
+            ),
         verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -159,42 +164,42 @@ fun MeScreen(
             FeaturePlanStrip(
                 icon = Icons.Rounded.Tune,
                 title = "刷题偏好",
-                desc = "默认答题方式、每组题数和切题习惯。",
+                desc = "答题方式、组题与切题设置。",
                 onClick = onOpenPracticePreference
             )
             Spacer(Modifier.height(10.dp))
             FeaturePlanStrip(
                 icon = Icons.Rounded.FactCheck,
                 title = "错题本",
-                desc = "错题收录、掌握判定与智能复习。",
+                desc = "错题收录、掌握与智能复习。",
                 onClick = onOpenWrongBookPreference
             )
             Spacer(Modifier.height(10.dp))
             FeaturePlanStrip(
                 icon = Icons.Rounded.AutoAwesome,
                 title = "AI 设置",
-                desc = "接口、AI重构、AI核对、AI解析和处理限制。",
+                desc = "接口配置、导入辅助与题目分析。",
                 onClick = onOpenAiSettings
             )
             Spacer(Modifier.height(10.dp))
             FeaturePlanStrip(
                 icon = Icons.Rounded.Save,
                 title = "数据管理",
-                desc = "导入、导出、备份和清除本地数据。",
+                desc = "题库导入导出、备份与清理。",
                 onClick = onOpenDataManagement
             )
             Spacer(Modifier.height(10.dp))
             FeaturePlanStrip(
                 icon = Icons.Rounded.Article,
                 title = "标准导入格式",
-                desc = "查看题库文本、答案和解析的推荐写法。",
+                desc = "查看题库、答案与解析格式。",
                 onClick = onOpenStandardFormat
             )
             Spacer(Modifier.height(10.dp))
             FeaturePlanStrip(
                 icon = Icons.Rounded.Description,
                 title = "关于 Shiroha Quiz",
-                desc = "项目地址、版本说明和开源信息。",
+                desc = "版本、项目与开源信息。",
                 onClick = onOpenAbout
             )
         }
@@ -491,7 +496,7 @@ fun AppearancePreferenceScreen(
         ShirohaHeader(
             kicker = "Appearance",
             title = "外观偏好",
-            subtitle = "管理主题、卡片动画、Shiroha 模式、开屏图和应用图标。"
+            subtitle = "管理主题、动画、插画和阅读显示。"
         )
 
         GlassCard {
@@ -510,22 +515,22 @@ fun AppearancePreferenceScreen(
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "卡片动画",
-                desc = "显示卡片轻微淡入上移动画；如果设备性能较弱或遇到页面卡顿，可尝试关闭。",
+                desc = "卡片淡入上移；设备卡顿时可关闭。",
                 checked = QuizRepository.cardAnimationEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setCardAnimationEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "Shiroha 模式",
-                desc = "显示开屏图、页面插画并切换 Shiroha 图标。",
+                desc = "显示开屏图、页面插画和 Shiroha 图标。",
                 checked = QuizRepository.shirohaModeEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setShirohaModeEnabled(context, enabled) }
             )
             if (QuizRepository.shirohaModeEnabled) {
                 Spacer(Modifier.height(12.dp))
                 PreferenceSwitchRow(
-                    title = "保留开屏启动图片",
-                    desc = "开启后下次启动显示学习主题开屏图。",
+                    title = "启动开屏图",
+                    desc = "下次启动时显示学习主题开屏图。",
                     checked = QuizRepository.startupSplashEnabled,
                     onCheckedChange = { enabled -> QuizRepository.setStartupSplashEnabled(context, enabled) }
                 )
@@ -533,13 +538,13 @@ fun AppearancePreferenceScreen(
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "平板侧边导航",
-                desc = "开启后可在较宽屏幕上将底部导航移到左侧。",
+                desc = "宽屏设备将底部导航移至左侧。",
                 checked = QuizRepository.tabletSideNavigationEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setTabletSideNavigationEnabled(context, enabled) }
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "提示：部分桌面可能会缓存应用图标，切换后可能需要稍等片刻才刷新。",
+                text = "图标切换可能因桌面缓存延迟生效。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -559,21 +564,21 @@ fun AppearancePreferenceScreen(
             Spacer(Modifier.height(12.dp))
             ReadingSizeChoiceRow(
                 title = "题干字号",
-                desc = "调整练习和考试中的题干阅读大小。",
+                desc = "调整练习和考试的题干大小。",
                 currentMode = QuizRepository.questionFontSizeMode,
                 onSelect = { mode -> QuizRepository.setQuestionFontSizeMode(context, mode) }
             )
             Spacer(Modifier.height(14.dp))
             ReadingSizeChoiceRow(
                 title = "选项字号",
-                desc = "调整练习和考试中的选项文字大小。",
+                desc = "调整练习和考试的选项大小。",
                 currentMode = QuizRepository.optionFontSizeMode,
                 onSelect = { mode -> QuizRepository.setOptionFontSizeMode(context, mode) }
             )
             Spacer(Modifier.height(14.dp))
             PreferenceSwitchRow(
                 title = "紧凑选项模式",
-                desc = "减少选项卡片背景和间距，适合长题快速阅读。",
+                desc = "减少选项背景和间距，适合长题。",
                 checked = QuizRepository.compactOptionsEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setCompactOptionsEnabled(context, enabled) }
             )
@@ -643,16 +648,15 @@ fun WrongBookPreferenceScreen(
         ShirohaHeader(
             kicker = "Wrong Book",
             title = "错题本",
-            subtitle = "管理错题收录、掌握判定和智能复习。"
+            subtitle = "管理错题收录、掌握和智能复习。"
         )
 
         WrongBookExplanationCard(
             icon = Icons.Rounded.FactCheck,
             title = "默认错题本逻辑",
             paragraphs = listOf(
-                "练习、考试和错题复习中答错的题会自动进入错题本。错题本会保留“错 X 次 / 对 Y 次”的历史累计表现。",
-                "连续答对 2 次后，题目会自动标记为已掌握；后续再次答错会清零连续正确次数，并回到未掌握。",
-                "背题模式不会加入错题，也不会推进掌握进度。斩题是用户主动移出普通练习池，不等同于已掌握。"
+                "练习、考试和错题复习中答错的题会自动收录，并累计答错、答对次数。",
+                "连续答对 2 次标记为已掌握；再次答错则回到未掌握。背题不计入，斩题不等于已掌握。"
             )
         )
 
@@ -665,17 +669,11 @@ fun WrongBookPreferenceScreen(
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "错题练习高级设置",
-                desc = "开启后可筛选题型并设置单次复习数量；关闭后使用原来的简洁练习面板。",
+                desc = "开启后可筛选题型和题量；关闭后默认练习当前范围内全部可用错题。",
                 checked = QuizRepository.wrongBookAdvancedReviewSettingsEnabled,
                 onCheckedChange = { enabled ->
                     QuizRepository.setWrongBookAdvancedReviewSettingsEnabled(context, enabled)
                 }
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = "关闭后仍保留题库范围、掌握筛选、排序和今日复习，并默认复习当前筛选下的全部题型与全部可练习错题。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -683,9 +681,8 @@ fun WrongBookPreferenceScreen(
             icon = Icons.Rounded.AutoAwesome,
             title = "智能复习逻辑",
             paragraphs = listOf(
-                "开启后，错题本会根据答题表现安排今日待复习题目。未掌握题会更频繁出现，已掌握题会进入较长间隔回顾。",
-                "如果复习中再次答错，题目会回到未掌握，并提前进入后续复习；连续答对后会逐步拉长复习间隔。",
-                "开启后，错题本会显示今日复习入口，首页学习状态中的复习数量也会切换为同一套今日待复习数量。普通练习和考试仍保持原流程，但答题结果会同步更新错题复习计划。"
+                "根据答题表现安排今日复习：未掌握题更频繁，已掌握题逐步延长间隔。",
+                "再次答错会回到未掌握；首页待复习数量与错题本同步。"
             )
         )
 
@@ -704,7 +701,7 @@ fun WrongBookPreferenceScreen(
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "关闭后，错题本仍按原有规则统计与判定掌握。",
+                text = "关闭后仍保留错题统计和掌握判定。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -771,7 +768,7 @@ fun PracticePreferenceScreen(
         ShirohaHeader(
             kicker = "Practice",
             title = "刷题偏好",
-            subtitle = "管理默认答题方式、每组题数和练习交互。"
+            subtitle = "管理答题方式、组题与练习交互。"
         )
 
         GlassCard {
@@ -785,28 +782,28 @@ fun PracticePreferenceScreen(
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "记住上次练习设置",
-                desc = "进入练习页时恢复上次题量、题型、组题方式和答题方式。",
+                desc = "恢复上次题量、题型、组题和答题方式。",
                 checked = QuizRepository.rememberPracticeSettingsEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setRememberPracticeSettingsEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "记住上次考试设置",
-                desc = "进入考试页时恢复上次题量、时长和组题方式。",
+                desc = "恢复上次题量、时长和组题方式。",
                 checked = QuizRepository.rememberExamSettingsEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setRememberExamSettingsEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "启用滑动切题",
-                desc = "在练习页和考试页左滑下一题、右滑上一题。",
+                desc = "练习和考试中左滑下一题，右滑上一题。",
                 checked = QuizRepository.swipeNavigationEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setSwipeNavigationEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "选择后立即判题",
-                desc = "仅即时练习生效。单选题和判断题选择后立即显示对错、答案和解析。",
+                desc = "仅即时练习：单选、判断选后立即判题。",
                 checked = QuizRepository.practiceAutoSubmitEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeAutoSubmitEnabled(context, enabled) }
             )
@@ -820,49 +817,49 @@ fun PracticePreferenceScreen(
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "批量做题自动切题",
-                desc = "批量做题时，单选题和判断题选择后自动进入本组下一题，不会立即判题或提交。",
+                desc = "单选、判断选后进入本组下一题，不判题、不提交。",
                 checked = QuizRepository.practiceBatchAutoNextEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeBatchAutoNextEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "练习页答题方式切换",
-                desc = "显示即时反馈、批量做题和每组题数。",
+                desc = "练习页显示答题方式和每组题数设置。",
                 checked = QuizRepository.practiceInlineAnswerSettingsEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeInlineAnswerSettingsEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "背题模式",
-                desc = "进入练习后直接显示答案和解析，不提交答案，不计入正确率和错题。",
+                desc = "直接显示答案与解析，不提交、不计成绩或错题。",
                 checked = QuizRepository.practiceReciteModeEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeReciteModeEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "斩题功能",
-                desc = "开启后练习页显示斩题按钮，可将已掌握题移出后续练习。",
+                desc = "显示斩题按钮，将已掌握题移出后续练习。",
                 checked = QuizRepository.practiceSlashEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeSlashEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "题目快速编辑",
-                desc = "练习时可从题目右上角直接修改当前题目。",
+                desc = "练习时可直接编辑当前题目。",
                 checked = QuizRepository.practiceQuickEditEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeQuickEditEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
-                title = "练习时打乱选项顺序",
-                desc = "固定显示 A/B/C/D，仅随机对应的选项内容；本次练习内顺序固定，不影响题库原始答案。",
+                title = "练习打乱选项",
+                desc = "只打乱选项内容，字母和原始答案不变。",
                 checked = QuizRepository.practiceOptionShuffleEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeOptionShuffleEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
-                title = "考试时打乱选项顺序",
-                desc = "固定显示 A/B/C/D，仅随机对应的选项内容；同一场考试内顺序固定，不影响题库原始答案和考试记录。",
+                title = "考试打乱选项",
+                desc = "只打乱选项内容，字母、答案和记录不变。",
                 checked = QuizRepository.examOptionShuffleEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setExamOptionShuffleEnabled(context, enabled) }
             )
@@ -945,7 +942,7 @@ fun PracticePreferenceScreen(
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "批量做题时每组提交一次。",
+                text = "每组统一提交。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -954,7 +951,7 @@ fun PracticePreferenceScreen(
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
                 title = "限制练习下一题",
-                desc = "提交答案或查看解析后，才能进入下一题。",
+                desc = "提交答案或查看解析后才能切题。",
                 checked = QuizRepository.practiceNextRequiresResult,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeNextRequiresResult(context, enabled) }
             )
@@ -1012,7 +1009,7 @@ fun AiSettingsScreen(
         ShirohaHeader(
             kicker = "AI",
             title = "AI 设置",
-            subtitle = "管理导入核对、题目页分析和接口配置"
+            subtitle = "配置接口及导入、题目页的 AI 辅助功能"
         )
 
         AiSettingsPanel(context = context)
@@ -1045,7 +1042,7 @@ private fun AiSettingsPanel(context: Context) {
     if (showClearAiConfigConfirm) {
         ShirohaDangerConfirmDialog(
             title = "确认清除 AI 配置？",
-            message = "这会清除当前保存的 API 地址、API Key 和模型名称，并关闭所有 AI 功能开关。清除后需要重新填写才能继续使用 AI。",
+            message = "这会清除 API 地址、API Key 和模型名称，并关闭所有 AI 功能。之后需重新配置才能继续使用。",
             confirmText = "确认清除",
             onDismiss = { showClearAiConfigConfirm = false },
             onConfirm = {
@@ -1188,56 +1185,49 @@ private fun AiSettingsPanel(context: Context) {
 
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "AI 辅助策略",
+            text = "AI 辅助功能",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(Modifier.height(10.dp))
         PreferenceSwitchRow(
             title = "启用 AI 重构",
-            desc = "题量异常、切题混乱时，根据原文重整待核对结果。",
+            desc = "导入结果出现题量或切题异常时，先清洗原文并重新解析，必要时采用 AI 重构结果。",
             checked = QuizRepository.aiRefactorEnabled,
             onCheckedChange = { enabled -> QuizRepository.setAiRefactorEnabled(context, enabled) }
         )
         Spacer(Modifier.height(10.dp))
         PreferenceSwitchRow(
             title = "启用 AI 核对",
-            desc = "检查题型、答案、选项和解析异常。",
+            desc = "检查导入结果的题型、答案、选项和解析，只生成核对提示与建议。",
             checked = QuizRepository.aiReviewEnabled,
             onCheckedChange = { enabled -> QuizRepository.setAiReviewEnabled(context, enabled) }
         )
         Spacer(Modifier.height(10.dp))
         PreferenceSwitchRow(
             title = "启用导入页 AI 解析",
-            desc = "导入核对阶段，优先为缺少解析或解析过短的题目生成建议。",
+            desc = "为缺少或过短的解析生成内容，并写入导入页待核对结果。",
             checked = QuizRepository.aiAnalysisEnabled,
             onCheckedChange = { enabled -> QuizRepository.setAiAnalysisEnabled(context, enabled) }
         )
         Spacer(Modifier.height(10.dp))
         PreferenceSwitchRow(
             title = "启用题目页 AI 分析",
-            desc = "练习提交后显示单题 AI 分析入口，AI 只给参考答案和解析，不自动修改题库。",
+            desc = "答题结果显示后或背题模式中，可请求单题参考分析；不会修改题库。",
             checked = QuizRepository.aiSingleQuestionAnalysisEnabled,
             onCheckedChange = { enabled -> QuizRepository.setAiSingleQuestionAnalysisEnabled(context, enabled) }
         )
         Spacer(Modifier.height(10.dp))
         PreferenceSwitchRow(
-            title = "仅处理异常题",
-            desc = "减少请求数量，优先处理导入异常和疑似错误。",
+            title = "优先处理异常题",
+            desc = "AI 核对仅处理异常题；AI 解析优先异常题，无目标时处理其他缺解析题。",
             checked = QuizRepository.aiOnlyAnomaly,
             onCheckedChange = { enabled -> QuizRepository.setAiOnlyAnomaly(context, enabled) }
-        )
-        Spacer(Modifier.height(10.dp))
-        PreferenceSwitchRow(
-            title = "结果需人工确认",
-            desc = "AI 结果只作为建议，不直接写入题库。",
-            checked = QuizRepository.aiRequireConfirm,
-            onCheckedChange = { enabled -> QuizRepository.setAiRequireConfirm(context, enabled) }
         )
 
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "成本与安全",
+            text = "处理限制与提示",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
@@ -1262,14 +1252,14 @@ private fun AiSettingsPanel(context: Context) {
         OutlinedTextField(
             value = refactorMaxChars,
             onValueChange = { value -> refactorMaxChars = value.filter { it.isDigit() }.take(5) },
-            label = { Text("AI重构原文上限") },
+            label = { Text("重构原文上限") },
             placeholder = { Text("30000") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "保存范围：单次题数 5–100，超时 15–180 秒，AI重构原文上限 5000–80000 字；超出范围会自动修正。",
+            text = "可设置范围：单次 5–100 题，超时 15–180 秒，重构原文上限 5000–80000 字；保存时超出范围会自动调整。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1288,7 +1278,7 @@ private fun AiSettingsPanel(context: Context) {
                 maxQuestions = QuizRepository.aiMaxQuestions.toString()
                 timeoutSeconds = QuizRepository.aiTimeoutSeconds.toString()
                 refactorMaxChars = QuizRepository.aiRefactorMaxChars.toString()
-                limitStatusText = "处理限制已保存：单次 ${QuizRepository.aiMaxQuestions} 题，超时 ${QuizRepository.aiTimeoutSeconds} 秒，AI重构原文上限 ${QuizRepository.aiRefactorMaxChars} 字。"
+                limitStatusText = "处理限制已保存：单次 ${QuizRepository.aiMaxQuestions} 题，超时 ${QuizRepository.aiTimeoutSeconds} 秒，重构原文上限 ${QuizRepository.aiRefactorMaxChars} 字。"
             }
         ) {
             Text("保存处理限制")
@@ -1303,7 +1293,7 @@ private fun AiSettingsPanel(context: Context) {
         }
         Spacer(Modifier.height(8.dp))
         NoticeCard(
-            text = "AI 功能会消耗接口额度。AI 重构会优先清洗原文并重新本地解析，必要时才使用 AI 直接重构题目；原文不足上限时会全部发送。AI 核对只生成核对提示；AI 解析会写入待核对解析，最终仍需手动保存题库。",
+            text = "AI 功能会消耗接口额度。AI 重构会先清洗原文并重新本地解析，必要时采用 AI 重构结果；未超过上限的原文可能整体发送给所配置的 AI 服务。AI 核对只生成问题提示和建议；AI 解析会写入导入页待核对内容。所有结果都应人工检查后再保存题库。",
             warning = false
         )
     }

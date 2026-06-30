@@ -581,7 +581,12 @@ fun ImportScreen(
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
+            .padding(
+                start = ShirohaSpacing.Xl,
+                top = ShirohaSpacing.Sm,
+                end = ShirohaSpacing.Xl,
+                bottom = ShirohaSpacing.Xxl
+            ),
         verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
     ) {
         ShirohaHeader(
