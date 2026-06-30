@@ -170,7 +170,6 @@ fun ExamScreen(
 
     val examQuestion = QuizRepository.currentExamQuestion()
     val examSummary = QuizRepository.examSummary()
-    val examAutoNextScope = rememberCoroutineScope()
 
     if (QuizRepository.examQuestions.isNotEmpty() && !QuizRepository.examFinished) {
         LaunchedEffect(QuizRepository.examRemainingSeconds, QuizRepository.examFinished) {
@@ -725,6 +724,7 @@ private fun ActiveExamPanel(
     var showAnswerCard by remember { mutableStateOf(false) }
     var showSubmitConfirm by remember { mutableStateOf(false) }
     var showExitConfirm by remember { mutableStateOf(false) }
+    val examAutoNextScope = rememberCoroutineScope()
     val answeredCount = QuizRepository.examAnsweredCount()
     val unansweredCount = QuizRepository.examQuestions.size - answeredCount
     val displayOptions = remember(
