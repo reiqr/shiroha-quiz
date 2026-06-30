@@ -152,7 +152,7 @@ fun MeScreen(
             FeaturePlanStrip(
                 icon = Icons.Rounded.DarkMode,
                 title = "外观偏好",
-                desc = "主题、卡片动画、Shiroha 模式、开屏图和应用图标。",
+                desc = "主题、动画、开屏图和图标。",
                 onClick = onOpenAppearancePreference
             )
             Spacer(Modifier.height(10.dp))
@@ -819,8 +819,8 @@ fun PracticePreferenceScreen(
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
-                title = "批量选后自动下一题",
-                desc = "单选和判断选后自动切题。",
+                title = "批量做题自动切题",
+                desc = "批量做题时，单选题和判断题选择后自动进入本组下一题，不会立即判题或提交。",
                 checked = QuizRepository.practiceBatchAutoNextEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeBatchAutoNextEnabled(context, enabled) }
             )
