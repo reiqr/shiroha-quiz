@@ -145,7 +145,7 @@ fun ImportScreen(
     var reviewFilterListFocusTick by rememberSaveable { mutableStateOf(0) }
     var reviewFilterName by rememberSaveable { mutableStateOf(ReviewFilter.ALL.name) }
     var statusText by rememberSaveable {
-        mutableStateOf("请选择题库文件。")
+        mutableStateOf("")
     }
     var isStatusWarn by rememberSaveable { mutableStateOf(false) }
     var useDualImport by rememberSaveable { mutableStateOf(false) }
@@ -727,7 +727,7 @@ fun ImportScreen(
             }
         }
 
-        val generalStatusText = statusText.takeIf { !shouldShowAiStatusInImport(it) }
+        val generalStatusText = statusText.takeIf { it.isNotBlank() && !shouldShowAiStatusInImport(it) }
         if (generalStatusText != null && (isStatusWarn || !isImportBusy)) {
             NoticeCard(generalStatusText, warning = isStatusWarn)
         }
