@@ -185,6 +185,7 @@ object QuizRepository {
     private const val KEY_PRACTICE_SLASH_ENABLED = "practice_slash_enabled"
     private const val KEY_PRACTICE_QUICK_EDIT_ENABLED = "practice_quick_edit_enabled"
     private const val KEY_PRACTICE_OPTION_SHUFFLE_ENABLED = "practice_option_shuffle_enabled"
+    private const val KEY_EXAM_AUTO_NEXT_ENABLED = "exam_auto_next_enabled"
     private const val KEY_EXAM_OPTION_SHUFFLE_ENABLED = "exam_option_shuffle_enabled"
     private const val KEY_WRONG_BOOK_SMART_REVIEW_ENABLED = "wrong_book_smart_review_enabled"
     private const val KEY_WRONG_BOOK_SCOPE_MODE = "wrong_book_scope_mode"
@@ -278,6 +279,8 @@ object QuizRepository {
     var practiceQuickEditEnabled by mutableStateOf(false)
         private set
     var practiceOptionShuffleEnabled by mutableStateOf(false)
+        private set
+    var examAutoNextEnabled by mutableStateOf(false)
         private set
     var examOptionShuffleEnabled by mutableStateOf(false)
         private set
@@ -485,6 +488,7 @@ object QuizRepository {
         practiceSlashEnabled = prefs.getBoolean(KEY_PRACTICE_SLASH_ENABLED, false)
         practiceQuickEditEnabled = prefs.getBoolean(KEY_PRACTICE_QUICK_EDIT_ENABLED, false)
         practiceOptionShuffleEnabled = prefs.getBoolean(KEY_PRACTICE_OPTION_SHUFFLE_ENABLED, false)
+        examAutoNextEnabled = prefs.getBoolean(KEY_EXAM_AUTO_NEXT_ENABLED, false)
         examOptionShuffleEnabled = prefs.getBoolean(KEY_EXAM_OPTION_SHUFFLE_ENABLED, false)
         wrongBookSmartReviewEnabled = prefs.getBoolean(KEY_WRONG_BOOK_SMART_REVIEW_ENABLED, false)
         wrongBookScopeMode = normalizeWrongBookScopeMode(
@@ -1563,6 +1567,12 @@ object QuizRepository {
     fun setPracticeOptionShuffleEnabled(context: Context, enabled: Boolean) {
         appContext = context.applicationContext
         practiceOptionShuffleEnabled = enabled
+        persist()
+    }
+
+    fun setExamAutoNextEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        examAutoNextEnabled = enabled
         persist()
     }
 
@@ -4094,6 +4104,7 @@ object QuizRepository {
             .putBoolean(KEY_PRACTICE_SLASH_ENABLED, practiceSlashEnabled)
             .putBoolean(KEY_PRACTICE_QUICK_EDIT_ENABLED, practiceQuickEditEnabled)
             .putBoolean(KEY_PRACTICE_OPTION_SHUFFLE_ENABLED, practiceOptionShuffleEnabled)
+            .putBoolean(KEY_EXAM_AUTO_NEXT_ENABLED, examAutoNextEnabled)
             .putBoolean(KEY_EXAM_OPTION_SHUFFLE_ENABLED, examOptionShuffleEnabled)
             .putBoolean(KEY_WRONG_BOOK_SMART_REVIEW_ENABLED, wrongBookSmartReviewEnabled)
             .putString(KEY_WRONG_BOOK_SCOPE_MODE, wrongBookScopeMode)

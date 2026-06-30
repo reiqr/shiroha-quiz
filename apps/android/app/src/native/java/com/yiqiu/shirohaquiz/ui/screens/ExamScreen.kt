@@ -170,6 +170,7 @@ fun ExamScreen(
 
     val examQuestion = QuizRepository.currentExamQuestion()
     val examSummary = QuizRepository.examSummary()
+    val examAutoNextScope = rememberCoroutineScope()
 
     if (QuizRepository.examQuestions.isNotEmpty() && !QuizRepository.examFinished) {
         LaunchedEffect(QuizRepository.examRemainingSeconds, QuizRepository.examFinished) {
@@ -873,10 +874,25 @@ private fun ActiveExamPanel(
                             answer.trim().equals(option.originalKey, ignoreCase = true)
                         },
                         onClick = {
+                            val answerQuestionId = examQuestion.id
+                            val answerQuestionIndex = QuizRepository.examIndex
                             QuizRepository.toggleExamAnswer(
                                 key = option.originalKey,
                                 multiple = examQuestion.type == QuestionType.MULTIPLE
                             )
+                            val shouldAutoNext = QuizRepository.examAutoNextEnabled &&
+                                (examQuestion.type == QuestionType.SINGLE || examQuestion.type == QuestionType.JUDGE) &&
+                                answerQuestionIndex < QuizRepository.examQuestions.lastIndex
+                            if (shouldAutoNext) {
+                                examAutoNextScope.launch {
+                                    delay(180)
+                                    val stillOnAnsweredQuestion = QuizRepository.examIndex == answerQuestionIndex &&
+                                        QuizRepository.currentExamQuestion()?.id == answerQuestionId
+                                    if (stillOnAnsweredQuestion && !QuizRepository.examFinished) {
+                                        QuizRepository.nextExamQuestion()
+                                    }
+                                }
+                            }
                         }
                     )
                     Spacer(Modifier.height(if (QuizRepository.compactOptionsEnabled) 8.dp else 10.dp))

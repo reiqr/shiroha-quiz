@@ -858,6 +858,13 @@ fun PracticePreferenceScreen(
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
+                title = "考试自动切题",
+                desc = "单选、判断选后进入下一题；最后一题不会自动交卷。",
+                checked = QuizRepository.examAutoNextEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setExamAutoNextEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
                 title = "考试打乱选项",
                 desc = "只打乱选项内容，字母、答案和记录不变。",
                 checked = QuizRepository.examOptionShuffleEnabled,
