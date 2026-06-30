@@ -719,12 +719,12 @@ private fun ActiveExamPanel(
     examStatusExpanded: Boolean,
     onExamStatusExpandedChange: (Boolean) -> Unit
 ) {
+    val examAutoNextScope = rememberCoroutineScope()
     val examQuestion = QuizRepository.currentExamQuestion() ?: return
     val questionType = examQuestion.type
     var showAnswerCard by remember { mutableStateOf(false) }
     var showSubmitConfirm by remember { mutableStateOf(false) }
     var showExitConfirm by remember { mutableStateOf(false) }
-    val examAutoNextScope = rememberCoroutineScope()
     val answeredCount = QuizRepository.examAnsweredCount()
     val unansweredCount = QuizRepository.examQuestions.size - answeredCount
     val displayOptions = remember(
