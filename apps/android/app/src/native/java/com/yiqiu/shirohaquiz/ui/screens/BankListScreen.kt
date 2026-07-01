@@ -186,7 +186,7 @@ fun BankListScreen(
             subtitle = "管理题库和练习范围。",
             imageRes = R.drawable.illus_bank_manage_hint_webp,
             modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
-            imageSize = ShirohaDimens.HeroImageFrameSize
+            imageSize = ShirohaDimens.HeroImageSize
         )
 
         GlassCard(contentPadding = 16.dp) {

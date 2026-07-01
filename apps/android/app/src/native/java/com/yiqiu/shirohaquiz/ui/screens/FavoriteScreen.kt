@@ -144,7 +144,7 @@ fun FavoriteScreen(
                 subtitle = "集中查看和练习收藏题。",
                 imageRes = R.drawable.illus_favorite_hint_webp,
                 modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
-                imageSize = ShirohaDimens.HeroImageFrameSize
+                imageSize = ShirohaDimens.HeroImageSize
             )
 
             GlassCard {
