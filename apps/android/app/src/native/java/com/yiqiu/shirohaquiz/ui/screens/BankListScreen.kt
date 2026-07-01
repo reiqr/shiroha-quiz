@@ -45,17 +45,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.DEFAULT_BANK_GROUP_NAME
 import com.yiqiu.shirohaquiz.state.QuizBank
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
+import com.yiqiu.shirohaquiz.ui.components.IllustrationHeroCard
 import com.yiqiu.shirohaquiz.ui.components.ShirohaDangerConfirmDialog
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.components.shirohaNoRippleClickable
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 import com.yiqiu.shirohaquiz.ui.util.bankDisplayPath
@@ -175,7 +178,15 @@ fun BankListScreen(
         ShirohaHeader(
             kicker = "Banks",
             title = "题库管理",
-            subtitle = "管理当前题库与默认练习范围。"
+            subtitle = ""
+        )
+
+        IllustrationHeroCard(
+            title = "整理题库",
+            subtitle = "管理题库和练习范围。",
+            imageRes = R.drawable.illus_bank_manage_hint_webp,
+            modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
+            imageSize = ShirohaDimens.HeroImageFrameSize
         )
 
         GlassCard(contentPadding = 16.dp) {

@@ -41,19 +41,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.state.DEFAULT_BANK_GROUP_NAME
 import com.yiqiu.shirohaquiz.state.FavoriteQuestionEntry
 import com.yiqiu.shirohaquiz.state.QuizBank
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
+import com.yiqiu.shirohaquiz.ui.components.EmptyStateIllustration
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
+import com.yiqiu.shirohaquiz.ui.components.IllustrationHeroCard
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.components.shirohaNoRippleClickable
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
+import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 import java.text.SimpleDateFormat
@@ -113,24 +117,36 @@ fun FavoriteScreen(
         ShirohaHeader(
             kicker = "Favorites",
             title = "收藏夹",
-            subtitle = "集中查看和练习你主动标记的题目。"
+            subtitle = ""
         )
 
         if (favorites.isEmpty()) {
-            GlassCard {
-                NoticeCard("收藏夹还是空的。练习时点击题目右上角星标即可收藏。")
-                Spacer(Modifier.height(12.dp))
-                ActionPillButton(
-                    icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                    text = "返回首页",
-                    primary = false,
-                    modifier = Modifier.height(44.dp),
-                    onClick = onBack
-                )
-            }
+            EmptyStateIllustration(
+                title = "收藏夹为空",
+                message = "练习时点星标，即可收藏重点题。",
+                imageRes = R.drawable.illus_favorite_hint_webp,
+                action = {
+                    Spacer(Modifier.height(12.dp))
+                    ActionPillButton(
+                        icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                        text = "返回首页",
+                        primary = false,
+                        modifier = Modifier.height(44.dp),
+                        onClick = onBack
+                    )
+                }
+            )
         }
 
         if (favorites.isNotEmpty()) {
+            IllustrationHeroCard(
+                title = "重点题收藏",
+                subtitle = "集中查看和练习收藏题。",
+                imageRes = R.drawable.illus_favorite_hint_webp,
+                modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
+                imageSize = ShirohaDimens.HeroImageFrameSize
+            )
+
             GlassCard {
             Text(
                 text = if (selectedBank == null) {

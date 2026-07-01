@@ -154,7 +154,7 @@ fun RecordsScreen(
 
         if (records.isNotEmpty()) {
             IllustrationHeroCard(
-            title = "学习记录会在这里慢慢积累",
+            title = "学习记录会在这里积累",
             subtitle = "练习和考试都会收录到这里。",
             imageRes = R.drawable.illus_rest_state_webp,
             imageSize = 88.dp
