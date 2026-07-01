@@ -455,7 +455,7 @@ private fun ShirohaSideNavigation(
                 icon = {
                     Icon(
                         imageVector = tab.icon,
-                        contentDescription = tab.title,
+                        contentDescription = null,
                         modifier = Modifier.size(ShirohaDimens.BottomNavIconSize)
                     )
                 },
@@ -527,7 +527,7 @@ private fun ShirohaBottomNavItem(
         ) {
             Icon(
                 imageVector = tab.icon,
-                contentDescription = tab.title,
+                contentDescription = null,
                 tint = contentColor,
                 modifier = Modifier
                     .size(ShirohaDimens.BottomNavIconSize)
