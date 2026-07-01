@@ -27,7 +27,7 @@ android {
         create("native") {
             dimension = "variant"
             applicationId = "com.reqir.shirohaquiz"
-            versionCode = 195
+            versionCode = 196
             versionName = "0.9.5.5"
         }
     }
