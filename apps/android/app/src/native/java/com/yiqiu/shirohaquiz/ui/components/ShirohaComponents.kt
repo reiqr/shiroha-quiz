@@ -244,7 +244,7 @@ fun ActionPillButton(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = text,
+                contentDescription = null,
                 modifier = Modifier.size(ShirohaDimens.ActionButtonIconSize),
                 tint = if (primary) ShirohaColors.TextOnBrand else MaterialTheme.colorScheme.primary
             )
