@@ -823,6 +823,13 @@ fun PracticePreferenceScreen(
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
+                title = "读屏辅助优化",
+                desc = "为 TalkBack 等屏幕阅读器优化选项状态、答题结果和切题提示。",
+                checked = QuizRepository.screenReaderAssistEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setScreenReaderAssistEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
                 title = "练习页答题方式切换",
                 desc = "练习页显示答题方式和每组题数设置。",
                 checked = QuizRepository.practiceInlineAnswerSettingsEnabled,
