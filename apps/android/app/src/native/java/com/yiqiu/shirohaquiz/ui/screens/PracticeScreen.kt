@@ -79,6 +79,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -2132,6 +2134,7 @@ private fun SubjectiveAnswerEditor(
 private fun SubjectiveSubmittedCapsule() {
     val accent = MaterialTheme.colorScheme.primary
     Surface(
+        modifier = Modifier.clearAndSetSemantics { contentDescription = "已提交作答" },
         shape = RoundedCornerShape(ShirohaRadius.Pill),
         color = ShirohaColors.BrandPrimarySoft.copy(alpha = if (ShirohaColors.isDarkMode) 0.82f else 0.72f),
         border = BorderStroke(ShirohaDimens.Hairline, accent.copy(alpha = 0.34f))
@@ -2164,6 +2167,7 @@ private fun AnswerResultCapsule(correct: Boolean) {
     val background = if (correct) ShirohaColors.StateSuccessSoft else ShirohaColors.StateDangerSoft
     val text = if (correct) "回答正确" else "回答错误"
     Surface(
+        modifier = Modifier.clearAndSetSemantics { contentDescription = text },
         shape = RoundedCornerShape(ShirohaRadius.Pill),
         color = background.copy(alpha = if (ShirohaColors.isDarkMode) 0.9f else 0.76f),
         border = BorderStroke(ShirohaDimens.Hairline, accent.copy(alpha = 0.42f))
