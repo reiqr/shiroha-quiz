@@ -78,6 +78,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -3836,8 +3838,20 @@ private fun ImportStepHeroCard() {
         label = "import_illustration_float_y"
     )
 
+    val heroModifier = Modifier
+        .height(ShirohaDimens.HeroCardHeight)
+        .then(
+            if (QuizRepository.screenReaderAssistEnabled) {
+                Modifier.clearAndSetSemantics {
+                    contentDescription = "导入流程：第一步导入文件，第二步核对结果，第三步创建题库。当前步骤：导入文件。"
+                }
+            } else {
+                Modifier
+            }
+        )
+
     GlassCard(
-        modifier = Modifier.height(ShirohaDimens.HeroCardHeight),
+        modifier = heroModifier,
         contentPadding = ShirohaSpacing.Xl
     ) {
         Row(
