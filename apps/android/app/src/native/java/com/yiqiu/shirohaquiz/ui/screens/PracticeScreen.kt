@@ -81,6 +81,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -779,8 +782,22 @@ fun PracticeScreen(
                 }
             }
             Spacer(Modifier.height(12.dp))
+            val questionText = LatexDisplayFormatter.format(question.question)
+            val questionProgressText = if (isBatchPractice) {
+                "第 $batchGroupNumber 组，第 ${QuizRepository.practiceIndex - batchGroupStart + 1} / $batchGroupTotal 题"
+            } else {
+                "第 ${QuizRepository.practiceIndex + 1} / ${practiceQuestions.size} 题"
+            }
             Text(
-                text = LatexDisplayFormatter.format(question.question),
+                text = questionText,
+                modifier = if (QuizRepository.screenReaderAssistEnabled) {
+                    Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                        contentDescription = "$questionProgressText，${typeLabel(question.type)}。$questionText"
+                    }
+                } else {
+                    Modifier
+                },
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontSize = QuizRepository.questionFontSizeSp().sp,
                     lineHeight = QuizRepository.questionLineHeightSp().sp
