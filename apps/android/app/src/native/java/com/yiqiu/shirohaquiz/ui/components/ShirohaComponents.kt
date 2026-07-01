@@ -54,6 +54,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -382,6 +384,12 @@ fun QuizOptionCard(
     val optionFontSize = QuizRepository.optionFontSizeSp().sp
     val optionLineHeight = QuizRepository.optionLineHeightSp().sp
     val displayText = LatexDisplayFormatter.format(text)
+    val accessibilityState = when {
+        isWrong -> "已选中，回答错误"
+        isCorrect -> if (selected) "已选中，正确答案" else "正确答案"
+        selected -> "已选中"
+        else -> "未选中"
+    }
 
     if (compact) {
         val compactContentColor = when {
@@ -396,6 +404,7 @@ fun QuizOptionCard(
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 42.dp)
                 .clip(RoundedCornerShape(10.dp))
+                .semantics { stateDescription = accessibilityState }
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -433,6 +442,7 @@ fun QuizOptionCard(
             .fillMaxWidth()
             .defaultMinSize(minHeight = 64.dp)
             .clip(shape)
+            .semantics { stateDescription = accessibilityState }
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
