@@ -2,6 +2,7 @@ package com.yiqiu.shirohaquiz.ui.screens
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -233,12 +234,19 @@ fun DataManagementScreen(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
+        val fileName = queryDisplayName(context, uri)
+        val fileSizeCheck = checkBackupFileSize(context, uri, fileName)
+        if (fileSizeCheck.blockMessage != null) {
+            statusText = fileSizeCheck.blockMessage
+            return@rememberLauncherForActivityResult
+        }
+        statusText = fileSizeCheck.warnMessage ?: "正在读取备份：$fileName"
         val bytes = readBytesFromUri(context, uri)
-        val fileName = uri.lastPathSegment.orEmpty()
         statusText = if (bytes == null || bytes.isEmpty()) {
             "导入失败：没有读取到有效内容。"
         } else {
-            QuizRepository.importBackupBytes(context, fileName, bytes)
+            val result = QuizRepository.importBackupBytes(context, fileName, bytes)
+            fileSizeCheck.warnMessage?.let { "$it\n$result" } ?: result
         }
         selectedBankIds = QuizRepository.banks.map { it.id }.toSet()
     }
@@ -1580,6 +1588,78 @@ private fun readBytesFromUri(context: Context, uri: Uri): ByteArray? {
     return runCatching {
         context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
     }.getOrNull()
+}
+
+private data class BackupFileSizeCheck(
+    val warnMessage: String? = null,
+    val blockMessage: String? = null
+)
+
+private const val BACKUP_JSON_WARN_BYTES = 30L * 1024L * 1024L
+private const val BACKUP_JSON_STRONG_WARN_BYTES = 80L * 1024L * 1024L
+private const val BACKUP_FILE_BLOCK_BYTES = 150L * 1024L * 1024L
+
+private fun checkBackupFileSize(context: Context, uri: Uri, fileName: String): BackupFileSizeCheck {
+    val size = queryFileSize(context, uri) ?: return BackupFileSizeCheck()
+    val isZip = isZipBackupFile(context, uri, fileName)
+    val sizeText = formatBackupFileSize(size)
+    if (size > BACKUP_FILE_BLOCK_BYTES) {
+        val typeText = if (isZip) "ZIP 备份" else "JSON 备份"
+        return BackupFileSizeCheck(
+            blockMessage = "$typeText 文件过大：$fileName（约 $sizeText）。为避免导入时内存不足，本次未读取文件；建议拆分题库、减少图片，或改用更轻量的题库导出。"
+        )
+    }
+    if (!isZip && size > BACKUP_JSON_STRONG_WARN_BYTES) {
+        return BackupFileSizeCheck(
+            warnMessage = "完整 JSON 备份较大：$fileName（约 $sizeText），会继续尝试导入，但包含大量图片、错题或记录时可能耗时较长。"
+        )
+    }
+    if (size > BACKUP_JSON_WARN_BYTES) {
+        val typeText = if (isZip) "备份文件" else "完整 JSON 备份"
+        return BackupFileSizeCheck(
+            warnMessage = "$typeText 较大：$fileName（约 $sizeText），导入可能需要等待一段时间。"
+        )
+    }
+    return BackupFileSizeCheck()
+}
+
+private fun isZipBackupFile(context: Context, uri: Uri, fileName: String): Boolean {
+    val lowerName = fileName.lowercase(Locale.ROOT)
+    val mime = context.contentResolver.getType(uri).orEmpty().lowercase(Locale.ROOT)
+    return lowerName.endsWith(".zip") || "zip" in mime
+}
+
+private fun queryDisplayName(context: Context, uri: Uri): String {
+    val cursor = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+    cursor?.use {
+        val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (index >= 0 && it.moveToFirst()) {
+            val name = it.getString(index)
+            if (!name.isNullOrBlank()) return name
+        }
+    }
+    return uri.lastPathSegment ?: "未命名文件"
+}
+
+private fun queryFileSize(context: Context, uri: Uri): Long? {
+    val cursor = context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
+    cursor?.use {
+        val index = it.getColumnIndex(OpenableColumns.SIZE)
+        if (index >= 0 && it.moveToFirst()) {
+            val size = it.getLong(index)
+            if (size > 0) return size
+        }
+    }
+    return null
+}
+
+private fun formatBackupFileSize(bytes: Long): String {
+    val mb = bytes.toDouble() / 1024.0 / 1024.0
+    return if (mb >= 10.0) {
+        String.format(Locale.ROOT, "%.0f MB", mb)
+    } else {
+        String.format(Locale.ROOT, "%.1f MB", mb)
+    }
 }
 
 private fun writeBytesToUri(context: Context, uri: Uri, bytes: ByteArray): Boolean {

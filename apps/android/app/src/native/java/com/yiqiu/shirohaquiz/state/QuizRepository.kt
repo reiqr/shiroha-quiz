@@ -2579,14 +2579,19 @@ object QuizRepository {
         val maxEntries = 1000
         runCatching {
             ZipInputStream(bytes.inputStream()).use { zip ->
-                while (entries.size < maxEntries) {
+                while (true) {
                     val entry = zip.nextEntry ?: break
                     if (entry.isDirectory) continue
-                    val name = SafeZipReader.normalizeEntryName(entry.name)
-                    val data = SafeZipReader.readEntryBytes(zip, entry, maxEntrySize)
-                    if (totalSize + data.size > maxTotalSize) {
-                        throw IllegalArgumentException("ZIP total size exceeded.")
+                    if (entries.size >= maxEntries) {
+                        throw IllegalArgumentException("ZIP entry count exceeded.")
                     }
+                    val name = SafeZipReader.normalizeEntryName(entry.name)
+                    val data = SafeZipReader.readEntryBytes(
+                        zip = zip,
+                        entry = entry,
+                        maxSize = maxEntrySize,
+                        maxTotalRemaining = maxTotalSize - totalSize
+                    )
                     totalSize += data.size
                     entries[name] = data
                     zip.closeEntry()

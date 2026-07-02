@@ -6587,11 +6587,14 @@ function ensureSettingsBackupPanelV23(){
       <label>备份范围<input disabled value="全部题库、错题本、收藏夹、记录、设置" /></label>
     </div>
     <div class="actions wrap-v23">
-      <button class="ghost" id="settings-copy-all-backup-v23" type="button">复制全部数据备份文本</button>
+      <button class="ghost" id="settings-export-native-backup-v611" type="button">导出 Android 原生 ZIP</button>
       <button class="ghost" id="settings-import-backup-v23" type="button">导入备份 JSON/ZIP</button>
+      <button class="ghost" id="settings-copy-all-backup-v23" type="button">复制 Web 备份文本</button>
     </div>
-    <p class="muted">提示：顶部“导出全部数据备份”会生成完整备份包；覆盖恢复会替换本机数据；合并导入遇到同名题库会自动追加“_导入”。下方文本框会显示最近一次导出或导入的备份 JSON。</p>
+    <p class="muted">提示：顶部“导出 Web 完整备份”用于 Web 端完整恢复；“Android 原生 ZIP”更适合导入 Android 原生版；复制文本只作为浏览器下载失败时的兜底。覆盖恢复会替换本机数据；合并导入遇到同名题库会自动追加“_导入”。</p>
+    <details class="asset-reference-details"><summary>角色基准素材预览</summary><img src="./media/mascot_character_sheet.webp" alt="角色基准素材" /></details>
   </div>`);
+  $('#settings-export-native-backup-v611').onclick=exportNativeCompatibleBackupZipV611;
   $('#settings-copy-all-backup-v23').onclick=copyAllBackupJsonV23;
   $('#settings-import-backup-v23').onclick=()=>{backupImportModeV23=$('#settings-backup-mode-v23')?.value||'overwrite';$('#backup-json-file-v23').click()};
   const oldAll=$('#export-all-btn');if(oldAll)oldAll.onclick=exportAllBackupV23;
@@ -6652,6 +6655,17 @@ function exportAllBackupV23(){
   const payload=buildBackupPayloadV23(state.banks||[],'all_data',true);
   const text=JSON.stringify(payload,null,2);setBackupPreviewV23(text);
   download(`shiroha-quiz-all-data-${todayV23()}.json`,text);toast('已生成全部数据备份。手机端若未弹出下载，可复制文本框内容。','ok');
+}
+function exportNativeCompatibleBackupZipV611(){
+  try{
+    const result=buildNativeCompatibleBackupZipV611();
+    setBackupPreviewV23(JSON.stringify(result.payload,null,2));
+    downloadBlob(`shiroha-quiz-native-backup-${todayV23()}.zip`,result.blob);
+    toast(`已生成原生兼容 ZIP。${result.assetCount?`已外置 ${result.assetCount} 张图片。`:'当前没有需要外置的图片。'}`,'ok');
+  }catch(err){
+    warnDev('导出原生兼容 ZIP 失败',err);
+    toast('导出原生兼容 ZIP 失败，请先使用完整 JSON 备份。','danger');
+  }
 }
 async function copySelectedBanksJsonV23(){
   const banks=selectedBanksV23();if(!banks.length){toast('请至少选择一个题库。','warn');return}
@@ -7048,6 +7062,84 @@ function buildNativeInteropStateV24(exportedBanks){
     return {id:r.id||makeId('rec'),bankId:bid||null,bankName:r.bankName||bank?.name||'',source:r.nativeSource||'web',title:r.nativeTitle||r.name||r.mode||'练习',scopeType:r.scopeType||null,scopeName:r.scopeName||null,total:Number(r.total||questionResults.length||0),correct:Number(r.correct||0),timestamp:parseCrossPlatformTimeV24(r.date||r.timestamp,Date.now()),durationSeconds:Number(r.duration||0)||null,autoSubmitted:!!r.autoSubmitted,startedAt:r.startedAt?parseCrossPlatformTimeV24(r.startedAt,null):null,earnedScore:r.nativeEarnedScore!==undefined?r.nativeEarnedScore:(r.score??null),totalScore:r.nativeTotalScore!==undefined?r.nativeTotalScore:(r.totalScore??null),questionResults};
   });
   return {schemaVersion:1,wrongBook:nativeWrongBook,favoriteQuestions:nativeFavorites,studyRecords:nativeRecords};
+}
+function buildNativeCompatibleBackupZipV611(){
+  const exportedBanks=(state.banks||[]).map(serializeBankForCrossExportV53);
+  const payload={
+    app:'Shiroha Quiz',
+    kind:'shiroha_quiz_web_native_backup',
+    version:3,
+    schemaVersion:CURRENT_SCHEMA_VERSION,
+    crossPlatformSchemaVersion:1,
+    exportedBy:'web',
+    exportedAt:now(),
+    activeBankId:exportedBanks.some(b=>b.id===state.activeBankId)?state.activeBankId:(exportedBanks[0]?.id||''),
+    banks:exportedBanks,
+    crossPlatform:buildNativeInteropStateV24(exportedBanks)
+  };
+  const assets=[];const assetMap=new Map();
+  externalizeNativeBackupImagesV611(payload,assets,assetMap);
+  const files=[{name:'backup.json',text:JSON.stringify(payload,null,2)},...assets.map(a=>({name:a.name,data:a.bytes}))];
+  return {payload,blob:zipStoreFiles(files),assetCount:assets.length};
+}
+function externalizeNativeBackupImagesV611(value,assets,assetMap,seen=new Set()){
+  if(!value||typeof value!=='object'||seen.has(value))return;
+  seen.add(value);
+  if(Array.isArray(value)){value.forEach(x=>externalizeNativeBackupImagesV611(x,assets,assetMap,seen));return}
+  if(typeof value.question==='string')rewriteQuestionMarkdownImagesForNativeZipV611(value,assets,assetMap);
+  if(Array.isArray(value.images)){
+    value.images.forEach((img,i)=>{
+      if(!img||typeof img!=='object')return;
+      const src=String(img.dataUrl||img.dataUri||img.localPath||img.src||'').trim();
+      const asset=registerNativeBackupDataImageAssetV611(src,assets,assetMap,img.sourceName||img.id||`image_${i+1}`);
+      if(!asset)return;
+      img.localPath=asset.name;
+      img.sourceName=img.sourceName||asset.fileName;
+      img.order=Number(img.order||i+1)||i+1;
+      img.sizeBytes=Number(img.sizeBytes||asset.bytes.length)||asset.bytes.length;
+      delete img.dataUrl;delete img.dataUri;delete img.src;
+    });
+  }
+  Object.keys(value).forEach(key=>externalizeNativeBackupImagesV611(value[key],assets,assetMap,seen));
+}
+function rewriteQuestionMarkdownImagesForNativeZipV611(questionObj,assets,assetMap){
+  const raw=String(questionObj.question||'');
+  if(!/!\[[^\]]{0,120}\]\(data:image\//i.test(raw))return;
+  if(!Array.isArray(questionObj.images))questionObj.images=[];
+  let nextOrder=(questionObj.images.reduce((n,img)=>Math.max(n,Number(img&&img.order||0)),0)||questionObj.images.length)+1;
+  questionObj.question=raw.replace(markdownImageRegexV83(),(m,alt,src)=>{
+    const cleanAlt=String(alt||`题目图片${nextOrder}`).replace(/[\]\n\r]/g,'').slice(0,80)||`题目图片${nextOrder}`;
+    const asset=registerNativeBackupDataImageAssetV611(src,assets,assetMap,cleanAlt);
+    if(!asset)return m;
+    if(!questionObj.images.some(img=>img&&(img.localPath===asset.name||img.dataUrl===src||img.dataUri===src||img.localPath===src||img.src===src))){
+      questionObj.images.push({id:safeImageIdV83('native_zip',questionObj.id||'q',nextOrder),localPath:asset.name,sourceName:asset.fileName,order:nextOrder,width:null,height:null,sizeBytes:asset.bytes.length});
+      nextOrder++;
+    }
+    return `\n【${cleanAlt}】\n`;
+  }).replace(/\n{3,}/g,'\n\n').trim();
+}
+function registerNativeBackupDataImageAssetV611(dataUri,assets,assetMap,hint){
+  const raw=String(dataUri||'').trim();
+  if(!questionImageDataUriRegexV83().test(raw))return null;
+  if(assetMap.has(raw))return assetMap.get(raw);
+  const parsed=dataUriToBytesV611(raw);if(!parsed)return null;
+  const index=assets.length+1;
+  const safeHint=cleanFileNameV23(String(hint||'image')).slice(0,36)||'image';
+  const fileName=`web_image_${String(index).padStart(4,'0')}_${safeHint}.${parsed.ext}`;
+  const asset={name:`assets/${fileName}`,fileName,bytes:parsed.bytes};
+  assets.push(asset);assetMap.set(raw,asset);return asset;
+}
+function dataUriToBytesV611(dataUri){
+  const m=String(dataUri||'').match(/^data:image\/([A-Za-z0-9.+-]+);base64,([A-Za-z0-9+/=\r\n\s]+)$/i);
+  if(!m)return null;
+  const mime=m[1].toLowerCase();if(!/^(png|jpeg|jpg|gif|webp|bmp)$/.test(mime))return null;
+  const ext=mime==='jpeg'?'jpg':mime.replace(/[^a-z0-9]/g,'')||'webp';
+  try{
+    const bin=atob(m[2].replace(/\s+/g,''));
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return {ext,bytes};
+  }catch(_){return null}
 }
 function normalizeBackupPayloadV23(data,fileName){
   if(!data||typeof data!=='object')throw new Error('JSON 根节点不是对象');

@@ -7536,3 +7536,109 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
   }
 }
 /* SHIROHA_WEB_V58_9_16_PRACTICE_PROGRESS_END */
+
+/* SHIROHA_V61_1_SETTINGS_BACKUP_LAYOUT_FIX_START */
+#settings .settings-main-actions-v611{
+  margin-top:18px !important;
+  margin-bottom:18px !important;
+}
+#settings #export-output{
+  margin-top:0 !important;
+}
+#settings #settings-backup-panel-v23{
+  margin-top:22px !important;
+}
+#settings #settings-backup-panel-v23 .wrap-v23{
+  gap:10px !important;
+}
+/* SHIROHA_V61_1_SETTINGS_BACKUP_LAYOUT_FIX_END */
+
+/* SHIROHA_V61_1_ART_STRIP_ALIGNMENT_FIX_START */
+.page-art-strip,
+.practice-art-strip,
+.exam-art-strip,
+.wrongbook-art-strip,
+.records-art-strip,
+.settings-art-strip,
+.bank-art-strip{
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) 132px !important;
+  align-items:center !important;
+  min-height:124px !important;
+  max-height:none !important;
+  padding:14px 18px 14px 26px !important;
+  gap:14px !important;
+}
+.page-art-strip > div,
+.practice-art-strip > div,
+.exam-art-strip > div,
+.wrongbook-art-strip > div,
+.records-art-strip > div,
+.settings-art-strip > div,
+.bank-art-strip > div{
+  min-height:64px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+  align-self:center !important;
+  min-width:0 !important;
+}
+.page-art-strip b,
+.practice-art-strip b,
+.exam-art-strip b,
+.wrongbook-art-strip b,
+.records-art-strip b,
+.settings-art-strip b,
+.bank-art-strip b{
+  margin:0 !important;
+}
+.page-art-strip img,
+.practice-art-strip img,
+.exam-art-strip img,
+.wrongbook-art-strip img,
+.records-art-strip img,
+.settings-art-strip img,
+.bank-art-strip img{
+  justify-self:end !important;
+  align-self:center !important;
+  transform:none !important;
+  margin:0 !important;
+  max-width:118px !important;
+  max-height:86px !important;
+  object-fit:contain !important;
+  object-position:center center !important;
+}
+/* SHIROHA_V61_1_ART_STRIP_ALIGNMENT_FIX_END */
+
+/* SHIROHA_V61_1_FAVORITES_HERO_TONE_FIX_START */
+.favorites-hero-v596{
+  border-color:rgba(47,111,237,.10) !important;
+  background:rgba(255,255,255,.92) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.94), 0 10px 26px rgba(37,99,235,.035) !important;
+}
+/* SHIROHA_V61_1_FAVORITES_HERO_TONE_FIX_END */
+
+/* SHIROHA_V61_1_ROLE_ART_CENTER_RESTORE_START */
+.practice-art-strip img,
+.exam-art-strip img,
+.wrongbook-art-strip img,
+.records-art-strip img,
+.settings-art-strip img,
+.bank-art-strip img{
+  position:static !important;
+  inset:auto !important;
+  display:block !important;
+  place-self:center !important;
+  justify-self:center !important;
+  align-self:center !important;
+  width:auto !important;
+  height:92px !important;
+  max-width:132px !important;
+  max-height:92px !important;
+  margin:0 !important;
+  object-fit:contain !important;
+  object-position:center center !important;
+  opacity:1 !important;
+  transform:none !important;
+}
+/* SHIROHA_V61_1_ROLE_ART_CENTER_RESTORE_END */
