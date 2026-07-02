@@ -8,7 +8,7 @@ const LEGACY_KEYS=[];
 const CLEAR_STORAGE_KEYS=['shiroha_quiz_state','uquiz_state_v8_c1'];
 const TYPE_LABEL={single:'单选题',multiple:'多选题',multi:'多选题',judge:'判断题',blank:'填空题',short:'简答题',short_answer:'简答题'};
 const state=loadState();
-let importCache=[];let tableImportResultV49=null;let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let bankEditSessionV45=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let ocrImportState={file:null,text:'',pages:[],running:false};let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};let editBlankGroupsV58914=[];let editMultiBlankEnabledV58914=false;
+let importCache=[];let tableImportResultV49=null;let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let bankEditSessionV45=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let ocrImportState={file:null,text:'',pages:[],running:false};let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};let editBlankGroupsV58914=[];let editMultiBlankEnabledV58914=false;let importCommitBusyV5911=false;
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 function ensureDefaultBank(){if(!state.banks.length&&!state.settings?.suppressDefaultBank) state.banks.push(defaultBank()); if(!state.activeBankId) state.activeBankId=state.banks[0]?.id||'';}
 function blankState(){return {schemaVersion:CURRENT_SCHEMA_VERSION,banks:[],activeBankId:'',wrongBook:{},favorites:{},records:[],settings:{},crossPlatformMeta:{favoriteQuestions:{}}}}
@@ -5903,8 +5903,76 @@ function deleteEditQuestion(){
   const i=Number($('#edit-index').value);if(!importCache[i])return;
   if(confirm('删除这道题？')){importCache.splice(i,1);importSelected=new Set([...importSelected].map(x=>x>i?x-1:x).filter(x=>x!==i));closeEditModal();renderImportPreview(importCache)}
 }
+function setImportCommitBusyV5911(busy,label='正在保存…'){
+  const buttons=[$('#confirm-import-btn'),$('#dual-confirm-import-btn')].filter(Boolean);
+  buttons.forEach(btn=>{
+    if(busy){
+      if(!btn.dataset.commitTextV5911)btn.dataset.commitTextV5911=btn.textContent||'确认导入';
+      btn.dataset.commitDisabledV5911=btn.disabled?'1':'0';
+      btn.disabled=true;btn.textContent=label;btn.setAttribute('aria-busy','true');
+    }else{
+      const oldText=btn.dataset.commitTextV5911;
+      if(oldText)btn.textContent=oldText;
+      btn.disabled=btn.dataset.commitDisabledV5911==='1';
+      delete btn.dataset.commitTextV5911;delete btn.dataset.commitDisabledV5911;btn.removeAttribute('aria-busy');
+    }
+  });
+}
+function waitForImportCommitPaintV5911(){
+  return new Promise(resolve=>{
+    if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>requestAnimationFrame(resolve));
+    else setTimeout(resolve,0);
+  });
+}
+function isStorageQuotaErrorV5911(error){
+  const name=String(error?.name||'');const code=Number(error?.code||0);
+  return name==='QuotaExceededError'||name==='NS_ERROR_DOM_QUOTA_REACHED'||code===22||code===1014;
+}
+function importSaveFailureTextV5911(error){
+  if(isStorageQuotaErrorV5911(error))return '浏览器本地存储空间不足，追加内容没有写入，题库已恢复到追加前状态。可先导出完整备份并清理不需要的图片题库或学习记录后重试。';
+  const detail=String(error?.message||'').trim();
+  return `浏览器未能保存追加结果，题库已恢复到追加前状态。${detail?`错误信息：${detail}`:'请稍后重试。'}`;
+}
+async function appendImportToBankV5911(target,warnings){
+  const previousQuestions=Array.isArray(target.questions)?target.questions:[];
+  const previousUpdatedAt=target.updatedAt;
+  const previousActiveBankId=state.activeBankId;
+  const previousSettings=state.settings;
+  const hadPracticeScope=!!previousSettings&&typeof previousSettings==='object'&&Object.prototype.hasOwnProperty.call(previousSettings,'practiceScope');
+  const previousPracticeScope=hadPracticeScope&&previousSettings.practiceScope&&typeof previousSettings.practiceScope==='object'?{...previousSettings.practiceScope}:previousSettings?.practiceScope;
+  const before=previousQuestions.length;let incoming=[];
+  importCommitBusyV5911=true;setImportCommitBusyV5911(true,'正在追加…');
+  showNotice('正在追加',`正在将 ${importCache.length} 道题追加到“${bankPathLabelV58(target)}”，请勿重复点击或关闭页面。`,'warn');
+  await waitForImportCommitPaintV5911();
+  try{
+    incoming=importCache.map((q,i)=>cleanImportedQuestion({...q,id:makeId('q',before+i+1),number:before+i+1}));
+    target.questions=[...previousQuestions,...incoming];
+    target.updatedAt=now();
+    setPracticeBankScopeV8916(target.id,true);
+    saveSilent();
+  }catch(error){
+    target.questions=previousQuestions;
+    target.updatedAt=previousUpdatedAt;
+    state.activeBankId=previousActiveBankId;
+    state.settings=previousSettings;
+    if(previousSettings&&typeof previousSettings==='object'){
+      if(hadPracticeScope)previousSettings.practiceScope=previousPracticeScope;
+      else delete previousSettings.practiceScope;
+    }
+    warnDev('追加题库保存失败，已恢复追加前状态',error);
+    showNotice('追加失败',importSaveFailureTextV5911(error),'danger');
+    toast('追加失败，原题库未被修改。','warn','追加失败');
+    return;
+  }finally{
+    importCommitBusyV5911=false;setImportCommitBusyV5911(false);
+  }
+  renderAll();
+  showNotice('追加成功',`已追加到“${bankPathLabelV58(target)}”：新增 ${incoming.length} 道题，当前共 ${target.questions.length} 道题。${warnings.length?`追加前有 ${warnings.length} 条提示，建议在题库管理中抽查。`:''}`,'ok');
+  toast(`已追加 ${incoming.length} 题到：${target.name}`,'ok','追加成功');
+}
 function confirmImport(){
   if(bankEditSessionV45){saveBankEditSessionV45();return}
+  if(importCommitBusyV5911)return;
   if(!importCache.length){showNotice('导入失败','当前没有可导入的题目。','danger');return}
   const warnings=collectImportWarnings(importCache);
   const saveMode=readImportSaveModeV59();
@@ -5912,14 +5980,7 @@ function confirmImport(){
     const targetId=$('#import-target-bank-v59')?.value||state.activeBankId||'';
     const target=state.banks.find(b=>b.id===targetId);
     if(!target){showNotice('追加失败','没有找到要追加的目标题库，请先选择已有题库。','danger');return}
-    const before=(target.questions||[]).length;
-    const incoming=importCache.map((q,i)=>cleanImportedQuestion({...q,id:makeId('q',before+i+1),number:before+i+1}));
-    target.questions=[...(target.questions||[]),...incoming].map((q,i)=>({...q,number:i+1}));
-    target.updatedAt=now();
-    setPracticeBankScopeV8916(target.id,true);
-    saveSilent();renderAll();
-    showNotice('追加成功',`已追加到“${bankPathLabelV58(target)}”：新增 ${incoming.length} 道题，当前共 ${target.questions.length} 道题。${warnings.length?`追加前有 ${warnings.length} 条提示，建议在题库管理中抽查。`:''}`,'ok');
-    toast(`已追加 ${incoming.length} 题到：${target.name}`,'ok','追加成功');
+    appendImportToBankV5911(target,warnings);
     return;
   }
   const name=$('#import-bank-name').value.trim()||'导入题库';
