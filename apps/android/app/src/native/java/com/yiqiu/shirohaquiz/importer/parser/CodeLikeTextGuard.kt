@@ -25,6 +25,9 @@ internal object CodeLikeTextGuard {
     private val memberAccessSequenceRegex = Regex(
         """^\s*[A-Ga-g]\.[A-Za-z_]\w*(?:\([^\r\n]*?\))?(?:\s*[,;]\s*[A-Ga-g]\.[A-Za-z_]\w*(?:\([^\r\n]*?\))?){1,}\s*$"""
     )
+    private val technicalAbbreviationValueRegex = Regex(
+        """^[A-Z]{1,5}\s*[:：]\s*[+\-]?(?:\d+(?:\.\d+)?|\.\d+)"""
+    )
 
     fun isProtectedParenthesizedToken(text: String, range: IntRange, token: String): Boolean {
         if (range.isEmpty()) return false
@@ -66,6 +69,7 @@ internal object CodeLikeTextGuard {
     fun looksLikeLeadingCodeOption(line: String, markerStart: Int, contentStart: Int): Boolean {
         if (markerStart !in line.indices || contentStart !in 0..line.length) return false
         if (isIndexInStringOrComment(line, markerStart)) return true
+        if (isEmbeddedTechnicalAbbreviationMarker(line, markerStart, contentStart)) return true
 
         val markerText = line.substring(markerStart, contentStart)
         val markerLead = markerText.trimStart().firstOrNull()
@@ -88,6 +92,7 @@ internal object CodeLikeTextGuard {
 
         val usesDotMarker = '.' in markerText || '．' in markerText
         if (!usesDotMarker || tail.firstOrNull()?.isWhitespace() == true) return false
+        if (technicalAbbreviationValueRegex.containsMatchIn(trimmedTail)) return false
 
         val identifier = Regex("""^[A-Za-z_]\w*""").find(tail) ?: return false
         val afterIndex = identifier.range.last + 1
@@ -116,12 +121,33 @@ internal object CodeLikeTextGuard {
         if ('.' !in markerText && '．' !in markerText) return false
 
         val chunk = rawChunk.trim()
+        if (technicalAbbreviationValueRegex.containsMatchIn(chunk)) return false
         val identifier = Regex("""^[A-Za-z_]\w*""").find(chunk) ?: return false
         val after = chunk.getOrNull(identifier.range.last + 1)
         if (after in setOf('(', '[', '.', '=', ':')) return true
         if (chunk.contains("::") || chunk.contains("->") || chunk.contains("=>")) return true
         if ((chunk.endsWith(',') || chunk.endsWith(';')) && identifier.value.length + 1 == chunk.length) return true
         return false
+    }
+
+    private fun isEmbeddedTechnicalAbbreviationMarker(
+        line: String,
+        markerStart: Int,
+        contentStart: Int
+    ): Boolean {
+        val markerText = line.substring(markerStart, contentStart)
+        if (':' !in markerText && '：' !in markerText) return false
+        if (markerStart <= 0 || line[markerStart - 1] !in 'A'..'Z') return false
+
+        var abbreviationStart = markerStart - 1
+        while (abbreviationStart > 0 && line[abbreviationStart - 1] in 'A'..'Z') {
+            abbreviationStart -= 1
+        }
+        val abbreviation = line.substring(abbreviationStart, markerStart + 1)
+        if (abbreviation.length !in 2..5) return false
+
+        val valueTail = line.substring(contentStart).trimStart()
+        return Regex("""^[+\-]?(?:\d+(?:\.\d+)?|\.\d+)""").containsMatchIn(valueTail)
     }
 
     private fun isCallLikeOpenParenthesis(text: String, openIndex: Int): Boolean {

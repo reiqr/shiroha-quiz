@@ -17,7 +17,7 @@ object SectionTitleParser {
     )
     private val nonTypeSectionKeywordRegex = Regex("""(部分|试卷|常识判断|言语理解|语言理解|数量关系|数学能力|数学运算|判断推理|图形推理|定义判断|类比推理|逻辑判断|资料分析|材料分析|综合知识|公共基础知识|专业知识|基础知识|安全知识|理论知识|综合能力|结构化面试|公考面试|公务员面试|面试真题)""")
     private val genericSectionHeadingRegex = Regex(
-        """^\s*(?:[一二三四五六七八九十百]+|\d{1,3})[、.．]\s*(?:.*(?:测试区|样本|题库|格式|边界|极端|客观题|主观题|材料题|集中答案|AI\s*解析|AI\s*核对|功能测试).*)\s*$""",
+        """^\s*(?:[一二三四五六七八九十百]+|\d{1,3})[、.．]\s*(?:(?:边界|极端)|.*(?:测试区|样本|题库|格式|边界(?:测试|样本|用例|情况|场景)|极端(?:测试|样本|用例|情况|场景)|客观题|主观题|材料题|集中答案|AI\s*解析|AI\s*核对|功能测试).*)\s*$""",
         RegexOption.IGNORE_CASE
     )
     private val answerSectionRegex = Regex(
@@ -76,7 +76,10 @@ object SectionTitleParser {
     private fun looksLikeShortGenericSectionTitle(rest: String): Boolean {
         val text = rest.trim().trimEnd(':', '：')
         if (text.length > 16) return false
-        return Regex("""(?:测试区|样本|题库|格式|边界|极端|客观题|主观题|材料题|集中答案|AI\s*解析|AI\s*核对|功能测试)""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+        return Regex(
+            """^(?:(?:边界|极端)|.*(?:测试区|样本|题库|格式|边界(?:测试|样本|用例|情况|场景)|极端(?:测试|样本|用例|情况|场景)|客观题|主观题|材料题|集中答案|AI\s*解析|AI\s*核对|功能测试).*)$""",
+            RegexOption.IGNORE_CASE
+        ).matches(text)
     }
 
     private fun looksLikeTypeSectionRemainder(remainder: String): Boolean {
