@@ -118,6 +118,7 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
+import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
 import com.yiqiu.shirohaquiz.ui.util.bankDisplayPath
 import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.Dispatchers
@@ -2099,7 +2100,7 @@ private fun NativeImportPreview(
             Spacer(Modifier.height(6.dp))
             SelectionContainer {
                 Text(
-                    text = question.question,
+                    text = LatexDisplayFormatter.format(question.question),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -2118,7 +2119,11 @@ private fun NativeImportPreview(
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "答案：$answerText",
+                text = if (question.type == QuestionType.SHORT) {
+                    "答案：\n${LatexDisplayFormatter.format(answerText)}"
+                } else {
+                    "答案：${LatexDisplayFormatter.format(answerText)}"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -2141,7 +2146,7 @@ private fun NativeImportPreview(
             if (question.analysis.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "解析：${question.analysis}",
+                    text = "解析：${LatexDisplayFormatter.format(question.analysis)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2815,7 +2820,9 @@ private fun ReviewQuestionEditorContent(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("答案") },
-                    singleLine = true
+                    singleLine = question.type != QuestionType.SHORT,
+                    minLines = if (question.type == QuestionType.SHORT) 6 else 1,
+                    maxLines = if (question.type == QuestionType.SHORT) 16 else 1
                 )
                 if (question.type == QuestionType.BLANK && detectedBlankCount > 1) {
                     Spacer(Modifier.height(10.dp))
@@ -3668,7 +3675,7 @@ private fun nextOptionKey(options: List<Option>): String {
 }
 
 private fun parseReviewAnswer(text: String, type: QuestionType): List<String> {
-    val clean = text.trim()
+    val clean = if (type == QuestionType.SHORT) normalizeMultilineEditorText(text) else text.trim()
     if (clean.isBlank()) return emptyList()
 
     if (type == QuestionType.BLANK || type == QuestionType.SHORT) return listOf(clean)
@@ -3702,6 +3709,15 @@ private fun parseReviewAnswer(text: String, type: QuestionType): List<String> {
         .distinct()
 }
 
+private fun normalizeMultilineEditorText(value: String): String {
+    val normalized = value.replace("\r\n", "\n").replace('\r', '\n')
+    if ('\n' !in normalized && '\t' !in normalized && "```" !in normalized) return normalized.trim()
+    val rows = normalized.split('\n').toMutableList()
+    while (rows.isNotEmpty() && rows.first().isBlank()) rows.removeAt(0)
+    while (rows.isNotEmpty() && rows.last().isBlank()) rows.removeAt(rows.lastIndex)
+    return rows.joinToString("\n")
+}
+
 private fun answerInputText(question: Question): String {
     if (question.type == QuestionType.JUDGE && question.answer.size == 1) {
         return when (question.answer.first().trim().uppercase()) {
@@ -3710,7 +3726,7 @@ private fun answerInputText(question: Question): String {
             else -> question.answer.first()
         }
     }
-    return question.answer.joinToString(",")
+    return question.answer.joinToString(if (question.type == QuestionType.SHORT) "\n\n" else ",")
 }
 
 private fun answerDisplayText(question: Question): String {

@@ -605,8 +605,18 @@ fun BankReviewScreen(
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("答案：单选填 A，多选填 ABC 或 A,B,C，判断填 正确/错误") },
-                        singleLine = true
+                        label = {
+                            Text(
+                                if (question.type == QuestionType.SHORT) {
+                                    "参考答案"
+                                } else {
+                                    "答案：单选填 A，多选填 ABC 或 A,B,C，判断填 正确/错误"
+                                }
+                            )
+                        },
+                        singleLine = question.type != QuestionType.SHORT,
+                        minLines = if (question.type == QuestionType.SHORT) 6 else 1,
+                        maxLines = if (question.type == QuestionType.SHORT) 16 else 1
                     )
                     if (question.type == QuestionType.BLANK && detectedBlankCount > 1) {
                         Spacer(Modifier.height(10.dp))
@@ -922,7 +932,7 @@ private fun nextOptionKey(options: List<Option>): String {
 }
 
 private fun parseReviewAnswer(text: String, type: QuestionType): List<String> {
-    val clean = text.trim()
+    val clean = if (type == QuestionType.SHORT) normalizeReviewMultilineText(text) else text.trim()
     if (clean.isBlank()) return emptyList()
 
     if (type == QuestionType.BLANK || type == QuestionType.SHORT) return listOf(clean)
@@ -955,6 +965,15 @@ private fun parseReviewAnswer(text: String, type: QuestionType): List<String> {
         .distinct()
 }
 
+private fun normalizeReviewMultilineText(value: String): String {
+    val normalized = value.replace("\r\n", "\n").replace('\r', '\n')
+    if ('\n' !in normalized && '\t' !in normalized && "```" !in normalized) return normalized.trim()
+    val rows = normalized.split('\n').toMutableList()
+    while (rows.isNotEmpty() && rows.first().isBlank()) rows.removeAt(0)
+    while (rows.isNotEmpty() && rows.last().isBlank()) rows.removeAt(rows.lastIndex)
+    return rows.joinToString("\n")
+}
+
 private fun answerInputText(question: Question): String {
     if (question.type == QuestionType.JUDGE && question.answer.size == 1) {
         return when (question.answer.first().trim().uppercase()) {
@@ -963,7 +982,7 @@ private fun answerInputText(question: Question): String {
             else -> question.answer.first()
         }
     }
-    return question.answer.joinToString(",")
+    return question.answer.joinToString(if (question.type == QuestionType.SHORT) "\n\n" else ",")
 }
 
 private fun answerDisplayText(question: Question): String {

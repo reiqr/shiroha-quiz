@@ -3658,13 +3658,17 @@ object QuizRepository {
         val structuredBlank = MultiBlankSupport.hasStructuredAnswers(question)
         val normalizedUserAnswer = if (structuredBlank) {
             MultiBlankSupport.padUserAnswers(userAnswer, question.blankAnswers.size)
+        } else if (question.type == QuestionType.SHORT) {
+            userAnswer.map(::normalizeJsonAnswerText).filter { it.isNotBlank() }
         } else {
             userAnswer.map { it.trim() }.filter { it.isNotBlank() }
         }
         val answerText = if (structuredBlank) {
             MultiBlankSupport.expectedAnswerText(question.blankAnswers)
         } else {
-            question.answer.joinToString(" / ").ifBlank { "未识别答案" }
+            question.answer
+                .joinToString(if (question.type == QuestionType.SHORT) "\n\n" else " / ")
+                .ifBlank { "未识别答案" }
         }
         val correct = when (question.type) {
             QuestionType.SINGLE,
@@ -4480,7 +4484,7 @@ object QuizRepository {
         return ('A'.code + index).toChar().toString()
     }
 
-    private fun parseFlexibleAnswer(questionJson: JSONObject): List<String> {
+    private fun parseFlexibleAnswer(questionJson: JSONObject, questionType: QuestionType): List<String> {
         val answerArray = listOf(
             questionJson.optJSONArray("answer"),
             questionJson.optJSONArray("answers"),
@@ -4490,7 +4494,7 @@ object QuizRepository {
         if (answerArray != null) {
             return buildList {
                 for (k in 0 until answerArray.length()) {
-                    val value = answerArray.optString(k).trim()
+                    val value = normalizeJsonAnswerText(answerArray.optString(k))
                     if (value.isNotBlank()) add(value)
                 }
             }
@@ -4500,8 +4504,9 @@ object QuizRepository {
             questionJson.optString("answers"),
             questionJson.optString("correctAnswer"),
             questionJson.optString("correctAnswers")
-        ).firstOrNull { it.isNotBlank() }.orEmpty().trim()
+        ).firstOrNull { it.isNotBlank() }.orEmpty().let(::normalizeJsonAnswerText)
         if (answerText.isBlank()) return emptyList()
+        if (questionType == QuestionType.SHORT) return listOf(answerText)
         return answerText
             .split(Regex("[\\s,，;；/|]+"))
             .map { it.trim() }
@@ -4509,6 +4514,7 @@ object QuizRepository {
     }
 
     private fun parseQuestion(questionJson: JSONObject): Question {
+        val questionType = parseQuestionType(questionJson.optString("type"))
         val optionsArray = questionJson.optJSONArray("options")
         val optionsObject = questionJson.optJSONObject("options")
 
@@ -4552,7 +4558,7 @@ object QuizRepository {
             }
         }
 
-        val answers = parseFlexibleAnswer(questionJson)
+        val answers = parseFlexibleAnswer(questionJson, questionType)
 
         val imagesArray = questionJson.optJSONArray("images") ?: JSONArray()
         val images = buildList {
@@ -4588,12 +4594,12 @@ object QuizRepository {
             Question(
                 id = questionJson.optString("id"),
                 number = questionJson.optString("number"),
-                type = parseQuestionType(questionJson.optString("type")),
-                question = questionJson.optString("question"),
+                type = questionType,
+                question = normalizeJsonMultilineText(questionJson.optString("question")),
                 options = options,
                 answer = answers,
                 blankAnswers = parseNestedStringArray(questionJson.optJSONArray("blankAnswers")),
-                analysis = questionJson.optString("analysis"),
+                analysis = normalizeJsonMultilineText(questionJson.optString("analysis")),
                 category = listOf(
                     questionJson.optString("category"),
                     questionJson.optString("group"),
@@ -4614,6 +4620,21 @@ object QuizRepository {
                 warnings = parseStringArray(questionJson.optJSONArray("warnings"))
             )
         )
+    }
+
+    private fun normalizeJsonMultilineText(value: String): String {
+        return value.replace("\r\n", "\n").replace('\r', '\n')
+    }
+
+    private fun normalizeJsonAnswerText(value: String): String {
+        val normalized = normalizeJsonMultilineText(value)
+        if ('\n' !in normalized && '\t' !in normalized && "```" !in normalized) {
+            return normalized.trim()
+        }
+        val rows = normalized.split('\n').toMutableList()
+        while (rows.isNotEmpty() && rows.first().isBlank()) rows.removeAt(0)
+        while (rows.isNotEmpty() && rows.last().isBlank()) rows.removeAt(rows.lastIndex)
+        return rows.joinToString("\n")
     }
 
     private fun parseNullableFiniteDouble(json: JSONObject, key: String): Double? {

@@ -60,11 +60,48 @@ object LatexDisplayFormatter {
         'v' to 'ᵥ', 'x' to 'ₓ'
     )
 
+    private val fencedCodeBlockRegex = Regex("""```[\s\S]*?```""")
+
     fun format(text: String): String {
-        if (!mightContainLatex(text)) return text
-        return formatInternal(text)
-            .replace(Regex("""[ \t]{2,}"""), " ")
-            .trimPreservingLineBreaks()
+        val normalized = text.replace("\r\n", "\n").replace('\r', '\n')
+        if (normalized.isEmpty()) return normalized
+
+        val formatted = when {
+            fencedCodeBlockRegex.containsMatchIn(normalized) -> formatAroundFencedCodeBlocks(normalized)
+            looksLikeIndentedCode(normalized) -> normalized
+            !mightContainLatex(normalized) -> normalized
+            else -> formatInternal(normalized)
+        }
+        return formatted
+            .replace("\t", "    ")
+            .trimOuterWhitespacePreservingIndent()
+    }
+
+    private fun formatAroundFencedCodeBlocks(text: String): String {
+        val builder = StringBuilder()
+        var cursor = 0
+        fencedCodeBlockRegex.findAll(text).forEach { match ->
+            if (match.range.first > cursor) {
+                builder.append(formatNonCodeText(text.substring(cursor, match.range.first)))
+            }
+            builder.append(match.value)
+            cursor = match.range.last + 1
+        }
+        if (cursor < text.length) builder.append(formatNonCodeText(text.substring(cursor)))
+        return builder.toString()
+    }
+
+    private fun formatNonCodeText(text: String): String {
+        return if (mightContainLatex(text)) formatInternal(text) else text
+    }
+
+    private fun looksLikeIndentedCode(text: String): Boolean {
+        if ('\t' in text) return true
+        if (text.lineSequence().any { it.startsWith("    ") }) return true
+        return text.lineSequence().any { line ->
+            val trimmed = line.trimStart()
+            trimmed.startsWith("#!") || trimmed.startsWith("//") || trimmed.startsWith("/*")
+        }
     }
 
     private fun mightContainLatex(text: String): Boolean {
@@ -400,7 +437,11 @@ object LatexDisplayFormatter {
         return startIndex
     }
 
-    private fun String.trimPreservingLineBreaks(): String {
-        return lines().joinToString("\n") { it.trim() }.trim()
+    private fun String.trimOuterWhitespacePreservingIndent(): String {
+        val rows = split('\n')
+        val first = rows.indexOfFirst { it.isNotBlank() }
+        if (first < 0) return ""
+        val last = rows.indexOfLast { it.isNotBlank() }
+        return rows.subList(first, last + 1).joinToString("\n")
     }
 }

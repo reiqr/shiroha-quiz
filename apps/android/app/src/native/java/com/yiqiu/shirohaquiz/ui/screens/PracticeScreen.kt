@@ -1066,6 +1066,8 @@ fun PracticeScreen(
                     } else {
                         question.answer.joinToString(" / ").ifBlank { "未识别答案" }
                     }
+                    QuestionType.SHORT -> effectiveResult?.answerText
+                        ?: question.answer.joinToString("\n\n").ifBlank { "未识别答案" }
                     else -> effectiveResult?.answerText ?: question.answer.joinToString(" / ").ifBlank { "未识别答案" }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -1078,7 +1080,7 @@ fun PracticeScreen(
                     Spacer(Modifier.height(8.dp))
                 }
                 val answerLabel = if (question.type == QuestionType.SHORT) "参考答案" else "正确答案"
-                NoticeCard("$answerLabel：$answerText", warning = false)
+                NoticeCard("$answerLabel：\n${LatexDisplayFormatter.format(answerText)}", warning = false)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = "解析",
@@ -1181,7 +1183,11 @@ fun PracticeQuickEditScreen(
         }
 
         var questionText by remember(currentSessionKey) { mutableStateOf(question.question) }
-        var answerText by remember(currentSessionKey) { mutableStateOf(question.answer.joinToString(" / ")) }
+        var answerText by remember(currentSessionKey) {
+            mutableStateOf(
+                question.answer.joinToString(if (question.type == QuestionType.SHORT) "\n\n" else " / ")
+            )
+        }
         var blankAnswerDrafts by remember(currentSessionKey) { mutableStateOf(question.blankAnswers) }
         var analysisText by remember(currentSessionKey) { mutableStateOf(question.analysis) }
         var optionDrafts by remember(currentSessionKey) { mutableStateOf(initialQuickEditOptions(question)) }
@@ -1305,10 +1311,15 @@ fun PracticeQuickEditScreen(
                     },
                     label = { Text(if (isObjective) "答案，例如 A 或 A/B" else "参考答案") },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = if (isObjective) 1 else 2,
+                    minLines = when {
+                        isObjective -> 1
+                        question.type == QuestionType.SHORT -> 6
+                        else -> 2
+                    },
+                    maxLines = if (question.type == QuestionType.SHORT) 16 else Int.MAX_VALUE,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Next
+                        imeAction = if (question.type == QuestionType.SHORT) ImeAction.Default else ImeAction.Next
                     )
                 )
                 if (question.type == QuestionType.BLANK && detectedBlankCount > 1) {
@@ -2943,7 +2954,7 @@ private fun nextQuickEditOptionKey(options: List<Option>): String? {
 }
 
 private fun parseQuickEditAnswer(raw: String, type: QuestionType, options: List<Option>): List<String> {
-    val trimmed = raw.trim()
+    val trimmed = if (type == QuestionType.SHORT) normalizeQuickEditMultilineText(raw) else raw.trim()
     if (trimmed.isBlank()) return emptyList()
     return when (type) {
         QuestionType.SINGLE,
@@ -2973,6 +2984,16 @@ private fun parseQuickEditAnswer(raw: String, type: QuestionType, options: List<
         QuestionType.BLANK,
         QuestionType.SHORT -> listOf(trimmed)
     }
+}
+
+
+private fun normalizeQuickEditMultilineText(value: String): String {
+    val normalized = value.replace("\r\n", "\n").replace('\r', '\n')
+    if ('\n' !in normalized && '\t' !in normalized && "```" !in normalized) return normalized.trim()
+    val rows = normalized.split('\n').toMutableList()
+    while (rows.isNotEmpty() && rows.first().isBlank()) rows.removeAt(0)
+    while (rows.isNotEmpty() && rows.last().isBlank()) rows.removeAt(rows.lastIndex)
+    return rows.joinToString("\n")
 }
 
 

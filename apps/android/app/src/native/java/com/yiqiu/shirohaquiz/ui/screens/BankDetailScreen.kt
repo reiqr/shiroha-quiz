@@ -393,7 +393,11 @@ private fun QuestionPreviewBlock(
             text = if (MultiBlankSupport.hasStructuredAnswers(question)) {
                 "答案：\n${MultiBlankSupport.expectedAnswerText(question.blankAnswers)}"
             } else {
-                "答案：${question.answer.joinToString(" / ").ifBlank { "未识别" }}"
+                if (question.type == QuestionType.SHORT) {
+                    "答案：\n${question.answer.joinToString("\n\n").ifBlank { "未识别" }}"
+                } else {
+                    "答案：${question.answer.joinToString(" / ").ifBlank { "未识别" }}"
+                }
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary,
@@ -411,7 +415,9 @@ private fun QuestionEditDialog(
 ) {
     var stem by remember(question.id) { mutableStateOf(question.question) }
     var optionsText by remember(question.id) { mutableStateOf(formatOptions(question.options)) }
-    var answerText by remember(question.id) { mutableStateOf(question.answer.joinToString(" ")) }
+    var answerText by remember(question.id) {
+        mutableStateOf(question.answer.joinToString(if (question.type == QuestionType.SHORT) "\n\n" else " "))
+    }
     var blankAnswerDrafts by remember(question.id) { mutableStateOf(question.blankAnswers) }
     var analysisText by remember(question.id) { mutableStateOf(question.analysis) }
 
@@ -463,9 +469,11 @@ private fun QuestionEditDialog(
                     OutlinedTextField(
                         value = answerText,
                         onValueChange = { answerText = it },
-                        label = { Text("答案，例如 A 或 A B") },
+                        label = { Text(if (question.type == QuestionType.SHORT) "参考答案" else "答案，例如 A 或 A B") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = question.type != QuestionType.SHORT,
+                        minLines = if (question.type == QuestionType.SHORT) 6 else 1,
+                        maxLines = if (question.type == QuestionType.SHORT) 16 else 1
                     )
                     if (question.type == QuestionType.BLANK && detectedBlankCount > 1) {
                         TextButton(
@@ -484,7 +492,7 @@ private fun QuestionEditDialog(
                 )
                 AiAnalysisFillPanel(
                     question = question.copy(
-                        question = stem.trim(),
+                        question = normalizeBankEditorMultilineText(stem),
                         options = parseOptions(optionsText),
                         answer = if (question.type == QuestionType.BLANK && blankAnswerDrafts.isNotEmpty()) {
                             MultiBlankSupport.compatibilityAnswer(blankAnswerDrafts)
@@ -492,7 +500,7 @@ private fun QuestionEditDialog(
                             parseAnswer(answerText, question.type)
                         },
                         blankAnswers = if (question.type == QuestionType.BLANK) blankAnswerDrafts else emptyList(),
-                        analysis = analysisText.trim()
+                        analysis = normalizeBankEditorMultilineText(analysisText)
                     ),
                     currentAnalysis = analysisText,
                     onApplyAnalysis = { analysisText = it }
@@ -504,7 +512,7 @@ private fun QuestionEditDialog(
                 onClick = {
                     onSave(
                         question.copy(
-                            question = stem.trim(),
+                            question = normalizeBankEditorMultilineText(stem),
                             options = parseOptions(optionsText),
                             answer = if (question.type == QuestionType.BLANK && blankAnswerDrafts.isNotEmpty()) {
                                 MultiBlankSupport.compatibilityAnswer(blankAnswerDrafts)
@@ -512,7 +520,7 @@ private fun QuestionEditDialog(
                                 parseAnswer(answerText, question.type)
                             },
                             blankAnswers = if (question.type == QuestionType.BLANK) blankAnswerDrafts else emptyList(),
-                            analysis = analysisText.trim()
+                            analysis = normalizeBankEditorMultilineText(analysisText)
                         )
                     )
                 }
@@ -545,13 +553,22 @@ private fun parseOptions(raw: String): List<Option> {
 }
 
 private fun parseAnswer(raw: String, type: QuestionType): List<String> {
-    val clean = raw.trim()
+    val clean = if (type == QuestionType.SHORT) normalizeBankEditorMultilineText(raw) else raw.trim()
     if (clean.isBlank()) return emptyList()
     if (type == QuestionType.BLANK || type == QuestionType.SHORT) return listOf(clean)
     return clean.split(Regex("[\\s,，、/]+"))
         .map { it.trim().uppercase() }
         .filter { it.isNotBlank() }
         .distinct()
+}
+
+private fun normalizeBankEditorMultilineText(value: String): String {
+    val normalized = value.replace("\r\n", "\n").replace('\r', '\n')
+    if ('\n' !in normalized && '\t' !in normalized && "```" !in normalized) return normalized.trim()
+    val rows = normalized.split('\n').toMutableList()
+    while (rows.isNotEmpty() && rows.first().isBlank()) rows.removeAt(0)
+    while (rows.isNotEmpty() && rows.last().isBlank()) rows.removeAt(rows.lastIndex)
+    return rows.joinToString("\n")
 }
 
 private fun typeLabel(type: QuestionType): String = when (type) {
