@@ -330,7 +330,7 @@ fun ShortcutGlassCard(
 ) {
     val cardModifier = if (onClick != null) modifier.shirohaNoRippleClickable(onClick = onClick) else modifier
     GlassCard(modifier = cardModifier) {
-        Icon(icon, contentDescription = title, tint = MaterialTheme.colorScheme.primary)
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(14.dp))
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
@@ -506,7 +506,7 @@ fun UploadPanel(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = title,
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(34.dp)
             )

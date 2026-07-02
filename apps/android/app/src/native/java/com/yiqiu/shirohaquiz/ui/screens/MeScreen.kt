@@ -459,7 +459,7 @@ private fun DataActionTile(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = title,
+                contentDescription = null,
                 tint = if (warning) ShirohaColors.IconWarning else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(21.dp)
             )
@@ -724,7 +724,7 @@ private fun WrongBookExplanationCard(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = title,
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(26.dp)
             )
@@ -1424,7 +1424,7 @@ private fun ThemeChoiceTile(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = title,
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
@@ -1456,7 +1456,7 @@ private fun PreferenceInfoRow(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = title,
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(26.dp)
         )
@@ -1495,7 +1495,7 @@ private fun PreferenceSwitchRow(
     ) {
         Icon(
             imageVector = Icons.Rounded.Settings,
-            contentDescription = title,
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(26.dp)
         )
@@ -1539,7 +1539,7 @@ private fun FeaturePlanStrip(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = title,
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(26.dp)
         )

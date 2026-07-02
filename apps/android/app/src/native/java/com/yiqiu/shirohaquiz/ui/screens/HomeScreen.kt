@@ -253,7 +253,7 @@ private fun CompactHomeActionButton(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = text,
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp)
             )
@@ -405,7 +405,7 @@ private fun HomeShortcutCard(
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = label,
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )

@@ -658,7 +658,7 @@ fun ImportScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.FileOpen,
-                        contentDescription = "选择题库文件",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
@@ -1832,7 +1832,7 @@ private fun EditorSaveButton(onClick: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Rounded.Save,
-                contentDescription = "保存更改",
+                contentDescription = null,
                 modifier = Modifier.size(16.dp),
                 tint = ShirohaColors.TextOnBrand
             )
@@ -1921,7 +1921,7 @@ private fun ReviewCompactButton(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = text,
+                contentDescription = null,
                 modifier = Modifier.size(15.dp),
                 tint = if (primary) ShirohaColors.TextOnBrand else MaterialTheme.colorScheme.primary
             )
