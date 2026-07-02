@@ -366,9 +366,9 @@ cd test\native-parser-regression
 
 最新版本请以 [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 为准。当前仓库文档记录的主要版本线为：
 
-- 统一发布版：**v2.7.1-beta**
-- Web 版：**v0.8.1-alpha**
-- 原生 Compose 版：**v0.9.5.5-native**
+- 统一发布版：**v2.8.0-beta**
+- Web 版：**v0.8.2-alpha**
+- 原生 Compose 版：**v0.9.6-native**
 
 `v0.8.x-native` 近期原生版重点：**多空填空题全链路**（解析/练习/考试/搜索/编辑，含内联多空结构与分区多空继承）；**CodeLikeTextGuard 代码表达式守卫**；**分组练习范围**（跨题库出题）；路由系统升级（子页面回退到上级）；系统返回键支持；图片选项识别；招聘答案清理；DOCX紧凑选项修复；判分归一化双端对齐；考试状态标签单行布局。早期阶段已完成导入解析器重构、JSON多格式导入、选项打乱、AI分析与补解析、错题作用域、填空/简答判分、题目搜索、分组管理、LaTeX识别、智能复习、跨端互通等能力。
 

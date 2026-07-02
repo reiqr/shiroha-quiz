@@ -21,14 +21,14 @@ android {
         create("web") {
             dimension = "variant"
             applicationId = "com.yiqiu.shirohaquiz"
-            versionCode = 41
-            versionName = "0.8.1-alpha"
+            versionCode = 42
+            versionName = "0.8.2-alpha"
         }
         create("native") {
             dimension = "variant"
             applicationId = "com.reqir.shirohaquiz"
-            versionCode = 196
-            versionName = "0.9.5.5"
+            versionCode = 197
+            versionName = "0.9.6"
         }
     }
 
