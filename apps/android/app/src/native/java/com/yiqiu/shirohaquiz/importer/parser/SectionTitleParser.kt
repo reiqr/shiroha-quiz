@@ -26,6 +26,9 @@ object SectionTitleParser {
     private val exactAnswerSectionTitleRegex = Regex(
         """^\s*(?:[一二三四五六七八九十百]+|\d{1,3})?[、.．]?\s*(?:集中答案|集中解析|参考答案|标准答案|正确答案|答案(?:与|及)?解析|答案解析|试题答案|答题要点|参考要点|参考思路|答题思路|作答思路|评分要点|答案区|解析区|答案部分)\s*[:：]?\s*$"""
     )
+    private val inlineAnalysisLineRegex = Regex(
+        """^\s*(?:(?:[\[【]\s*(?:答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明)\s*[\]】]\s*)|(?:(?:答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明)\s*(?:[:：]|\s+)))\s*\S+"""
+    )
     private val questionBlankMarkerRegex = Regex("""[（(]\s*[)）]""")
     private val questionPromptKeywordRegex = Regex(
         """(?:[?？]|(?:下列|以下|哪[一项种个]|哪个|哪种|哪项|不正确|不属于|正确|错误|属于|包括|主要|应当|应该|可以|能够|能否|是否|为什么|如何))"""
@@ -39,6 +42,7 @@ object SectionTitleParser {
         if (isExactAnswerSectionTitle(title)) return SectionInfo(title = title, isAnswerSection = true)
         if (looksLikeNumberedQuestionStemLine(title)) return null
         if (genericSectionHeadingRegex.matches(title)) return SectionInfo(title = title)
+        if (isInlineAnalysisLine(title)) return null
         if (answerSectionRegex.containsMatchIn(title) && !isInlineAnswerLine(title)) {
             return SectionInfo(title = title, isAnswerSection = true)
         }
@@ -97,6 +101,10 @@ object SectionTitleParser {
 
     private fun isInlineAnswerLine(title: String): Boolean {
         return Regex("""^\s*(?:[\[【]\s*)?(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)(?:\s*[\]】])?\s*(?:[:：]|为|\s+)\s*\S+""").containsMatchIn(title)
+    }
+
+    private fun isInlineAnalysisLine(title: String): Boolean {
+        return inlineAnalysisLineRegex.containsMatchIn(title)
     }
 
     private fun looksLikeArabicNumberedTypedQuestionLine(title: String): Boolean {

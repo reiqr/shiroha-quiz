@@ -67,6 +67,10 @@ object QuestionBlockSplitter {
         """[（(]\s*(?:([A-Ga-g]{1,7})|(对|错|正确|错误|√|×|True|False))\s*[)）]""",
         RegexOption.IGNORE_CASE
     )
+    private val shortObjectiveAnswerRemainderRegex = Regex(
+        """^\s*(?:[\[【(（]\s*)?(?:[A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False)(?:\s*[\]】)）])?\s*[.。]?\s*$""",
+        RegexOption.IGNORE_CASE
+    )
     private val pureFrontMatterLineRegex = Regex(
         """^(?:[【\[]?\s*)?(?:绝密|密卷|注意事项(?:\s*[:：].*)?|说明\s*[:：]\s*(?:请|考试|答题|作答|时间|考生).*|请(?:认真|仔细)作答|请在规定时间内完成(?:答题|作答)|请将答案(?:填写|填涂|写在|写到).*|请用\s*2B.*|请勿.*|答题前.*|答题卡.*|考试时间\s*[:：].*|时间\s*[:：].*|在考试结束.*|考试结束.*|全部测验到此结束.*|祝各位考生.*|监考老师.*)(?:\s*[】\]])?\s*[。.!！]?$""",
         RegexOption.IGNORE_CASE
@@ -89,6 +93,7 @@ object QuestionBlockSplitter {
         var sequence = 0
         var skippingGlobalAnswerSection = false
         var skippingMaterialIntro = false
+        var lastCompletedExplicitNumber: Int? = null
 
         fun flush() {
             val number = currentNumber ?: return
@@ -102,6 +107,9 @@ object QuestionBlockSplitter {
                     sequence = sequence++,
                     numberGenerated = currentNumberGenerated
                 )
+                if (!currentNumberGenerated) {
+                    number.substringBefore('-').toIntOrNull()?.let { lastCompletedExplicitNumber = it }
+                }
             }
             currentNumber = null
             currentLines = mutableListOf()
@@ -131,6 +139,24 @@ object QuestionBlockSplitter {
                 skippingMaterialIntro = false
                 return@forEachIndexed
             }
+
+            if (skippingGlobalAnswerSection) {
+                val restart = parseQuestionStart(line)
+                if (
+                    restart == null ||
+                    !shouldResumeAfterGlobalAnswerSection(
+                        sourceLines = sourceLines,
+                        lineIndex = lineIndex,
+                        start = restart,
+                        lastCompletedExplicitNumber = lastCompletedExplicitNumber
+                    )
+                ) {
+                    return@forEachIndexed
+                }
+                skippingGlobalAnswerSection = false
+                skippingMaterialIntro = false
+            }
+
             SectionTitleParser.parse(line)?.let { section ->
                 if (section.isAnswerSection) {
                     flush()
@@ -146,8 +172,6 @@ object QuestionBlockSplitter {
                 skippingMaterialIntro = false
                 return@forEachIndexed
             }
-
-            if (skippingGlobalAnswerSection) return@forEachIndexed
 
             val activeNumber = currentNumber
             if (
@@ -208,6 +232,30 @@ object QuestionBlockSplitter {
 
         flush()
         return normalizeGeneratedQuestionNumbers(blocks)
+    }
+
+    /**
+     * 结果级保险使用的宽松题号探测：只统计带有明确题目结构的编号行，
+     * 不把“1.A / 2.B”这类集中答案条目当成题目。
+     */
+    internal fun detectLikelyQuestionNumbers(text: String): List<Int> {
+        val sourceLines = text.lineSequence().toList()
+        return sourceLines.mapIndexedNotNull { lineIndex, rawLine ->
+            val start = parseQuestionStart(rawLine.trim()) ?: return@mapIndexedNotNull null
+            val number = start.number.toIntOrNull() ?: return@mapIndexedNotNull null
+            if (
+                looksLikeLikelyQuestionStructure(
+                    sourceLines = sourceLines,
+                    lineIndex = lineIndex,
+                    start = start,
+                    requireOwnSubjectiveAnswer = false
+                )
+            ) {
+                number
+            } else {
+                null
+            }
+        }
     }
 
     private fun normalizeGeneratedQuestionNumbers(blocks: List<QuestionBlock>): List<QuestionBlock> {
@@ -314,6 +362,58 @@ object QuestionBlockSplitter {
         }
 
         return null
+    }
+
+    private fun shouldResumeAfterGlobalAnswerSection(
+        sourceLines: List<String>,
+        lineIndex: Int,
+        start: ParsedQuestionStart,
+        lastCompletedExplicitNumber: Int?
+    ): Boolean {
+        val currentNumber = start.number.toIntOrNull() ?: return false
+        if (lastCompletedExplicitNumber != null && currentNumber != lastCompletedExplicitNumber + 1) return false
+        return looksLikeLikelyQuestionStructure(
+            sourceLines = sourceLines,
+            lineIndex = lineIndex,
+            start = start,
+            requireOwnSubjectiveAnswer = true
+        )
+    }
+
+    private fun looksLikeLikelyQuestionStructure(
+        sourceLines: List<String>,
+        lineIndex: Int,
+        start: ParsedQuestionStart,
+        requireOwnSubjectiveAnswer: Boolean
+    ): Boolean {
+        val remainder = start.remainder.trim()
+        if (remainder.isBlank() || shortObjectiveAnswerRemainderRegex.matches(remainder)) return false
+        if (CompactQuestionRepair.hasCompactOptionSequence(remainder)) return true
+        if (countStandardOptionsAhead(sourceLines, lineIndex) >= 2) return true
+
+        val subjectiveLike = start.forcedType == QuestionType.SHORT ||
+            start.forcedType == QuestionType.BLANK ||
+            looksLikeSubjectiveQuestionRemainder(remainder)
+        if (!subjectiveLike) return false
+        return !requireOwnSubjectiveAnswer || hasAnswerMarkerAheadBeforeNextQuestion(sourceLines, lineIndex)
+    }
+
+    private fun countStandardOptionsAhead(sourceLines: List<String>, questionLineIndex: Int): Int {
+        var optionCount = 0
+        var nonBlankCount = 0
+        for (index in (questionLineIndex + 1) until sourceLines.size) {
+            val line = sourceLines[index].trim()
+            if (line.isBlank()) continue
+            nonBlankCount += 1
+            if (parseQuestionStart(line) != null) break
+            if (SectionTitleParser.isSectionHeading(line)) break
+            if (CompactQuestionRepair.isStandardOptionLine(line)) {
+                optionCount += 1
+                if (optionCount >= 2) return optionCount
+            }
+            if (nonBlankCount >= 12) break
+        }
+        return optionCount
     }
 
     private fun isInvalidQuestionNumber(number: String): Boolean {

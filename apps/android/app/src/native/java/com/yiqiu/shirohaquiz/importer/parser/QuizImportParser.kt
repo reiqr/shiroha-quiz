@@ -406,12 +406,18 @@ object QuizImportParser {
         candidates: List<Candidate>,
         best: Candidate
     ): ImportResult {
-        val finalWarnings = if (
+        val baseWarnings = if (
             best.questions.isEmpty() && best.warnings.none { it.level == WarningLevel.ERROR }
         ) {
             best.warnings + ImportWarning(WarningLevel.ERROR, null, "未识别到任何题目")
         } else {
             best.warnings
+        }
+        val truncationWarning = detectSuspiciousEarlyTermination(normalized, best.questions)
+        val finalWarnings = if (truncationWarning == null) {
+            baseWarnings
+        } else {
+            baseWarnings + truncationWarning
         }
         return ImportResult(
             questions = best.questions,
@@ -424,6 +430,32 @@ object QuizImportParser {
                 candidateCount = candidates.size,
                 notes = buildDiagnosticNotes(best, candidates)
             )
+        )
+    }
+
+    private fun detectSuspiciousEarlyTermination(
+        normalized: String,
+        questions: List<Question>
+    ): ImportWarning? {
+        val parsedNumbers = questions
+            .mapNotNull { it.number.substringBefore('-').trim().toIntOrNull() }
+            .filter { it > 0 }
+        val parsedMax = parsedNumbers.maxOrNull() ?: return null
+        val parsedSet = parsedNumbers.toSet()
+        val likelyNumbers = QuestionBlockSplitter.detectLikelyQuestionNumbers(normalized)
+        if (likelyNumbers.size < 4) return null
+
+        val missingContinuation = (1..3).map { parsedMax + it }
+        if (missingContinuation.any { it !in likelyNumbers || it in parsedSet }) return null
+
+        val sourceMax = likelyNumbers.maxOrNull() ?: return null
+        val trailingCount = likelyNumbers.count { it > parsedMax && it !in parsedSet }
+        if (sourceMax <= parsedMax || trailingCount < 3) return null
+
+        return ImportWarning(
+            level = WarningLevel.ERROR,
+            questionNumber = null,
+            message = "检测到原文在第${parsedMax}题后仍存在连续题目（至少到第${sourceMax}题），但实际仅识别${questions.size}题，疑似解析提前终止。请检查集中答案区识别后再写入。"
         )
     }
 
