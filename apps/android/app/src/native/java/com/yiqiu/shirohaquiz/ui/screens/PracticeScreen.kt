@@ -65,6 +65,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -90,6 +91,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yiqiu.shirohaquiz.R
+import com.yiqiu.shirohaquiz.ai.AiSingleQuestionConversationMessage
 import com.yiqiu.shirohaquiz.ai.AiSingleQuestionAnalysis
 import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
 import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
@@ -131,6 +133,9 @@ fun PracticeScreen(
     val practiceScopeLabel = QuizRepository.currentPracticeScopeLabel()
     val practiceScopeSummary = QuizRepository.currentPracticeScopeSummary()
     val autoNextScope = rememberCoroutineScope()
+    val singleQuestionAiSessions = remember(QuizRepository.practiceOptionShuffleSeed) {
+        mutableStateMapOf<String, SingleQuestionAiSessionState>()
+    }
     val practiceQuestions = QuizRepository.activePracticeQuestions()
     val question = QuizRepository.currentPracticeQuestion()
     val result = QuizRepository.practiceLastResult
@@ -645,16 +650,27 @@ fun PracticeScreen(
             practiceQuestions.isNotEmpty() &&
             if (isBatchPractice) QuizRepository.isAllPracticeBatchGroupsSubmitted() else QuizRepository.practiceAnsweredCount() >= practiceQuestions.size
         val canShowSingleQuestionAiAnalysis = QuizRepository.aiSingleQuestionAnalysisEnabled && (isReciteMode || effectiveResult != null)
-        var singleQuestionAiAnalysis by remember(currentSessionKey) { mutableStateOf<AiSingleQuestionAnalysis?>(null) }
-        var singleQuestionAiError by remember(currentSessionKey) { mutableStateOf<String?>(null) }
-        var isSingleQuestionAiLoading by remember(currentSessionKey) { mutableStateOf(false) }
-        val runSingleQuestionAiAnalysis = {
+        val singleQuestionAiSession = singleQuestionAiSessions[currentSessionKey] ?: SingleQuestionAiSessionState()
+        var showSingleQuestionAiReanalyzeConfirm by remember(currentSessionKey) { mutableStateOf(false) }
+        var showSingleQuestionAiSaveConfirm by remember(currentSessionKey) { mutableStateOf(false) }
+        val updateSingleQuestionAiSession: ((SingleQuestionAiSessionState) -> SingleQuestionAiSessionState) -> Unit = { transform ->
+            val currentState = singleQuestionAiSessions[currentSessionKey] ?: SingleQuestionAiSessionState()
+            singleQuestionAiSessions[currentSessionKey] = transform(currentState)
+        }
+        val runSingleQuestionAiAnalysis: () -> Unit = {
+            val currentAiState = singleQuestionAiSessions[currentSessionKey] ?: SingleQuestionAiSessionState()
             if (!QuizRepository.isAiConfigured()) {
-                singleQuestionAiError = "请先在 我的 → AI 设置 中填写 API 地址、API Key 和模型名称。"
-                singleQuestionAiAnalysis = null
-            } else if (!isSingleQuestionAiLoading) {
-                isSingleQuestionAiLoading = true
-                singleQuestionAiError = null
+                updateSingleQuestionAiSession { state ->
+                    state.copy(error = "请先在 我的 → AI 设置 中填写 API 地址、API Key 和模型名称。")
+                }
+            } else if (currentAiState.loadingAction == null) {
+                updateSingleQuestionAiSession { state ->
+                    state.copy(
+                        loadingAction = SingleQuestionAiLoadingAction.ANALYZE,
+                        error = null,
+                        saveNotice = null
+                    )
+                }
                 autoNextScope.launch {
                     val requestUserAnswer = effectiveResult?.userAnswer ?: displayedSelection
                     val aiQuestion = practiceQuestionForDisplay(question, displayOptions)
@@ -672,13 +688,127 @@ fun PracticeScreen(
                         }
                     }
                     result.onSuccess { analysis ->
-                        singleQuestionAiAnalysis = analysis
-                        singleQuestionAiError = null
+                        updateSingleQuestionAiSession { state ->
+                            state.copy(
+                                initialAnalysis = analysis,
+                                analysis = analysis,
+                                messages = emptyList(),
+                                followUpExpanded = false,
+                                followUpText = "",
+                                loadingAction = null,
+                                error = null,
+                                saveNotice = null
+                            )
+                        }
                     }.onFailure { error ->
-                        singleQuestionAiAnalysis = null
-                        singleQuestionAiError = error.message ?: "AI 分析失败，请检查接口配置或网络。"
+                        updateSingleQuestionAiSession { state ->
+                            state.copy(
+                                loadingAction = null,
+                                error = "AI补解析失败：${error.message ?: "请检查接口配置或网络。"}"
+                            )
+                        }
                     }
-                    isSingleQuestionAiLoading = false
+                }
+            }
+        }
+        val sendSingleQuestionAiFollowUp: () -> Unit = {
+            val currentAiState = singleQuestionAiSessions[currentSessionKey] ?: SingleQuestionAiSessionState()
+            val followUp = currentAiState.followUpText.trim()
+            val currentAnalysis = currentAiState.analysis
+            val initialAnalysis = currentAiState.initialAnalysis ?: currentAnalysis
+            when {
+                currentAnalysis == null || initialAnalysis == null -> {
+                    updateSingleQuestionAiSession { state -> state.copy(error = "请先生成本题的 AI 解析。") }
+                }
+                followUp.isBlank() -> {
+                    updateSingleQuestionAiSession { state -> state.copy(error = "请输入追问内容。") }
+                }
+                !QuizRepository.isAiConfigured() -> {
+                    updateSingleQuestionAiSession { state ->
+                        state.copy(error = "请先在 我的 → AI 设置 中填写 API 地址、API Key 和模型名称。")
+                    }
+                }
+                currentAiState.loadingAction == null -> {
+                    updateSingleQuestionAiSession { state ->
+                        state.copy(
+                            loadingAction = SingleQuestionAiLoadingAction.FOLLOW_UP,
+                            error = null,
+                            saveNotice = null
+                        )
+                    }
+                    autoNextScope.launch {
+                        val requestUserAnswer = effectiveResult?.userAnswer ?: displayedSelection
+                        val aiQuestion = practiceQuestionForDisplay(question, displayOptions)
+                        val aiUserAnswer = practiceAnswersForDisplay(requestUserAnswer, displayAnswerMap)
+                        val conversation = currentAiState.messages.map { message ->
+                            AiSingleQuestionConversationMessage(
+                                role = if (message.isUser) "user" else "assistant",
+                                content = message.content
+                            )
+                        }
+                        val result = runCatching {
+                            withContext(Dispatchers.IO) {
+                                ShirohaAiClient.followUpSingleQuestion(
+                                    apiBaseUrl = QuizRepository.aiApiBaseUrl,
+                                    apiKey = QuizRepository.aiApiKey,
+                                    modelName = QuizRepository.aiModelName,
+                                    question = aiQuestion,
+                                    userAnswer = aiUserAnswer,
+                                    initialAnalysis = initialAnalysis,
+                                    currentAnalysisDraft = currentAnalysis.analysis,
+                                    conversation = conversation,
+                                    followUp = followUp,
+                                    timeoutSeconds = QuizRepository.aiTimeoutSeconds
+                                )
+                            }
+                        }
+                        result.onSuccess { followUpResult ->
+                            updateSingleQuestionAiSession { state ->
+                                val activeAnalysis = state.analysis ?: currentAnalysis
+                                state.copy(
+                                    analysis = activeAnalysis.copy(
+                                        analysis = followUpResult.revisedAnalysis,
+                                        confidence = followUpResult.confidence,
+                                        needsReview = activeAnalysis.needsReview || followUpResult.needsReview,
+                                        warning = mergeAiWarnings(activeAnalysis.warning, followUpResult.warning)
+                                    ),
+                                    messages = state.messages + listOf(
+                                        SingleQuestionAiChatMessage(isUser = true, content = followUp),
+                                        SingleQuestionAiChatMessage(isUser = false, content = followUpResult.reply)
+                                    ),
+                                    followUpText = "",
+                                    loadingAction = null,
+                                    error = null,
+                                    saveNotice = null
+                                )
+                            }
+                        }.onFailure { error ->
+                            updateSingleQuestionAiSession { state ->
+                                state.copy(
+                                    loadingAction = null,
+                                    error = "追问失败：${error.message ?: "请检查接口配置或网络。"}"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        val saveSingleQuestionAiAnalysis: () -> Unit = {
+            val currentAiState = singleQuestionAiSessions[currentSessionKey] ?: SingleQuestionAiSessionState()
+            val analysisDraft = currentAiState.analysis?.analysis.orEmpty().trim()
+            if (analysisDraft.isBlank()) {
+                updateSingleQuestionAiSession { state -> state.copy(error = "没有可保存的 AI 解析。") }
+            } else if (QuizRepository.updateCurrentPracticeQuestionAnalysis(analysisDraft)) {
+                updateSingleQuestionAiSession { state ->
+                    state.copy(
+                        error = null,
+                        saveNotice = "AI解析已保存到题库，当前答题结果保持不变。"
+                    )
+                }
+            } else {
+                updateSingleQuestionAiSession { state ->
+                    state.copy(error = "保存失败：未找到这道题的源题库。", saveNotice = null)
                 }
             }
         }
@@ -1100,12 +1230,99 @@ fun PracticeScreen(
                 if (canShowSingleQuestionAiAnalysis) {
                     Spacer(Modifier.height(14.dp))
                     SingleQuestionAiAnalysisPanel(
-                        analysis = singleQuestionAiAnalysis,
-                        error = singleQuestionAiError,
-                        loading = isSingleQuestionAiLoading,
-                        onAnalyze = runSingleQuestionAiAnalysis
+                        session = singleQuestionAiSession,
+                        currentBankAnalysis = question.analysis,
+                        onAnalyze = {
+                            if (singleQuestionAiSession.analysis != null || singleQuestionAiSession.messages.isNotEmpty()) {
+                                showSingleQuestionAiReanalyzeConfirm = true
+                            } else {
+                                runSingleQuestionAiAnalysis()
+                            }
+                        },
+                        onToggleFollowUp = {
+                            updateSingleQuestionAiSession { state ->
+                                state.copy(
+                                    followUpExpanded = !state.followUpExpanded,
+                                    error = null,
+                                    saveNotice = null
+                                )
+                            }
+                        },
+                        onFollowUpTextChange = { value ->
+                            updateSingleQuestionAiSession { state -> state.copy(followUpText = value, error = null) }
+                        },
+                        onSendFollowUp = sendSingleQuestionAiFollowUp,
+                        onSave = {
+                            val aiAnalysis = singleQuestionAiSession.analysis
+                            val requiresConfirmation = question.analysis.isNotBlank() ||
+                                aiAnalysis?.matchesLocalAnswer == false ||
+                                aiAnalysis?.needsReview == true
+                            if (requiresConfirmation) {
+                                showSingleQuestionAiSaveConfirm = true
+                            } else {
+                                saveSingleQuestionAiAnalysis()
+                            }
+                        }
                     )
                 }
+            }
+
+            if (showSingleQuestionAiReanalyzeConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showSingleQuestionAiReanalyzeConfirm = false },
+                    title = { Text("重新生成AI解析？") },
+                    text = {
+                        Text("重新生成成功后会清空当前题目的追问记录，但不会修改已经保存到题库的解析。")
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showSingleQuestionAiReanalyzeConfirm = false
+                                runSingleQuestionAiAnalysis()
+                            }
+                        ) {
+                            Text("重新生成")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showSingleQuestionAiReanalyzeConfirm = false }) {
+                            Text("取消")
+                        }
+                    }
+                )
+            }
+
+            if (showSingleQuestionAiSaveConfirm) {
+                val aiAnalysis = singleQuestionAiSession.analysis
+                val confirmMessage = buildString {
+                    if (aiAnalysis?.matchesLocalAnswer == false || aiAnalysis?.needsReview == true) {
+                        append("AI判断与题库答案可能不一致，或当前结果需要人工确认。\n\n")
+                    }
+                    if (question.analysis.isNotBlank()) {
+                        append("当前题目已有解析，保存后将使用AI解析草稿覆盖原解析。\n\n")
+                    }
+                    append("本次操作只更新本题解析，不会修改题库答案，也不会清除当前答题结果。")
+                }
+                AlertDialog(
+                    onDismissRequest = { showSingleQuestionAiSaveConfirm = false },
+                    title = { Text("确认保存AI解析？") },
+                    text = { Text(confirmMessage) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showSingleQuestionAiSaveConfirm = false
+                                saveSingleQuestionAiAnalysis()
+                            }
+                        ) {
+                            Text(if (question.analysis.isNotBlank()) "确认覆盖" else "确认保存")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showSingleQuestionAiSaveConfirm = false }) {
+                            Text("取消")
+                        }
+                    }
+                )
             }
 
             if (showBatchSubmitConfirm) {
@@ -2744,37 +2961,169 @@ private fun resolvePracticeQuestionCount(
     }
 }
 
+private enum class SingleQuestionAiLoadingAction {
+    ANALYZE,
+    FOLLOW_UP
+}
+
+private data class SingleQuestionAiChatMessage(
+    val isUser: Boolean,
+    val content: String
+)
+
+private data class SingleQuestionAiSessionState(
+    val initialAnalysis: AiSingleQuestionAnalysis? = null,
+    val analysis: AiSingleQuestionAnalysis? = null,
+    val messages: List<SingleQuestionAiChatMessage> = emptyList(),
+    val followUpExpanded: Boolean = false,
+    val followUpText: String = "",
+    val loadingAction: SingleQuestionAiLoadingAction? = null,
+    val error: String? = null,
+    val saveNotice: String? = null
+)
+
 @Composable
 private fun SingleQuestionAiAnalysisPanel(
-    analysis: AiSingleQuestionAnalysis?,
-    error: String?,
-    loading: Boolean,
-    onAnalyze: () -> Unit
+    session: SingleQuestionAiSessionState,
+    currentBankAnalysis: String,
+    onAnalyze: () -> Unit,
+    onToggleFollowUp: () -> Unit,
+    onFollowUpTextChange: (String) -> Unit,
+    onSendFollowUp: () -> Unit,
+    onSave: () -> Unit
 ) {
+    val analysis = session.analysis
+    val isLoading = session.loadingAction != null
+    val isSaved = analysis?.analysis
+        ?.trim()
+        ?.takeIf { it.isNotBlank() }
+        ?.let { it == currentBankAnalysis.trim() }
+        ?: false
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ActionPillButton(
-            icon = Icons.Rounded.AutoAwesome,
-            text = when {
-                loading -> "AI 分析中"
-                analysis != null -> "重新分析本题"
-                else -> "AI 分析本题"
-            },
-            primary = false,
-            enabled = !loading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(46.dp),
-            fillWidthContent = true,
-            onClick = onAnalyze
-        )
-        if (loading) {
-            NoticeCard("AI 正在分析当前题目，请稍候。", warning = false)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ActionPillButton(
+                icon = Icons.Rounded.AutoAwesome,
+                text = if (session.loadingAction == SingleQuestionAiLoadingAction.ANALYZE) "生成中" else "AI补解析",
+                primary = analysis == null,
+                enabled = !isLoading,
+                modifier = Modifier
+                    .weight(1.05f)
+                    .height(46.dp),
+                fillWidthContent = true,
+                onClick = onAnalyze
+            )
+            ActionPillButton(
+                icon = Icons.Rounded.EditNote,
+                text = if (session.loadingAction == SingleQuestionAiLoadingAction.FOLLOW_UP) "追问中" else "追问",
+                primary = false,
+                enabled = analysis != null && !isLoading,
+                modifier = Modifier
+                    .weight(0.85f)
+                    .height(46.dp),
+                fillWidthContent = true,
+                onClick = onToggleFollowUp
+            )
+            ActionPillButton(
+                icon = Icons.Rounded.CheckCircle,
+                text = if (isSaved) "已保存" else "保存到题库",
+                primary = analysis != null && !isSaved,
+                enabled = analysis?.analysis?.isNotBlank() == true && !isLoading && !isSaved,
+                modifier = Modifier
+                    .weight(1.3f)
+                    .height(46.dp),
+                fillWidthContent = true,
+                onClick = onSave
+            )
         }
-        error?.takeIf { it.isNotBlank() }?.let { message ->
-            NoticeCard("AI 分析失败：$message", warning = true)
+
+        when (session.loadingAction) {
+            SingleQuestionAiLoadingAction.ANALYZE -> NoticeCard("AI 正在生成本题解析，请稍候。", warning = false)
+            SingleQuestionAiLoadingAction.FOLLOW_UP -> NoticeCard("AI 正在结合原题和对话继续回答，请稍候。", warning = false)
+            null -> Unit
+        }
+        session.error?.takeIf { it.isNotBlank() }?.let { message ->
+            NoticeCard(message, warning = true)
+        }
+        session.saveNotice?.takeIf { it.isNotBlank() }?.let { message ->
+            NoticeCard(message, warning = false)
         }
         analysis?.let { result ->
             SingleQuestionAiResultCard(result)
+        }
+        if (session.messages.isNotEmpty()) {
+            SingleQuestionAiConversationCard(session.messages)
+        }
+        if (session.followUpExpanded && analysis != null) {
+            OutlinedTextField(
+                value = session.followUpText,
+                onValueChange = onFollowUpTextChange,
+                label = { Text("继续追问这道题") },
+                placeholder = { Text("例如：为什么C选项不对？") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 5,
+                enabled = !isLoading,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
+            )
+            ActionPillButton(
+                icon = Icons.AutoMirrored.Rounded.ArrowForward,
+                text = "发送追问",
+                primary = session.followUpText.isNotBlank(),
+                enabled = session.followUpText.isNotBlank() && !isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp),
+                fillWidthContent = true,
+                onClick = onSendFollowUp
+            )
+        }
+    }
+}
+
+@Composable
+private fun SingleQuestionAiConversationCard(messages: List<SingleQuestionAiChatMessage>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = ShirohaColors.CardWhite68,
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "追问记录",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            messages.forEach { message ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = if (message.isUser) "你" else "AI",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (message.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (message.isUser) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardWhite78
+                    ) {
+                        Text(
+                            text = LatexDisplayFormatter.format(formatAnalysisForDisplay(message.content)),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -2797,7 +3146,7 @@ private fun SingleQuestionAiResultCard(result: AiSingleQuestionAnalysis) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "AI 参考分析",
+                    text = "AI解析草稿",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -2837,12 +3186,19 @@ private fun SingleQuestionAiResultCard(result: AiSingleQuestionAnalysis) {
                 )
             }
             Text(
-                text = "AI 结果仅供参考，不会自动修改题库答案或解析。",
+                text = "保存时只更新本题解析，不会修改题库答案。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
+}
+
+private fun mergeAiWarnings(existing: String, incoming: String): String {
+    return listOf(existing.trim(), incoming.trim())
+        .filter { it.isNotBlank() }
+        .distinct()
+        .joinToString("；")
 }
 
 private fun aiConfidenceLabel(confidence: String): String {

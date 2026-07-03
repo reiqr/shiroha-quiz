@@ -1188,6 +1188,66 @@ object QuizRepository {
         return true
     }
 
+    fun updateCurrentPracticeQuestionAnalysis(analysis: String): Boolean {
+        val normalizedAnalysis = normalizeJsonMultilineText(analysis).trim()
+        if (normalizedAnalysis.isBlank()) return false
+        val current = currentPracticeQuestion() ?: return false
+        val targetBank = bankForPracticeQuestion(current) ?: return false
+        val bankIndex = banks.indexOfFirst { it.id == targetBank.id }
+        if (bankIndex < 0) return false
+        val questionIndex = banks[bankIndex].questions.indexOfFirst { it.id == current.id }
+        if (questionIndex < 0) return false
+
+        val sourceQuestion = banks[bankIndex].questions[questionIndex]
+        val updatedQuestion = sanitizeQuestion(sourceQuestion.copy(analysis = normalizedAnalysis))
+        val updatedQuestions = banks[bankIndex].questions.toMutableList()
+        updatedQuestions[questionIndex] = updatedQuestion
+        banks[bankIndex] = banks[bankIndex].copy(questions = updatedQuestions)
+
+        practiceQuestions = practiceQuestions.mapIndexed { index, practiceQuestion ->
+            val sessionKey = practiceSessionKeyAt(index).orEmpty()
+            val sourceBankId = practiceQuestionBankIds[sessionKey] ?: targetBank.id
+            if (sourceBankId == targetBank.id && practiceQuestion.id == current.id) {
+                updatedQuestion
+            } else {
+                practiceQuestion
+            }
+        }
+
+        practiceQuestionSessionKeys.forEach { sessionKey ->
+            val sourceBankId = practiceQuestionBankIds[sessionKey] ?: targetBank.id
+            val existing = practiceAnswerResults[sessionKey]
+            if (sourceBankId == targetBank.id && existing?.question?.id == current.id) {
+                practiceAnswerResults[sessionKey] = existing.copy(question = updatedQuestion)
+            }
+        }
+        practiceLastResult = practiceLastResult?.let { existing ->
+            if (existing.question.id == current.id) existing.copy(question = updatedQuestion) else existing
+        }
+
+        for (index in wrongBook.indices) {
+            val entry = wrongBook[index]
+            if (entry.bankId == targetBank.id && entry.question.id == current.id) {
+                wrongBook[index] = entry.copy(
+                    bankName = banks[bankIndex].name,
+                    question = updatedQuestion
+                )
+            }
+        }
+        for (index in favoriteQuestions.indices) {
+            val entry = favoriteQuestions[index]
+            if (entry.bankId == targetBank.id && entry.question.id == current.id) {
+                favoriteQuestions[index] = entry.copy(
+                    bankName = banks[bankIndex].name,
+                    question = updatedQuestion
+                )
+            }
+        }
+
+        persist()
+        return true
+    }
+
     fun completePracticeSession() {
         finishPracticeSessionIfNeeded(advanceSequentialProgress = true)
         resetPracticeState()

@@ -52,6 +52,19 @@ data class AiSingleQuestionAnalysis(
     val warning: String
 )
 
+data class AiSingleQuestionConversationMessage(
+    val role: String,
+    val content: String
+)
+
+data class AiSingleQuestionFollowUpResult(
+    val reply: String,
+    val revisedAnalysis: String,
+    val confidence: String,
+    val needsReview: Boolean,
+    val warning: String
+)
+
 data class AiRefactorResult(
     val mode: String,
     val cleanedText: String?,
@@ -152,6 +165,66 @@ object ShirohaAiClient {
             timeoutSeconds = timeoutSeconds.coerceIn(15, 180)
         )
         return parseSingleQuestionAnalysis(content, question.id)
+    }
+
+    fun followUpSingleQuestion(
+        apiBaseUrl: String,
+        apiKey: String,
+        modelName: String,
+        question: Question,
+        userAnswer: List<String> = emptyList(),
+        initialAnalysis: AiSingleQuestionAnalysis,
+        currentAnalysisDraft: String,
+        conversation: List<AiSingleQuestionConversationMessage>,
+        followUp: String,
+        timeoutSeconds: Int = DEFAULT_AI_TIMEOUT_SECONDS
+    ): AiSingleQuestionFollowUpResult {
+        validateConfig(apiBaseUrl, apiKey, modelName)
+        val normalizedFollowUp = followUp.trim()
+        require(normalizedFollowUp.isNotBlank()) { "追问内容不能为空。" }
+        val history = JSONArray().also { array ->
+            conversation.forEach { message ->
+                val normalizedRole = when (message.role.trim().lowercase()) {
+                    "assistant" -> "assistant"
+                    else -> "user"
+                }
+                val content = message.content.trim()
+                if (content.isNotBlank()) {
+                    array.put(
+                        JSONObject()
+                            .put("role", normalizedRole)
+                            .put("content", content)
+                    )
+                }
+            }
+        }
+        val initialAnalysisJson = JSONObject()
+            .put("questionId", initialAnalysis.questionId)
+            .put("suggestedAnswer", initialAnalysis.suggestedAnswer)
+            .put("matchesLocalAnswer", initialAnalysis.matchesLocalAnswer)
+            .put("analysis", initialAnalysis.analysis)
+            .put("confidence", initialAnalysis.confidence)
+            .put("needsReview", initialAnalysis.needsReview)
+            .put("warning", initialAnalysis.warning)
+        val content = requestChatCompletion(
+            apiBaseUrl = apiBaseUrl,
+            apiKey = apiKey,
+            modelName = modelName,
+            systemPrompt = AiPrompts.AI_SINGLE_QUESTION_FOLLOW_UP_SYSTEM_PROMPT,
+            userPayload = JSONObject()
+                .put("task", "follow_up_single_question")
+                .put("outputFormat", singleQuestionFollowUpOutputContract())
+                .put("question", questionsToJson(listOf(question)).optJSONObject(0))
+                .put("userAnswer", JSONArray().also { array -> userAnswer.forEach { array.put(it) } })
+                .put("initialAnalysis", initialAnalysisJson)
+                .put("currentAnalysisDraft", currentAnalysisDraft.trim())
+                .put("conversation", history)
+                .put("followUp", normalizedFollowUp)
+                .put("note", "reply 用于继续对话；revisedAnalysis 必须是可独立保存到题库的完整解析。")
+                .toString(),
+            timeoutSeconds = timeoutSeconds.coerceIn(15, 180)
+        )
+        return parseSingleQuestionFollowUp(content, currentAnalysisDraft)
     }
 
     fun refactorQuestions(
@@ -425,6 +498,23 @@ object ShirohaAiClient {
         )
     }
 
+    private fun parseSingleQuestionFollowUp(
+        content: String,
+        fallbackAnalysis: String
+    ): AiSingleQuestionFollowUpResult {
+        val root = JSONObject(extractJsonObject(content))
+        val confidence = root.optString("confidence", "MEDIUM").trim().uppercase().let { value ->
+            if (value in setOf("HIGH", "MEDIUM", "LOW")) value else "MEDIUM"
+        }
+        return AiSingleQuestionFollowUpResult(
+            reply = root.optString("reply").trim().ifBlank { "AI 未返回有效追问回复。" },
+            revisedAnalysis = root.optString("revisedAnalysis").trim().ifBlank { fallbackAnalysis.trim() },
+            confidence = confidence,
+            needsReview = root.optBoolean("needsReview", confidence == "LOW"),
+            warning = root.optString("warning").trim()
+        )
+    }
+
     private fun parseRefactorResult(content: String): AiRefactorResult {
         val root = JSONObject(extractJsonObject(content))
         val questionsJson = root.optJSONArray("questions") ?: root.optJSONArray("items") ?: JSONArray()
@@ -588,6 +678,15 @@ object ShirohaAiClient {
             .put("confidence", "HIGH / MEDIUM / LOW")
             .put("needsReview", false)
             .put("warning", "不确定或疑似题库答案异常时填写；否则为空")
+    }
+
+    private fun singleQuestionFollowUpOutputContract(): JSONObject {
+        return JSONObject()
+            .put("reply", "直接回答用户本次追问")
+            .put("revisedAnalysis", "结合追问完善后的完整题库解析；必须可脱离对话独立阅读")
+            .put("confidence", "HIGH / MEDIUM / LOW")
+            .put("needsReview", false)
+            .put("warning", "不确定、题库答案疑似异常或追问与题目无关时填写；否则为空")
     }
 
     private fun refactorOutputContract(): JSONObject {
