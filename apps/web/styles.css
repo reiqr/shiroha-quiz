@@ -7736,3 +7736,20 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
 .ai-analysis-text-v991.is-empty{color:var(--muted)}
 .ai-suggestion-actions-v991{margin-top:12px}
 /* SHIROHA_WEB_ISSUE_99_STAGE1_AI_REVIEW_ANALYSIS_END */
+
+/* SHIROHA_WEB_ISSUE_99_STAGE1_RANGE_CONTROL_V992_START */
+.ai-scope-block-v992{margin:14px 0;padding:14px 15px;border:1px solid rgba(37,99,235,.13);border-radius:16px;background:rgba(255,255,255,.8)}
+.ai-field-caption-v992{display:block;color:#31577f;font-size:12px;font-weight:700;margin-bottom:9px}
+.ai-scope-options-v992{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ai-scope-option-v992{display:flex;align-items:center;gap:8px;min-height:38px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#334155;cursor:pointer}
+.ai-scope-option-v992:has(input:checked){border-color:rgba(37,99,235,.36);background:#f5f9ff;color:#1d4f91;box-shadow:0 0 0 2px rgba(37,99,235,.05)}
+.ai-scope-option-v992:has(input:disabled){cursor:not-allowed;opacity:.55}
+.ai-scope-option-v992 input{margin:0}
+.ai-scope-option-v992 small{color:var(--muted);font-size:12px}
+.ai-range-hint-v992{margin:9px 0 0;color:var(--muted);font-size:13px;line-height:1.6}
+.ai-preview-control-grid-v991{grid-template-columns:minmax(230px,1fr) minmax(250px,1fr) minmax(170px,.55fr)}
+.ai-preview-range-fields-v992{display:grid;grid-template-columns:180px 180px minmax(300px,1fr);gap:14px;align-items:end;margin:-2px 0 15px;padding:14px 15px;border:1px solid rgba(37,99,235,.13);border-radius:15px;background:#f8fbff}
+.ai-preview-range-fields-v992 p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.55}
+.ai-preview-meta-grid-v991{grid-template-columns:repeat(5,minmax(0,1fr))}
+/* SHIROHA_WEB_ISSUE_99_STAGE1_RANGE_CONTROL_V992_END */
+

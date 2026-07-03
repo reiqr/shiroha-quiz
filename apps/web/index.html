@@ -152,11 +152,19 @@
               <div><p class="kicker">AI Assisted Import</p><h3>AI 辅助整理</h3></div>
               <span class="ocr-badge" id="ai-import-badge-v99">AI 辅助</span>
             </div>
-            <p class="muted">AI 只整理当前文本并生成题目预览，不会自动写入题库。原始文本会保留，整理失败时也不会覆盖现有识别结果。</p>
+            <p class="muted">AI 只整理本次指定的原始文本并生成题目预览，不会自动写入题库。原始文本会保留，整理失败时也不会覆盖现有识别结果。</p>
+            <div class="ai-scope-block-v992">
+              <span class="ai-field-caption-v992">处理范围</span>
+              <div class="ai-scope-options-v992">
+                <label class="ai-scope-option-v992"><input id="ai-import-scope-all-v992" name="ai-import-scope-v992" type="radio" value="all" checked /><span>全部原始文本</span></label>
+                <label class="ai-scope-option-v992"><input id="ai-import-scope-selection-v992" name="ai-import-scope-v992" type="radio" value="selection" /><span>当前选中文本</span><small id="ai-import-selection-size-v992">未选择</small></label>
+              </div>
+              <p id="ai-import-range-hint-v992" class="ai-range-hint-v992">将整理导入框中的全部原始文本。</p>
+            </div>
             <div class="ai-import-meta-grid-v99">
               <div><span>服务</span><b id="ai-import-provider-v99">未配置</b></div>
               <div><span>模型</span><b id="ai-import-model-v99">—</b></div>
-              <div><span>当前文本</span><b id="ai-import-size-v99">0 字</b></div>
+              <div><span>本次处理</span><b id="ai-import-size-v99">0 字</b></div>
               <div><span>当前预览</span><b id="ai-import-preview-count-v99">0 题</b></div>
             </div>
             <div id="ai-import-privacy-v99" class="notice">请先确认 AI 服务配置。</div>
@@ -240,9 +248,15 @@ C. 判断题
             <p id="ai-preview-description-v991" class="muted">检查识别结果，只生成修改建议，不会自动改题。</p>
             <div class="ai-preview-control-grid-v991">
               <label>处理范围<select id="ai-preview-scope-v991"></select></label>
-              <label>单批处理题数<input id="ai-preview-batch-v991" type="number" min="1" max="30" step="1" value="20" /></label>
+              <label id="ai-preview-condition-field-v992" class="ai-hidden-v99">解析条件<select id="ai-preview-condition-v992"><option value="missing">仅无解析题目</option><option value="short">无解析或解析少于20字</option><option value="all">不限制解析状态</option></select></label>
+              <label>单批提交题数<input id="ai-preview-batch-v991" type="number" min="1" max="30" step="1" value="20" /></label>
             </div>
-            <div class="ai-preview-meta-grid-v991"><div><span>服务</span><b id="ai-preview-service-v991">未配置</b></div><div><span>模型</span><b id="ai-preview-model-v991">—</b></div><div><span>本次范围</span><b id="ai-preview-count-v991">0 题</b></div></div>
+            <div id="ai-preview-range-fields-v992" class="ai-preview-range-fields-v992 ai-hidden-v99">
+              <label>开始题号<input id="ai-preview-range-start-v992" type="number" min="1" step="1" value="1" /></label>
+              <label>结束题号<input id="ai-preview-range-end-v992" type="number" min="1" step="1" value="20" /></label>
+              <p>按完整识别结果中的题号计算，不受当前筛选条件影响。</p>
+            </div>
+            <div class="ai-preview-meta-grid-v991"><div><span>服务</span><b id="ai-preview-service-v991">未配置</b></div><div><span>模型</span><b id="ai-preview-model-v991">—</b></div><div><span>范围内题目</span><b id="ai-preview-range-count-v992">0 题</b></div><div><span>实际处理</span><b id="ai-preview-count-v991">0 题</b></div><div><span>预计请求</span><b id="ai-preview-request-count-v992">0 次</b></div></div>
             <div class="actions ai-import-actions-v99"><button id="ai-preview-start-btn-v991" class="primary" type="button">开始处理</button><button id="ai-preview-cancel-btn-v991" class="ghost" type="button">取消</button><button id="ai-preview-settings-btn-v991" class="ghost ai-hidden-v99" type="button">前往 AI 设置</button></div>
             <div id="ai-preview-status-v991" class="notice">AI 结果只作为建议，必须由你主动采纳。</div>
           </div>
