@@ -23,8 +23,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +36,7 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -51,12 +55,18 @@ import androidx.compose.material.icons.rounded.RemoveCircle
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -81,9 +91,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.ai.AiRefactorResult
+import com.yiqiu.shirohaquiz.ai.AiAnalysisSuggestion
 import com.yiqiu.shirohaquiz.ai.AiReviewSuggestion
 import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
 import com.yiqiu.shirohaquiz.importer.model.ImportDiagnostics
@@ -128,7 +140,7 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ImportScreen(
     onImportSaved: () -> Unit,
@@ -166,6 +178,21 @@ fun ImportScreen(
     var aiAnalyzedQuestionIds by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var aiAnalysisAppliedQuestionIds by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var aiReviewSuggestions by remember { mutableStateOf<List<AiReviewSuggestion>>(emptyList()) }
+    var aiTaskSheetModeName by rememberSaveable { mutableStateOf<String?>(null) }
+    var aiTaskScopeName by rememberSaveable { mutableStateOf(AiImportScope.CURRENT_FILTER.name) }
+    var aiTaskTotalChoice by rememberSaveable { mutableIntStateOf(20) }
+    var aiTaskCustomTotal by rememberSaveable { mutableIntStateOf(20) }
+    var aiTaskRangeStart by rememberSaveable { mutableIntStateOf(1) }
+    var aiTaskRangeEnd by rememberSaveable { mutableIntStateOf(1) }
+    var aiTaskSkipProcessed by rememberSaveable { mutableStateOf(true) }
+    var showAiCustomTotalDialog by rememberSaveable { mutableStateOf(false) }
+    var showAiCustomRangeDialog by rememberSaveable { mutableStateOf(false) }
+    var aiCustomTotalInput by rememberSaveable { mutableStateOf("") }
+    var aiRangeStartInput by rememberSaveable { mutableStateOf("") }
+    var aiRangeEndInput by rememberSaveable { mutableStateOf("") }
+    var aiDialogError by rememberSaveable { mutableStateOf<String?>(null) }
+    var aiBatchState by remember { mutableStateOf<AiImportBatchState?>(null) }
+    var aiStopRequested by remember { mutableStateOf(false) }
     var saveMode by rememberSaveable { mutableStateOf(ImportSaveMode.NEW_BANK.name) }
     var newBankGroupName by rememberSaveable { mutableStateOf(DEFAULT_BANK_GROUP_NAME) }
     var newBankName by rememberSaveable { mutableStateOf("导入题库") }
@@ -175,6 +202,18 @@ fun ImportScreen(
         val defaultBankName = defaultImportBankName(selectedFileName)
         if (newBankName.isBlank() || newBankName == "导入题库" || newBankName == "未选择文件") {
             newBankName = defaultBankName
+        }
+    }
+
+    LaunchedEffect(aiBatchState?.status) {
+        while (
+            aiBatchState?.status == AiImportBatchStatus.RUNNING ||
+            aiBatchState?.status == AiImportBatchStatus.STOPPING
+        ) {
+            delay(1_000)
+            aiBatchState = aiBatchState?.copy(
+                elapsedSeconds = (aiBatchState?.elapsedSeconds ?: 0) + 1
+            )
         }
     }
 
@@ -190,6 +229,9 @@ fun ImportScreen(
         aiAnalyzedQuestionIds = emptyList()
         aiAnalysisAppliedQuestionIds = emptyList()
         aiReviewSuggestions = emptyList()
+        aiTaskSheetModeName = null
+        aiBatchState = null
+        aiStopRequested = false
         if (clearImages) importedImages = emptyList()
     }
 
@@ -206,6 +248,9 @@ fun ImportScreen(
         aiAnalyzedQuestionIds = emptyList()
         aiAnalysisAppliedQuestionIds = emptyList()
         aiReviewSuggestions = emptyList()
+        aiTaskSheetModeName = null
+        aiBatchState = null
+        aiStopRequested = false
         val hardCount = resultWithExtraWarnings.warnings.count { it.level == WarningLevel.ERROR }
         val softCount = resultWithExtraWarnings.warnings.count { it.level == WarningLevel.WARNING }
         statusText = "已完成${if (useDualImport) "双文件" else "原生"}解析：${resultWithExtraWarnings.questions.size} 题，硬错误 $hardCount 条，可确认提示 $softCount 条。"
@@ -220,6 +265,260 @@ fun ImportScreen(
         importResult = importResult?.copy(
             questions = nextQuestions,
             warnings = refreshImportWarningsForQuestions(baseWarnings, nextQuestions)
+        )
+    }
+
+    fun openAiTaskSheet(mode: AiImportTaskMode) {
+        if (!QuizRepository.isAiConfigured()) {
+            showAiConfigPrompt = true
+            statusText = "${mode.displayName}：请先在个人偏好 → AI 设置中配置接口。"
+            isStatusWarn = true
+            return
+        }
+        val enabled = when (mode) {
+            AiImportTaskMode.REVIEW -> QuizRepository.aiReviewEnabled
+            AiImportTaskMode.ANALYSIS -> QuizRepository.aiAnalysisEnabled
+        }
+        if (!enabled) {
+            statusText = "${mode.displayName}未启用，请先在个人偏好 → AI 设置中开启。"
+            isStatusWarn = true
+            return
+        }
+        if (editableQuestions.isEmpty()) {
+            statusText = "${mode.displayName}：当前没有可处理的题目。"
+            isStatusWarn = true
+            return
+        }
+        aiTaskSheetModeName = mode.name
+        aiTaskScopeName = AiImportScope.CURRENT_FILTER.name
+        aiTaskTotalChoice = if (mode == AiImportTaskMode.REVIEW) 20 else 10
+        aiTaskCustomTotal = aiTaskTotalChoice
+        aiTaskRangeStart = 1
+        aiTaskRangeEnd = editableQuestions.size.coerceAtLeast(1)
+        aiTaskSkipProcessed = true
+        aiDialogError = null
+    }
+
+    fun launchAiBatch(
+        mode: AiImportTaskMode,
+        targetQuestions: List<Question>,
+        scopeLabel: String,
+        previousState: AiImportBatchState? = null
+    ) {
+        if (targetQuestions.isEmpty() || isImportBusy) return
+        val batchSize = aiImportBatchSize(mode)
+        val overallTotal = previousState?.total ?: targetQuestions.size
+        val initialCompleted = previousState?.completed ?: 0
+        val initialGenerated = previousState?.generated ?: 0
+        val initialMissing = previousState?.missing ?: 0
+        val initialFailedBatches = previousState?.failedBatches ?: 0
+        val initialElapsedSeconds = previousState?.elapsedSeconds ?: 0
+        val totalBatches = ((overallTotal + batchSize - 1) / batchSize).coerceAtLeast(1)
+        val completedBatches = initialCompleted / batchSize
+
+        aiStopRequested = false
+        isImportBusy = true
+        busyText = "${mode.displayName}处理中……"
+        statusText = ""
+        isStatusWarn = false
+        aiBatchState = AiImportBatchState(
+            mode = mode,
+            scopeLabel = scopeLabel,
+            status = AiImportBatchStatus.RUNNING,
+            total = overallTotal,
+            completed = initialCompleted,
+            generated = initialGenerated,
+            missing = initialMissing,
+            currentBatch = (completedBatches + 1).coerceAtMost(totalBatches),
+            totalBatches = totalBatches,
+            failedBatches = initialFailedBatches,
+            elapsedSeconds = initialElapsedSeconds,
+            pendingQuestionIds = targetQuestions.map { it.id },
+            message = "正在发送第 ${(completedBatches + 1).coerceAtMost(totalBatches)} 批。"
+        )
+
+        importScope.launch {
+            var currentQuestions = editableQuestions
+            var currentWarnings = importResult?.warnings.orEmpty()
+            var currentReviewSuggestions = aiReviewSuggestions
+            var currentReviewedIds = aiReviewedQuestionIds
+            var currentAnalyzedIds = aiAnalyzedQuestionIds
+            var currentAppliedIds = aiAnalysisAppliedQuestionIds
+            var completed = initialCompleted
+            var generated = initialGenerated
+            var missing = initialMissing
+            var failedBatches = initialFailedBatches
+            var pendingIds = targetQuestions.map { it.id }
+            var terminalStatus = AiImportBatchStatus.COMPLETED
+            var terminalMessage = ""
+
+            targetQuestions.chunked(batchSize).forEachIndexed { localBatchIndex, batch ->
+                if (terminalStatus != AiImportBatchStatus.COMPLETED) return@forEachIndexed
+                val currentBatchNumber = (completedBatches + localBatchIndex + 1).coerceAtMost(totalBatches)
+                aiBatchState = aiBatchState?.copy(
+                    status = if (aiStopRequested) AiImportBatchStatus.STOPPING else AiImportBatchStatus.RUNNING,
+                    currentBatch = currentBatchNumber,
+                    pendingQuestionIds = pendingIds,
+                    message = "本批正在处理 ${batch.size} 题。"
+                )
+
+                val requestResult = runCatching {
+                    withContext(Dispatchers.IO) {
+                        when (mode) {
+                            AiImportTaskMode.REVIEW -> AiImportBatchResponse.Review(
+                                ShirohaAiClient.reviewQuestions(
+                                apiBaseUrl = QuizRepository.aiApiBaseUrl,
+                                apiKey = QuizRepository.aiApiKey,
+                                modelName = QuizRepository.aiModelName,
+                                questions = batch,
+                                timeoutSeconds = QuizRepository.aiTimeoutSeconds
+                                )
+                            )
+                            AiImportTaskMode.ANALYSIS -> AiImportBatchResponse.Analysis(
+                                ShirohaAiClient.generateAnalysis(
+                                apiBaseUrl = QuizRepository.aiApiBaseUrl,
+                                apiKey = QuizRepository.aiApiKey,
+                                modelName = QuizRepository.aiModelName,
+                                questions = batch,
+                                timeoutSeconds = QuizRepository.aiTimeoutSeconds
+                                )
+                            )
+                        }
+                    }
+                }
+
+                requestResult.onSuccess { response ->
+                    when (response) {
+                        is AiImportBatchResponse.Review -> {
+                            val suggestions = response.suggestions
+                            currentReviewSuggestions = mergeAiReviewSuggestions(currentReviewSuggestions, suggestions, batch)
+                            val aiWarnings = suggestionsToImportWarnings(suggestions, currentQuestions)
+                            currentWarnings = mergeAiWarnings(
+                                currentWarnings = currentWarnings,
+                                aiWarnings = aiWarnings,
+                                processedQuestions = batch
+                            )
+                            currentReviewedIds = (currentReviewedIds + batch.map { it.id }).distinct()
+                            aiReviewSuggestions = currentReviewSuggestions
+                            aiReviewedQuestionIds = currentReviewedIds
+                            importResult = importResult?.copy(
+                                questions = currentQuestions,
+                                warnings = currentWarnings
+                            )
+                            generated += aiWarnings.size
+                            previewOnlyAnomaly = aiWarnings.isNotEmpty() || previewOnlyAnomaly
+                        }
+                        is AiImportBatchResponse.Analysis -> {
+                            val suggestions = response.suggestions
+                            val suggestionMap = suggestions.associateBy { it.questionId }
+                            val appliedIds = mutableListOf<String>()
+                            currentQuestions = currentQuestions.map { question ->
+                                val suggestion = suggestionMap[question.id]
+                                if (suggestion != null && shouldApplyAiAnalysis(question) && suggestion.analysis.trim().isNotBlank()) {
+                                    appliedIds += question.id
+                                    applyAiAnalysisSuggestion(question, suggestion.analysis)
+                                } else {
+                                    question
+                                }
+                            }
+                            currentAnalyzedIds = (currentAnalyzedIds + batch.map { it.id }).distinct()
+                            currentAppliedIds = (currentAppliedIds + appliedIds).distinct()
+                            currentWarnings = refreshImportWarningsForQuestions(currentWarnings, currentQuestions)
+                            editableQuestions = currentQuestions
+                            importResult = importResult?.copy(
+                                questions = currentQuestions,
+                                warnings = currentWarnings
+                            )
+                            aiAnalyzedQuestionIds = currentAnalyzedIds
+                            aiAnalysisAppliedQuestionIds = currentAppliedIds
+                            generated += appliedIds.size
+                            missing += (batch.size - appliedIds.size).coerceAtLeast(0)
+                        }
+                    }
+                    completed += batch.size
+                    pendingIds = pendingIds.drop(batch.size)
+                    aiBatchState = aiBatchState?.copy(
+                        completed = completed,
+                        generated = generated,
+                        missing = missing,
+                        failedBatches = failedBatches,
+                        pendingQuestionIds = pendingIds,
+                        message = "第 $currentBatchNumber/$totalBatches 批已完成。"
+                    )
+                    if (aiStopRequested && pendingIds.isNotEmpty()) {
+                        terminalStatus = AiImportBatchStatus.STOPPED
+                        terminalMessage = "已按要求停止后续批次，已完成结果全部保留。"
+                    }
+                }.onFailure { error ->
+                    failedBatches += 1
+                    terminalStatus = AiImportBatchStatus.FAILED
+                    terminalMessage = error.message ?: "请检查接口配置"
+                    aiBatchState = aiBatchState?.copy(
+                        failedBatches = failedBatches,
+                        pendingQuestionIds = pendingIds,
+                        message = "当前批次请求失败：$terminalMessage"
+                    )
+                }
+            }
+
+            val finalStatus = when {
+                terminalStatus == AiImportBatchStatus.FAILED -> AiImportBatchStatus.FAILED
+                terminalStatus == AiImportBatchStatus.STOPPED -> AiImportBatchStatus.STOPPED
+                pendingIds.isEmpty() -> AiImportBatchStatus.COMPLETED
+                else -> AiImportBatchStatus.STOPPED
+            }
+            val finalMessage = when (finalStatus) {
+                AiImportBatchStatus.COMPLETED -> "本次计划已全部处理完成。"
+                AiImportBatchStatus.STOPPED -> terminalMessage.ifBlank { "已停止后续批次，已完成结果全部保留。" }
+                AiImportBatchStatus.FAILED -> "请求失败：${terminalMessage.ifBlank { "请检查接口配置" }}"
+                else -> terminalMessage
+            }
+            aiBatchState = aiBatchState?.copy(
+                status = finalStatus,
+                completed = completed,
+                generated = generated,
+                missing = missing,
+                failedBatches = failedBatches,
+                pendingQuestionIds = pendingIds,
+                message = finalMessage
+            )
+            statusText = when (mode) {
+                AiImportTaskMode.REVIEW -> when (finalStatus) {
+                    AiImportBatchStatus.COMPLETED -> "AI 核对完成：已处理 $completed 题，生成 $generated 条建议。"
+                    AiImportBatchStatus.STOPPED -> "AI 核对已停止：已完成 $completed/$overallTotal 题，已完成结果全部保留。"
+                    AiImportBatchStatus.FAILED -> "AI 核对失败：已完成 $completed/$overallTotal 题，${terminalMessage.ifBlank { "请检查接口配置" }}。"
+                    else -> ""
+                }
+                AiImportTaskMode.ANALYSIS -> when (finalStatus) {
+                    AiImportBatchStatus.COMPLETED -> "AI 补解析完成：已处理 $completed 题，成功写入 $generated 题，未写入 $missing 题。"
+                    AiImportBatchStatus.STOPPED -> "AI 补解析已停止：已完成 $completed/$overallTotal 题，已完成结果全部保留。"
+                    AiImportBatchStatus.FAILED -> "AI 补解析失败：已完成 $completed/$overallTotal 题，${terminalMessage.ifBlank { "请检查接口配置" }}。"
+                    else -> ""
+                }
+            }
+            isStatusWarn = finalStatus == AiImportBatchStatus.FAILED ||
+                (mode == AiImportTaskMode.REVIEW && generated > 0)
+            isImportBusy = false
+            busyText = ""
+            aiStopRequested = false
+        }
+    }
+
+    fun continueAiBatch(state: AiImportBatchState) {
+        val pendingQuestions = state.pendingQuestionIds.mapNotNull { id ->
+            editableQuestions.firstOrNull { it.id == id }
+        }
+        if (pendingQuestions.isEmpty()) {
+            statusText = "${state.mode.displayName}：没有可继续处理的题目。"
+            isStatusWarn = false
+            aiBatchState = state.copy(status = AiImportBatchStatus.COMPLETED, message = "没有剩余题目。")
+            return
+        }
+        launchAiBatch(
+            mode = state.mode,
+            targetQuestions = pendingQuestions,
+            scopeLabel = state.scopeLabel,
+            previousState = state
         )
     }
 
@@ -587,6 +886,8 @@ fun ImportScreen(
     var importTopContentHeightPx by remember { mutableIntStateOf(0) }
     var importEditorHeaderHeightPx by remember { mutableIntStateOf(0) }
     val importLayoutDensity = LocalDensity.current
+    val isAiBatchActive = aiBatchState?.status == AiImportBatchStatus.RUNNING ||
+        aiBatchState?.status == AiImportBatchStatus.STOPPING
     val useAdaptiveInitialEditorHeight = !isImportBusy &&
         !useDualImport &&
         importResult == null &&
@@ -781,10 +1082,25 @@ fun ImportScreen(
         }
 
         if (isImportBusy) {
-            LoadingIllustration(
-                text = busyText.ifBlank { "正在处理导入任务……" },
-                imageRes = R.drawable.illus_loading_state_webp
-            )
+            val activeBatchState = aiBatchState
+            if (isAiBatchActive && activeBatchState != null) {
+                AiImportBatchProgressCard(
+                    state = activeBatchState,
+                    onStop = {
+                        aiStopRequested = true
+                        aiBatchState = aiBatchState?.copy(
+                            status = AiImportBatchStatus.STOPPING,
+                            message = "当前批次完成后停止，不再发送下一批。"
+                        )
+                    },
+                    onContinue = {}
+                )
+            } else {
+                LoadingIllustration(
+                    text = busyText.ifBlank { "正在处理导入任务……" },
+                    imageRes = R.drawable.illus_loading_state_webp
+                )
+            }
         } else {
             GlassCard {
                 val hasRawText = rawText.isNotBlank()
@@ -1029,15 +1345,19 @@ fun ImportScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(10.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                         ActionPillButton(
                             icon = Icons.Rounded.AutoAwesome,
                             text = "AI重构",
                             primary = QuizRepository.isAiConfigured() && QuizRepository.aiRefactorEnabled,
-                            modifier = Modifier.alpha(if (QuizRepository.isAiConfigured() && QuizRepository.aiRefactorEnabled) 1f else ShirohaDimens.DisabledAlpha),
+                            modifier = Modifier
+                                .weight(1f)
+                                .alpha(if (QuizRepository.isAiConfigured() && QuizRepository.aiRefactorEnabled) 1f else ShirohaDimens.DisabledAlpha),
+                            fillWidthContent = true,
                             enabled = editableQuestions.isNotEmpty() && rawText.isNotBlank() && !isImportBusy,
                             onClick = {
                                 if (!QuizRepository.isAiConfigured()) {
@@ -1069,6 +1389,7 @@ fun ImportScreen(
                                     "${warning.level.name}：$numberText${warning.message}"
                                 }.distinct().take(120)
                                 val beforeCount = editableQuestions.size
+                                aiBatchState = null
                                 statusText = "AI 重构中：优先清洗原文并重新本地解析，必要时再使用 AI 直接重构结果。"
                                 isStatusWarn = false
                                 importScope.launch {
@@ -1134,7 +1455,7 @@ fun ImportScreen(
                                             aiAnalyzedQuestionIds = emptyList()
                                             aiAnalysisAppliedQuestionIds = emptyList()
                                             aiReviewSuggestions = emptyList()
-                                            statusText = "AI 重构完成：已清洗原文并重新本地解析，由 $beforeCount 题得到 ${refactoredQuestions.size} 题。请先人工核对，再继续 AI 核对或 AI 解析。"
+                                            statusText = "AI 重构完成：已清洗原文并重新本地解析，由 $beforeCount 题得到 ${refactoredQuestions.size} 题。请先人工核对，再继续 AI 核对或 AI 补解析。"
                                             isStatusWarn = nextWarnings.isNotEmpty()
                                         } else if (directQuestions.isNotEmpty()) {
                                             val refactoredQuestions = directQuestions
@@ -1159,7 +1480,7 @@ fun ImportScreen(
                                             aiAnalyzedQuestionIds = emptyList()
                                             aiAnalysisAppliedQuestionIds = emptyList()
                                             aiReviewSuggestions = emptyList()
-                                            statusText = "AI 重构完成：由 $beforeCount 题重整为 ${refactoredQuestions.size} 题。请先人工核对，再继续 AI 核对或 AI 解析。"
+                                            statusText = "AI 重构完成：由 $beforeCount 题重整为 ${refactoredQuestions.size} 题。请先人工核对，再继续 AI 核对或 AI 补解析。"
                                             isStatusWarn = nextWarnings.isNotEmpty()
                                         } else if (reparsedResult != null) {
                                             statusText = "AI 重构已返回清洗文本，但本地重解析未得到可用题目，当前待核对结果未改动。"
@@ -1181,191 +1502,36 @@ fun ImportScreen(
                             icon = Icons.Rounded.AutoAwesome,
                             text = "AI核对",
                             primary = QuizRepository.isAiConfigured() && QuizRepository.aiReviewEnabled,
-                            modifier = Modifier.alpha(if (QuizRepository.isAiConfigured() && QuizRepository.aiReviewEnabled) 1f else ShirohaDimens.DisabledAlpha),
+                            modifier = Modifier
+                                .weight(1f)
+                                .alpha(if (QuizRepository.isAiConfigured() && QuizRepository.aiReviewEnabled) 1f else ShirohaDimens.DisabledAlpha),
+                            fillWidthContent = true,
                             enabled = editableQuestions.isNotEmpty() && !isImportBusy,
-                            onClick = {
-                                if (!QuizRepository.isAiConfigured()) {
-                                    showAiConfigPrompt = true
-                                    statusText = "AI 核对：请先在个人偏好 → AI 设置中配置接口。"
-                                    isStatusWarn = true
-                                    return@ActionPillButton
-                                }
-                                if (!QuizRepository.aiReviewEnabled) {
-                                    statusText = "AI 核对未启用，请先在个人偏好 → AI 设置中开启。"
-                                    isStatusWarn = true
-                                    return@ActionPillButton
-                                }
-                                val baseReviewQuestions = if (QuizRepository.aiOnlyAnomaly) anomalyQuestions else editableQuestions
-                                val reviewedIdSet = aiReviewedQuestionIds.toSet()
-                                val remainingReviewQuestions = baseReviewQuestions.filterNot { it.id in reviewedIdSet }
-                                val limitedQuestions = remainingReviewQuestions.take(QuizRepository.aiMaxQuestions)
-                                if (baseReviewQuestions.isEmpty()) {
-                                    statusText = if (QuizRepository.aiOnlyAnomaly) {
-                                        "AI 核对：当前开启了仅处理异常题，但没有可核对的异常题。"
-                                    } else {
-                                        "AI 核对：当前没有可供核对的题目。"
-                                    }
-                                    isStatusWarn = true
-                                    return@ActionPillButton
-                                }
-                                if (limitedQuestions.isEmpty()) {
-                                    statusText = "AI 核对：当前范围已全部处理。如需重新核对，请重新解析题库或切换处理范围。"
-                                    isStatusWarn = false
-                                    return@ActionPillButton
-                                }
-                                val processedBefore = baseReviewQuestions.count { it.id in reviewedIdSet }.coerceAtMost(baseReviewQuestions.size)
-                                statusText = "AI 核对中：本次处理 ${limitedQuestions.size} 题，进度 ${processedBefore + 1}-${processedBefore + limitedQuestions.size}/${baseReviewQuestions.size}。"
-                                isStatusWarn = false
-                                importScope.launch {
-                                    isImportBusy = true
-                                    busyText = "AI 核对中……"
-                                    runCatching {
-                                        withContext(Dispatchers.IO) {
-                                            ShirohaAiClient.reviewQuestions(
-                                                apiBaseUrl = QuizRepository.aiApiBaseUrl,
-                                                apiKey = QuizRepository.aiApiKey,
-                                                modelName = QuizRepository.aiModelName,
-                                                questions = limitedQuestions,
-                                                timeoutSeconds = QuizRepository.aiTimeoutSeconds
-                                            )
-                                        }
-                                    }.onSuccess { suggestions ->
-                                        aiReviewSuggestions = mergeAiReviewSuggestions(aiReviewSuggestions, suggestions, limitedQuestions)
-                                        val aiWarnings = suggestionsToImportWarnings(suggestions, editableQuestions)
-                                        importResult = displayResult.copy(
-                                            warnings = mergeAiWarnings(
-                                                currentWarnings = displayResult.warnings,
-                                                aiWarnings = aiWarnings,
-                                                processedQuestions = limitedQuestions
-                                            )
-                                        )
-                                        val nextReviewedIds = (aiReviewedQuestionIds + limitedQuestions.map { it.id }).distinct()
-                                        aiReviewedQuestionIds = nextReviewedIds
-                                        val processedAfter = baseReviewQuestions.count { it.id in nextReviewedIds.toSet() }.coerceAtMost(baseReviewQuestions.size)
-                                        previewOnlyAnomaly = aiWarnings.isNotEmpty() || previewOnlyAnomaly
-                                        statusText = if (aiWarnings.isEmpty()) {
-                                            "AI 核对完成：本批未发现重点问题，已处理 ${processedAfter}/${baseReviewQuestions.size} 题。"
-                                        } else {
-                                            "AI 核对完成：本批生成 ${aiWarnings.size} 条建议，已处理 ${processedAfter}/${baseReviewQuestions.size} 题。"
-                                        } + if (processedAfter < baseReviewQuestions.size) " 可继续点击 AI 核对处理下一批。" else " 当前范围已处理完。"
-                                        isStatusWarn = aiWarnings.isNotEmpty()
-                                    }.onFailure { error ->
-                                        statusText = "AI 核对失败：${error.message ?: "请检查接口配置"}"
-                                        isStatusWarn = true
-                                    }
-                                    isImportBusy = false
-                                    busyText = ""
-                                }
-                            }
+                            onClick = { openAiTaskSheet(AiImportTaskMode.REVIEW) }
                         )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                         ActionPillButton(
                             icon = Icons.Rounded.AutoAwesome,
-                            text = "AI解析",
+                            text = "AI补解析",
                             primary = QuizRepository.isAiConfigured() && QuizRepository.aiAnalysisEnabled,
-                            modifier = Modifier.alpha(if (QuizRepository.isAiConfigured() && QuizRepository.aiAnalysisEnabled) 1f else ShirohaDimens.DisabledAlpha),
+                            modifier = Modifier
+                                .weight(1f)
+                                .alpha(if (QuizRepository.isAiConfigured() && QuizRepository.aiAnalysisEnabled) 1f else ShirohaDimens.DisabledAlpha),
+                            fillWidthContent = true,
                             enabled = editableQuestions.isNotEmpty() && !isImportBusy,
-                            onClick = {
-                                if (!QuizRepository.isAiConfigured()) {
-                                    showAiConfigPrompt = true
-                                    statusText = "AI 解析：请先在个人偏好 → AI 设置中配置接口。"
-                                    isStatusWarn = true
-                                    return@ActionPillButton
-                                }
-                                if (!QuizRepository.aiAnalysisEnabled) {
-                                    statusText = "AI 解析未启用，请先在个人偏好 → AI 设置中开启。"
-                                    isStatusWarn = true
-                                    return@ActionPillButton
-                                }
-                                val allAnalysisTargets = editableQuestions.filter(::shouldApplyAiAnalysis)
-                                val anomalyAnalysisTargets = anomalyQuestions.filter(::shouldApplyAiAnalysis)
-                                if (allAnalysisTargets.isEmpty()) {
-                                    statusText = "AI 解析：当前没有缺少解析或解析过短的题目。"
-                                    isStatusWarn = false
-                                    return@ActionPillButton
-                                }
-                                val analyzedIdSet = aiAnalyzedQuestionIds.toSet()
-                                val remainingAnomalyTargets = anomalyAnalysisTargets.filterNot { it.id in analyzedIdSet }
-                                val remainingAllTargets = allAnalysisTargets.filterNot { it.id in analyzedIdSet }
-                                val useAnomalyScope = QuizRepository.aiOnlyAnomaly && remainingAnomalyTargets.isNotEmpty()
-                                val usingFallbackTargets = QuizRepository.aiOnlyAnomaly && !useAnomalyScope && remainingAllTargets.isNotEmpty()
-                                val analysisTargetPool = if (useAnomalyScope) anomalyAnalysisTargets else allAnalysisTargets
-                                val remainingAnalysisTargets = if (useAnomalyScope) remainingAnomalyTargets else remainingAllTargets
-                                if (remainingAnalysisTargets.isEmpty()) {
-                                    statusText = "AI 解析：当前缺解析题已全部尝试。若仍有题目缺解析，可能是模型未返回对应结果；可重新解析题库或调整单次题数后重试。"
-                                    isStatusWarn = false
-                                    return@ActionPillButton
-                                }
-                                val aiTargetQuestions = remainingAnalysisTargets.take(QuizRepository.aiMaxQuestions)
-                                val processedBefore = analysisTargetPool.count { it.id in analyzedIdSet }.coerceAtMost(analysisTargetPool.size)
-                                statusText = if (usingFallbackTargets) {
-                                    "AI 解析中：异常题范围已无未尝试解析目标，已改为处理全部缺解析题；本次处理 ${aiTargetQuestions.size} 道，进度 ${processedBefore + 1}-${processedBefore + aiTargetQuestions.size}/${analysisTargetPool.size}。"
-                                } else {
-                                    "AI 解析中：本次处理 ${aiTargetQuestions.size} 道缺解析题，进度 ${processedBefore + 1}-${processedBefore + aiTargetQuestions.size}/${analysisTargetPool.size}。"
-                                }
-                                isStatusWarn = false
-                                importScope.launch {
-                                    isImportBusy = true
-                                    busyText = "AI 解析生成中……"
-                                    runCatching {
-                                        withContext(Dispatchers.IO) {
-                                            ShirohaAiClient.generateAnalysis(
-                                                apiBaseUrl = QuizRepository.aiApiBaseUrl,
-                                                apiKey = QuizRepository.aiApiKey,
-                                                modelName = QuizRepository.aiModelName,
-                                                questions = aiTargetQuestions,
-                                                timeoutSeconds = QuizRepository.aiTimeoutSeconds
-                                            )
-                                        }
-                                    }.onSuccess { suggestions ->
-                                        val suggestionMap = suggestions.associateBy { it.questionId }
-                                        val appliedIds = mutableListOf<String>()
-                                        val nextAnalyzedIds = (aiAnalyzedQuestionIds + aiTargetQuestions.map { it.id }).distinct()
-                                        val nextQuestions = editableQuestions.map { question ->
-                                            val suggestion = suggestionMap[question.id]
-                                            if (suggestion != null && shouldApplyAiAnalysis(question) && suggestion.analysis.trim().isNotBlank()) {
-                                                appliedIds += question.id
-                                                applyAiAnalysisSuggestion(question, suggestion.analysis)
-                                            } else {
-                                                question
-                                            }
-                                        }
-                                        syncEditableQuestions(nextQuestions, displayResult.warnings)
-                                        aiAnalyzedQuestionIds = nextAnalyzedIds
-                                        aiAnalysisAppliedQuestionIds = (aiAnalysisAppliedQuestionIds + appliedIds).distinct()
-                                        val changedIds = appliedIds.toSet()
-                                        val nextAnalyzedIdSet = nextAnalyzedIds.toSet()
-                                        val skippedCount = (aiTargetQuestions.size - suggestionMap.keys.size).coerceAtLeast(0)
-                                        val remainingAnalysisCount = editableQuestions.count { question ->
-                                            shouldApplyAiAnalysis(question) && question.id !in nextAnalyzedIdSet
-                                        }
-                                        statusText = if (changedIds.isEmpty()) {
-                                            "AI 解析完成：本批没有可写入的解析建议。"
-                                        } else {
-                                            "AI 解析完成：已为 ${changedIds.size} 道题写入待核对解析，保存前请人工确认。"
-                                        } + if (skippedCount > 0) {
-                                            " 本批有 ${skippedCount} 道未返回解析，已跳过以避免反复卡住。"
-                                        } else {
-                                            ""
-                                        } + if (remainingAnalysisCount > 0) {
-                                            " 仍有约 ${remainingAnalysisCount} 道缺解析题，可继续点击 AI 解析处理下一批。"
-                                        } else {
-                                            " 当前范围已处理完。"
-                                        }
-                                        isStatusWarn = false
-                                    }.onFailure { error ->
-                                        statusText = "AI 解析失败：${error.message ?: "请检查接口配置"}"
-                                        isStatusWarn = true
-                                    }
-                                    isImportBusy = false
-                                    busyText = ""
-                                }
-                            }
+                            onClick = { openAiTaskSheet(AiImportTaskMode.ANALYSIS) }
                         )
 
                         ActionPillButton(
                             icon = Icons.Rounded.CheckCircle,
                             text = "看AI建议 $aiSuggestionCount",
                             primary = aiSuggestionCount > 0,
+                            modifier = Modifier.weight(1f),
+                            fillWidthContent = true,
                             enabled = aiSuggestionCount > 0,
                             onClick = {
                                 reviewFilterName = ReviewFilter.AI_SUGGESTION.name
@@ -1381,6 +1547,11 @@ fun ImportScreen(
                                 reviewMode = true
                             }
                         )
+                        }
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                         ActionPillButton(
                             icon = Icons.Rounded.CheckCircle,
                             text = "看可采纳 $aiApplicableCount",
@@ -1419,8 +1590,31 @@ fun ImportScreen(
                                 reviewMode = true
                             }
                         )
+                        }
                     }
-                    val aiStatusText = statusText.takeIf { shouldShowAiStatusInImport(it) }
+                    aiBatchState?.let { state ->
+                        Spacer(Modifier.height(10.dp))
+                        AiImportBatchProgressCard(
+                            state = state,
+                            onStop = {
+                                aiStopRequested = true
+                                aiBatchState = aiBatchState?.copy(
+                                    status = AiImportBatchStatus.STOPPING,
+                                    message = "当前批次完成后停止，不再发送下一批。"
+                                )
+                            },
+                            onContinue = {
+                                if (state.status == AiImportBatchStatus.COMPLETED) {
+                                    openAiTaskSheet(state.mode)
+                                } else {
+                                    continueAiBatch(state)
+                                }
+                            }
+                        )
+                    }
+                    val aiStatusText = statusText.takeIf {
+                        aiBatchState == null && shouldShowAiStatusInImport(it)
+                    }
                     if (aiStatusText != null) {
                         Spacer(Modifier.height(10.dp))
                         NoticeCard(aiStatusText, warning = isStatusWarn)
@@ -1560,6 +1754,202 @@ fun ImportScreen(
         }
     }
 
+    val aiTaskSheetMode = aiTaskSheetModeName?.let { name: String ->
+        runCatching { AiImportTaskMode.valueOf(name) }.getOrNull()
+    }
+    if (aiTaskSheetMode != null) {
+        val selectedScope = runCatching { AiImportScope.valueOf(aiTaskScopeName) }
+            .getOrDefault(AiImportScope.CURRENT_FILTER)
+        val currentFilter = if (previewOnlyAnomaly) ReviewFilter.ANOMALY else reviewFilterFromName(reviewFilterName)
+        val currentWarnings = importResult?.warnings.orEmpty()
+        val processedIds = when (aiTaskSheetMode) {
+            AiImportTaskMode.REVIEW -> aiReviewedQuestionIds.toSet()
+            AiImportTaskMode.ANALYSIS -> aiAnalyzedQuestionIds.toSet()
+        }
+        fun eligibleFor(scope: AiImportScope): List<Question> {
+            val scoped = aiImportScopeQuestions(
+                mode = aiTaskSheetMode,
+                scope = scope,
+                questions = editableQuestions,
+                warnings = currentWarnings,
+                currentFilter = currentFilter,
+                currentIndex = reviewIndex,
+                customStart = aiTaskRangeStart,
+                customEnd = aiTaskRangeEnd,
+                aiSuggestions = aiReviewSuggestions,
+                aiReviewedQuestionIds = aiReviewedQuestionIds,
+                aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
+            )
+            return if (aiTaskSkipProcessed) scoped.filterNot { it.id in processedIds } else scoped
+        }
+        val scopeCounts = AiImportScope.values().associateWith { scope -> eligibleFor(scope).size }
+        val selectedEligibleQuestions = eligibleFor(selectedScope)
+        val requestedTotal = when (aiTaskTotalChoice) {
+            10, 20, 50 -> aiTaskTotalChoice
+            else -> aiTaskCustomTotal
+        }.coerceAtLeast(1)
+        val plannedCount = requestedTotal.coerceAtMost(selectedEligibleQuestions.size)
+        val batchSize = aiImportBatchSize(aiTaskSheetMode)
+        val estimatedBatches = if (plannedCount == 0) 0 else (plannedCount + batchSize - 1) / batchSize
+        val currentFilterLabel = reviewFilterLabel(currentFilter)
+        val selectedScopeLabel = aiImportScopeLabel(
+            mode = aiTaskSheetMode,
+            scope = selectedScope,
+            currentFilterLabel = currentFilterLabel,
+            customStart = aiTaskRangeStart,
+            customEnd = aiTaskRangeEnd
+        )
+
+        AiImportRangeSheet(
+            mode = aiTaskSheetMode,
+            selectedScope = selectedScope,
+            scopeCounts = scopeCounts,
+            currentFilterLabel = currentFilterLabel,
+            customRangeStart = aiTaskRangeStart,
+            customRangeEnd = aiTaskRangeEnd,
+            skipProcessed = aiTaskSkipProcessed,
+            totalChoice = aiTaskTotalChoice,
+            customTotal = aiTaskCustomTotal,
+            eligibleCount = selectedEligibleQuestions.size,
+            plannedCount = plannedCount,
+            estimatedBatches = estimatedBatches,
+            batchSize = batchSize,
+            onScopeChange = { scope ->
+                if (scope == AiImportScope.CUSTOM_RANGE) {
+                    aiRangeStartInput = aiTaskRangeStart.toString()
+                    aiRangeEndInput = aiTaskRangeEnd.toString()
+                    aiDialogError = null
+                    showAiCustomRangeDialog = true
+                } else {
+                    aiTaskScopeName = scope.name
+                }
+            },
+            onSkipProcessedChange = { aiTaskSkipProcessed = it },
+            onTotalChoiceChange = { choice ->
+                if (choice == AI_CUSTOM_TOTAL_CHOICE) {
+                    aiCustomTotalInput = aiTaskCustomTotal.coerceAtMost(selectedEligibleQuestions.size.coerceAtLeast(1)).toString()
+                    aiDialogError = null
+                    showAiCustomTotalDialog = true
+                } else {
+                    aiTaskTotalChoice = choice
+                }
+            },
+            onDismiss = { aiTaskSheetModeName = null },
+            onStart = {
+                if (plannedCount > 0) {
+                    val plannedQuestions = selectedEligibleQuestions.take(plannedCount)
+                    aiTaskSheetModeName = null
+                    launchAiBatch(
+                        mode = aiTaskSheetMode,
+                        targetQuestions = plannedQuestions,
+                        scopeLabel = selectedScopeLabel
+                    )
+                }
+            }
+        )
+    }
+
+    if (showAiCustomTotalDialog) {
+        val mode = aiTaskSheetMode
+        val selectedScope = runCatching { AiImportScope.valueOf(aiTaskScopeName) }
+            .getOrDefault(AiImportScope.CURRENT_FILTER)
+        val currentFilter = if (previewOnlyAnomaly) ReviewFilter.ANOMALY else reviewFilterFromName(reviewFilterName)
+        val currentWarnings = importResult?.warnings.orEmpty()
+        val processedIds = when (mode) {
+            AiImportTaskMode.REVIEW -> aiReviewedQuestionIds.toSet()
+            AiImportTaskMode.ANALYSIS -> aiAnalyzedQuestionIds.toSet()
+            null -> emptySet()
+        }
+        val maxCount = if (mode == null) 0 else {
+            aiImportScopeQuestions(
+                mode = mode,
+                scope = selectedScope,
+                questions = editableQuestions,
+                warnings = currentWarnings,
+                currentFilter = currentFilter,
+                currentIndex = reviewIndex,
+                customStart = aiTaskRangeStart,
+                customEnd = aiTaskRangeEnd,
+                aiSuggestions = aiReviewSuggestions,
+                aiReviewedQuestionIds = aiReviewedQuestionIds,
+                aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
+            ).let { questions: List<Question> ->
+                if (aiTaskSkipProcessed) questions.count { question: Question -> question.id !in processedIds } else questions.size
+            }
+        }
+        AiNumberInputDialog(
+            title = "自定义处理数量",
+            message = "本次处理多少题？当前范围内可处理 $maxCount 题。",
+            value = aiCustomTotalInput,
+            label = "处理题数",
+            error = aiDialogError,
+            onValueChange = {
+                aiCustomTotalInput = it.filter { ch -> ch.isDigit() }.take(6)
+                aiDialogError = null
+            },
+            onDismiss = {
+                showAiCustomTotalDialog = false
+                aiDialogError = null
+            },
+            onConfirm = {
+                val value = aiCustomTotalInput.toIntOrNull()
+                when {
+                    maxCount <= 0 -> aiDialogError = "当前范围没有可处理题目。"
+                    value == null || value < 1 -> aiDialogError = "请输入不少于1的整数。"
+                    value > maxCount -> aiDialogError = "不能超过当前可处理的 $maxCount 题。"
+                    else -> {
+                        aiTaskCustomTotal = value
+                        aiTaskTotalChoice = AI_CUSTOM_TOTAL_CHOICE
+                        showAiCustomTotalDialog = false
+                        aiDialogError = null
+                    }
+                }
+            }
+        )
+    }
+
+    if (showAiCustomRangeDialog) {
+        AiRangeInputDialog(
+            startValue = aiRangeStartInput,
+            endValue = aiRangeEndInput,
+            maxQuestionCount = editableQuestions.size,
+            error = aiDialogError,
+            onStartValueChange = {
+                aiRangeStartInput = it.filter { ch -> ch.isDigit() }.take(6)
+                aiDialogError = null
+            },
+            onEndValueChange = {
+                aiRangeEndInput = it.filter { ch -> ch.isDigit() }.take(6)
+                aiDialogError = null
+            },
+            onDismiss = {
+                showAiCustomRangeDialog = false
+                aiDialogError = null
+            },
+            onConfirm = {
+                val start = aiRangeStartInput.toIntOrNull()
+                val end = aiRangeEndInput.toIntOrNull()
+                when {
+                    editableQuestions.isEmpty() -> aiDialogError = "当前没有可选择的题目。"
+                    start == null || end == null -> aiDialogError = "请输入完整的起始题和结束题。"
+                    start !in 1..editableQuestions.size || end !in 1..editableQuestions.size -> {
+                        aiDialogError = "范围必须在1～${editableQuestions.size}之间。"
+                    }
+                    start > end -> aiDialogError = "起始题不能大于结束题。"
+                    else -> {
+                        aiTaskRangeStart = start
+                        aiTaskRangeEnd = end
+                        aiTaskScopeName = AiImportScope.CUSTOM_RANGE.name
+                        showAiCustomRangeDialog = false
+                        aiDialogError = null
+                    }
+                }
+            }
+        )
+    }
+
     if (showAiConfigPrompt) {
         AlertDialog(
             onDismissRequest = { showAiConfigPrompt = false },
@@ -1590,6 +1980,630 @@ private const val IMPORT_WARNING_ID_MARKER = "__IMPORT_QID__="
 private const val LARGE_TEXT_PREVIEW_CHARS = 1200
 private const val IMPORT_FILE_WARN_BYTES = 30L * 1024L * 1024L
 private const val IMPORT_FILE_BLOCK_BYTES = 80L * 1024L * 1024L
+private const val AI_CUSTOM_TOTAL_CHOICE = -1
+
+private enum class AiImportTaskMode(val displayName: String) {
+    REVIEW("AI 核对"),
+    ANALYSIS("AI 补解析")
+}
+
+private enum class AiImportScope {
+    CURRENT_FILTER,
+    CURRENT_QUESTION,
+    ANOMALY,
+    ALL,
+    CUSTOM_RANGE
+}
+
+private enum class AiImportBatchStatus {
+    RUNNING,
+    STOPPING,
+    STOPPED,
+    COMPLETED,
+    FAILED
+}
+
+private data class AiImportBatchState(
+    val mode: AiImportTaskMode,
+    val scopeLabel: String,
+    val status: AiImportBatchStatus,
+    val total: Int,
+    val completed: Int,
+    val generated: Int,
+    val missing: Int,
+    val currentBatch: Int,
+    val totalBatches: Int,
+    val failedBatches: Int,
+    val elapsedSeconds: Int,
+    val pendingQuestionIds: List<String>,
+    val message: String
+)
+
+private sealed interface AiImportBatchResponse {
+    data class Review(val suggestions: List<AiReviewSuggestion>) : AiImportBatchResponse
+    data class Analysis(val suggestions: List<AiAnalysisSuggestion>) : AiImportBatchResponse
+}
+
+private fun aiImportBatchSize(mode: AiImportTaskMode): Int {
+    val configuredSize = QuizRepository.aiMaxQuestions.coerceIn(5, 100)
+    return when (mode) {
+        AiImportTaskMode.REVIEW -> configuredSize
+        AiImportTaskMode.ANALYSIS -> configuredSize.coerceAtMost(10)
+    }
+}
+
+private fun aiImportScopeQuestions(
+    mode: AiImportTaskMode,
+    scope: AiImportScope,
+    questions: List<Question>,
+    warnings: List<ImportWarning>,
+    currentFilter: ReviewFilter,
+    currentIndex: Int,
+    customStart: Int,
+    customEnd: Int,
+    aiSuggestions: List<AiReviewSuggestion>,
+    aiReviewedQuestionIds: List<String>,
+    aiAnalyzedQuestionIds: List<String>,
+    aiAnalysisAppliedQuestionIds: List<String>
+): List<Question> {
+    val scopedQuestions = when (scope) {
+        AiImportScope.CURRENT_FILTER -> questions.filter { question: Question ->
+            questionMatchesFilter(
+                question = question,
+                warnings = warningsForQuestion(question, warnings),
+                filter = currentFilter,
+                aiSuggestions = aiSuggestionsForQuestion(question, aiSuggestions),
+                aiReviewedQuestionIds = aiReviewedQuestionIds,
+                aiAnalyzedQuestionIds = aiAnalyzedQuestionIds,
+                aiAnalysisAppliedQuestionIds = aiAnalysisAppliedQuestionIds
+            )
+        }
+        AiImportScope.CURRENT_QUESTION -> questions.getOrNull(currentIndex)?.let { listOf(it) }.orEmpty()
+        AiImportScope.ANOMALY -> questions.filter { question: Question ->
+            hasReviewAnomaly(question, warningsForQuestion(question, warnings))
+        }
+        AiImportScope.ALL -> questions
+        AiImportScope.CUSTOM_RANGE -> {
+            if (questions.isEmpty() || customStart < 1 || customEnd < customStart) {
+                emptyList()
+            } else {
+                val startIndex = (customStart - 1).coerceIn(0, questions.lastIndex)
+                val endExclusive = customEnd.coerceIn(startIndex + 1, questions.size)
+                questions.subList(startIndex, endExclusive)
+            }
+        }
+    }
+    return when (mode) {
+        AiImportTaskMode.REVIEW -> scopedQuestions
+        AiImportTaskMode.ANALYSIS -> scopedQuestions.filter(::shouldApplyAiAnalysis)
+    }
+}
+
+private fun aiImportScopeLabel(
+    mode: AiImportTaskMode,
+    scope: AiImportScope,
+    currentFilterLabel: String,
+    customStart: Int,
+    customEnd: Int
+): String {
+    return when (mode) {
+        AiImportTaskMode.REVIEW -> when (scope) {
+            AiImportScope.CURRENT_FILTER -> "当前筛选：$currentFilterLabel"
+            AiImportScope.CURRENT_QUESTION -> "当前题"
+            AiImportScope.ANOMALY -> "仅异常题"
+            AiImportScope.ALL -> "全部题目"
+            AiImportScope.CUSTOM_RANGE -> "第${customStart}～${customEnd}题"
+        }
+        AiImportTaskMode.ANALYSIS -> when (scope) {
+            AiImportScope.CURRENT_FILTER -> "当前筛选中的缺/短解析题"
+            AiImportScope.CURRENT_QUESTION -> "当前题"
+            AiImportScope.ANOMALY -> "异常题中的缺/短解析题"
+            AiImportScope.ALL -> "全部缺/短解析题"
+            AiImportScope.CUSTOM_RANGE -> "第${customStart}～${customEnd}题中的缺/短解析题"
+        }
+    }
+}
+
+private fun aiImportScopeOptionLabel(
+    mode: AiImportTaskMode,
+    scope: AiImportScope
+): String = when (mode) {
+    AiImportTaskMode.REVIEW -> when (scope) {
+        AiImportScope.CURRENT_FILTER -> "当前筛选结果"
+        AiImportScope.CURRENT_QUESTION -> "当前题"
+        AiImportScope.ANOMALY -> "仅异常题"
+        AiImportScope.ALL -> "全部题目"
+        AiImportScope.CUSTOM_RANGE -> "自定义范围"
+    }
+    AiImportTaskMode.ANALYSIS -> when (scope) {
+        AiImportScope.CURRENT_FILTER -> "当前筛选中的缺/短解析题"
+        AiImportScope.CURRENT_QUESTION -> "当前题"
+        AiImportScope.ANOMALY -> "异常题中的缺/短解析题"
+        AiImportScope.ALL -> "全部缺/短解析题"
+        AiImportScope.CUSTOM_RANGE -> "自定义范围内缺/短解析题"
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AiImportRangeSheet(
+    mode: AiImportTaskMode,
+    selectedScope: AiImportScope,
+    scopeCounts: Map<AiImportScope, Int>,
+    currentFilterLabel: String,
+    customRangeStart: Int,
+    customRangeEnd: Int,
+    skipProcessed: Boolean,
+    totalChoice: Int,
+    customTotal: Int,
+    eligibleCount: Int,
+    plannedCount: Int,
+    estimatedBatches: Int,
+    batchSize: Int,
+    onScopeChange: (AiImportScope) -> Unit,
+    onSkipProcessedChange: (Boolean) -> Unit,
+    onTotalChoiceChange: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    onStart: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.88f)
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = ShirohaSpacing.Xl)
+                .padding(bottom = ShirohaSpacing.Xl),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+            Text(
+                text = mode.displayName,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "选择本次需要处理的题目",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = "处理范围",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            AiImportScope.values().forEach { scope ->
+                val subtitle = when (scope) {
+                    AiImportScope.CURRENT_FILTER -> "当前筛选：$currentFilterLabel"
+                    AiImportScope.CUSTOM_RANGE -> "按导入列表顺序：第${customRangeStart}～${customRangeEnd}题"
+                    else -> null
+                }
+                AiImportScopeOptionRow(
+                    label = aiImportScopeOptionLabel(
+                        mode = mode,
+                        scope = scope
+                    ),
+                    subtitle = subtitle,
+                    count = scopeCounts[scope] ?: 0,
+                    selected = selectedScope == scope,
+                    onClick = { onScopeChange(scope) }
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (mode == AiImportTaskMode.REVIEW) "跳过已经核对的题目" else "跳过已经尝试过的题目",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = if (mode == AiImportTaskMode.REVIEW) {
+                            "关闭后可重新核对当前范围。"
+                        } else {
+                            "关闭后可重试仍缺少解析的题目。"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = skipProcessed,
+                    onCheckedChange = onSkipProcessedChange
+                )
+            }
+
+            Text(
+                text = "本次最多处理",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(10, 20, 50, AI_CUSTOM_TOTAL_CHOICE).forEach { choice ->
+                    val label = when {
+                        choice == AI_CUSTOM_TOTAL_CHOICE && totalChoice == AI_CUSTOM_TOTAL_CHOICE -> "${customTotal}题"
+                        choice == AI_CUSTOM_TOTAL_CHOICE -> "自定义"
+                        else -> choice.toString()
+                    }
+                    AiImportTotalChoice(
+                        label = label,
+                        selected = totalChoice == choice,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onTotalChoiceChange(choice) }
+                    )
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(ShirohaRadius.Md),
+                color = ShirohaColors.CardMuted,
+                border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "当前可处理：$eligibleCount 题",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "预计本次处理：$plannedCount 题${if (plannedCount > 0) " · $estimatedBatches 批" else ""}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "每批最多 $batchSize 题，由软件自动分批。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (mode == AiImportTaskMode.ANALYSIS) {
+                        Text(
+                            text = "只处理缺少或过短的解析，不覆盖已有完整解析。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    modifier = Modifier.weight(0.35f),
+                    onClick = onDismiss
+                ) {
+                    Text("取消")
+                }
+                ActionPillButton(
+                    icon = Icons.Rounded.PlayArrow,
+                    text = if (mode == AiImportTaskMode.REVIEW) "开始核对" else "开始补解析",
+                    primary = true,
+                    modifier = Modifier.weight(0.65f),
+                    fillWidthContent = true,
+                    enabled = plannedCount > 0,
+                    onClick = onStart
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AiImportScopeOptionRow(
+    label: String,
+    subtitle: String?,
+    count: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 50.dp)
+            .shirohaNoRippleClickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Text(
+            text = "$count 题",
+            style = MaterialTheme.typography.bodySmall,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun AiImportTotalChoice(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .defaultMinSize(minHeight = 44.dp)
+            .shirohaNoRippleClickable(onClick = onClick),
+        shape = RoundedCornerShape(ShirohaRadius.Pill),
+        color = if (selected) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardWhite86,
+        border = BorderStroke(
+            ShirohaDimens.Hairline,
+            if (selected) ShirohaColors.LineSelected else ShirohaColors.LineSoft
+        )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+private fun AiImportBatchProgressCard(
+    state: AiImportBatchState,
+    onStop: () -> Unit,
+    onContinue: () -> Unit
+) {
+    val progress = if (state.total <= 0) 0f else state.completed.toFloat() / state.total.toFloat()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(ShirohaRadius.Lg),
+        color = ShirohaColors.CardMuted,
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSoft)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = when (state.status) {
+                        AiImportBatchStatus.RUNNING -> "${state.mode.displayName}中"
+                        AiImportBatchStatus.STOPPING -> "正在停止${state.mode.displayName}"
+                        AiImportBatchStatus.STOPPED -> "${state.mode.displayName}已停止"
+                        AiImportBatchStatus.COMPLETED -> "${state.mode.displayName}完成"
+                        AiImportBatchStatus.FAILED -> "${state.mode.displayName}失败"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "${state.completed}/${state.total}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Text(
+                text = state.scopeLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            LinearProgressIndicator(
+                progress = progress.coerceIn(0f, 1f),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = "当前批次 ${state.currentBatch}/${state.totalBatches} · 已用时 ${formatElapsedSeconds(state.elapsedSeconds)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = when (state.mode) {
+                    AiImportTaskMode.REVIEW -> "生成建议 ${state.generated} 条${if (state.failedBatches > 0) " · 失败批次 ${state.failedBatches}" else ""}"
+                    AiImportTaskMode.ANALYSIS -> "成功写入 ${state.generated} 题 · 未写入 ${state.missing} 题${if (state.failedBatches > 0) " · 失败批次 ${state.failedBatches}" else ""}"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = state.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (state.status == AiImportBatchStatus.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            when (state.status) {
+                AiImportBatchStatus.RUNNING -> {
+                    TextButton(onClick = onStop) {
+                        Text("停止处理")
+                    }
+                }
+                AiImportBatchStatus.STOPPING -> {
+                    Text(
+                        text = "当前请求完成后停止，已完成结果不会丢失。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                AiImportBatchStatus.STOPPED,
+                AiImportBatchStatus.FAILED -> {
+                    if (state.pendingQuestionIds.isNotEmpty()) {
+                        ActionPillButton(
+                            icon = Icons.Rounded.Refresh,
+                            text = "继续处理",
+                            primary = true,
+                            onClick = onContinue
+                        )
+                    }
+                }
+                AiImportBatchStatus.COMPLETED -> {
+                    ActionPillButton(
+                        icon = Icons.Rounded.Refresh,
+                        text = "继续处理",
+                        primary = false,
+                        onClick = onContinue
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AiNumberInputDialog(
+    title: String,
+    message: String,
+    value: String,
+    label: String,
+    error: String?,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    label = { Text(label) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = error != null
+                )
+                error?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("确定") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
+}
+
+@Composable
+private fun AiRangeInputDialog(
+    startValue: String,
+    endValue: String,
+    maxQuestionCount: Int,
+    error: String?,
+    onStartValueChange: (String) -> Unit,
+    onEndValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("自定义题目范围") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "按当前导入列表顺序计算，共 $maxQuestionCount 题。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = startValue,
+                        onValueChange = onStartValueChange,
+                        label = { Text("起始题") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        isError = error != null
+                    )
+                    OutlinedTextField(
+                        value = endValue,
+                        onValueChange = onEndValueChange,
+                        label = { Text("结束题") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        isError = error != null
+                    )
+                }
+                error?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("确定") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
+}
+
+private fun formatElapsedSeconds(totalSeconds: Int): String {
+    val safeSeconds = totalSeconds.coerceAtLeast(0)
+    val minutes = safeSeconds / 60
+    val seconds = safeSeconds % 60
+    return if (minutes > 0) "${minutes}分${seconds}秒" else "${seconds}秒"
+}
 
 @Composable
 private fun LargeImportTextPreview(
@@ -2528,7 +3542,7 @@ private fun ReviewQuestionAssistBlocks(
     if (shouldApplyAiAnalysis(question) || question.id in aiAnalyzedQuestionIds.toSet() || question.id in aiAnalysisAppliedQuestionIds.toSet()) {
         GlassCard {
             Text(
-                text = "AI 解析状态",
+                text = "AI 补解析状态",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -2969,9 +3983,11 @@ private fun shouldShowAiStatusInImport(text: String): Boolean {
     return text.startsWith("AI ") ||
         text.startsWith("AI核对") ||
         text.startsWith("AI解析") ||
+        text.startsWith("AI补解析") ||
         text.contains("AI 重构") ||
         text.contains("AI 核对") ||
-        text.contains("AI 解析")
+        text.contains("AI 解析") ||
+        text.contains("AI 补解析")
 }
 
 

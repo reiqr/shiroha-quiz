@@ -1235,16 +1235,9 @@ private fun AiSettingsPanel(context: Context) {
         Spacer(Modifier.height(10.dp))
         PreferenceSwitchRow(
             title = "启用题目页 AI 分析",
-            desc = "答题结果显示后或背题模式中，可请求单题参考分析；不会修改题库。",
+            desc = "答题结果显示后或背题模式中，可补解析、连续追问，并由用户确认后保存解析。",
             checked = QuizRepository.aiSingleQuestionAnalysisEnabled,
             onCheckedChange = { enabled -> QuizRepository.setAiSingleQuestionAnalysisEnabled(context, enabled) }
-        )
-        Spacer(Modifier.height(10.dp))
-        PreferenceSwitchRow(
-            title = "优先处理异常题",
-            desc = "AI 核对仅处理异常题；AI 解析优先异常题，无目标时处理其他缺解析题。",
-            checked = QuizRepository.aiOnlyAnomaly,
-            onCheckedChange = { enabled -> QuizRepository.setAiOnlyAnomaly(context, enabled) }
         )
 
         Spacer(Modifier.height(16.dp))
@@ -1258,7 +1251,7 @@ private fun AiSettingsPanel(context: Context) {
             OutlinedTextField(
                 value = maxQuestions,
                 onValueChange = { value -> maxQuestions = value.filter { it.isDigit() }.take(3) },
-                label = { Text("单次题数") },
+                label = { Text("每批请求题数") },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
@@ -1281,7 +1274,7 @@ private fun AiSettingsPanel(context: Context) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "可设置范围：单次 5–100 题，超时 15–180 秒，重构原文上限 5000–80000 字；保存时超出范围会自动调整。",
+            text = "可设置范围：AI核对每批 5–100 题；AI补解析为避免长文本截断，每批最多10题。导入页可另外选择本次总处理量，由软件自动分批。超时 15–180 秒，重构原文上限 5000–80000 字。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1300,7 +1293,7 @@ private fun AiSettingsPanel(context: Context) {
                 maxQuestions = QuizRepository.aiMaxQuestions.toString()
                 timeoutSeconds = QuizRepository.aiTimeoutSeconds.toString()
                 refactorMaxChars = QuizRepository.aiRefactorMaxChars.toString()
-                limitStatusText = "处理限制已保存：单次 ${QuizRepository.aiMaxQuestions} 题，超时 ${QuizRepository.aiTimeoutSeconds} 秒，重构原文上限 ${QuizRepository.aiRefactorMaxChars} 字。"
+                limitStatusText = "处理限制已保存：AI核对每批 ${QuizRepository.aiMaxQuestions} 题，AI补解析每批最多 ${QuizRepository.aiMaxQuestions.coerceAtMost(10)} 题，超时 ${QuizRepository.aiTimeoutSeconds} 秒，重构原文上限 ${QuizRepository.aiRefactorMaxChars} 字。"
             }
         ) {
             Text("保存处理限制")
@@ -1315,7 +1308,7 @@ private fun AiSettingsPanel(context: Context) {
         }
         Spacer(Modifier.height(8.dp))
         NoticeCard(
-            text = "AI 功能会消耗接口额度。AI 重构会先清洗原文并重新本地解析，必要时采用 AI 重构结果；未超过上限的原文可能整体发送给所配置的 AI 服务。AI 核对只生成问题提示和建议；AI 解析会写入导入页待核对内容。所有结果都应人工检查后再保存题库。",
+            text = "AI 功能会消耗接口额度。AI 重构会先清洗原文并重新本地解析，必要时采用 AI 重构结果；未超过上限的原文可能整体发送给所配置的 AI 服务。AI 核对和 AI 补解析会在导入页选择范围与总量，并自动分批处理。所有结果都应人工检查后再保存题库。",
             warning = false
         )
     }
