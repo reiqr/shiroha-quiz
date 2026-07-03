@@ -7642,3 +7642,64 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
   transform:none !important;
 }
 /* SHIROHA_V61_1_ROLE_ART_CENTER_RESTORE_END */
+
+
+/* SHIROHA_WEB_ISSUE_99_AI_IMPORT_START */
+.ai-hidden-v99{display:none!important}
+.ai-settings-card-v99,.ai-guide-card-v99{max-width:1180px;margin-left:auto;margin-right:auto}
+.ai-settings-intro-v99{
+  margin-bottom:18px;
+  padding:18px 20px;
+  border:1px solid rgba(37,99,235,.16);
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(239,246,255,.94),rgba(255,255,255,.98));
+}
+.ai-settings-intro-v99 b{display:block;color:#16335d;font-size:17px;margin-bottom:7px}
+.ai-settings-intro-v99 p{margin:0;color:var(--muted);line-height:1.75}
+.ai-settings-grid-v99{
+  display:grid;
+  grid-template-columns:minmax(180px,.65fr) minmax(360px,1.35fr);
+  gap:15px 18px;
+  margin-bottom:8px;
+}
+.ai-settings-grid-v99 .ai-endpoint-field-v99{grid-column:2}
+.ai-checkbox-label-v99{align-content:start}
+.ai-checkbox-row-v99{
+  display:flex;
+  align-items:center;
+  min-height:45px;
+  gap:9px;
+  padding:0 2px;
+  color:#475569;
+  font-weight:700;
+}
+.ai-checkbox-row-v99 input{width:18px;height:18px;margin:0;padding:0;accent-color:var(--blue)}
+.ai-settings-actions-v99{margin:18px 0 14px}
+.ai-status-pill-v99.is-ready{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.ai-status-pill-v99.is-ok{background:var(--green2);border-color:#86efac;color:#166534}
+.ai-status-pill-v99.is-error{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.ai-guide-grid-v99{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.ai-guide-grid-v99>div{
+  min-height:132px;
+  padding:17px;
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:#f8fafc;
+}
+.ai-guide-grid-v99 b{display:block;color:#1e3a5f;margin-bottom:9px}
+.ai-guide-grid-v99 span{display:block;color:var(--muted);line-height:1.7;font-size:14px}
+.ai-import-panel-v99{
+  margin-top:16px;
+  padding:18px;
+  border:1px solid rgba(37,99,235,.16);
+  border-radius:22px;
+  background:linear-gradient(135deg,rgba(239,246,255,.92),rgba(255,255,255,.96));
+  box-shadow:0 16px 36px rgba(37,99,235,.08)
+}
+.ai-import-panel-head-v99{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:8px}
+.ai-import-meta-grid-v99{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+.ai-import-meta-grid-v99>div{padding:13px 14px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.92);min-width:0}
+.ai-import-meta-grid-v99 span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+.ai-import-meta-grid-v99 b{display:block;color:#1e3a5f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-import-actions-v99{margin:12px 0}
+/* SHIROHA_WEB_ISSUE_99_AI_IMPORT_END */

@@ -30,6 +30,7 @@
       </div>
       <button class="nav active" data-view="dashboard">首页</button>
       <button class="nav" data-view="import">导入题库</button>
+      <button class="nav" data-view="ai-settings">AI 设置</button>
       <button class="nav" data-view="banks">题库管理</button>
       <button class="nav" data-view="practice">刷题练习</button>
       <button class="nav" data-view="exam">考试模式</button>
@@ -146,6 +147,26 @@
             <label>上传文件<input id="import-file" type="file" accept=".txt,.json,.csv,.xlsx,.docx,.doc,.pdf" /></label>
           </div>
           <textarea id="import-text" placeholder="把题库文本粘贴到这里，或上传 .docx / .xlsx / .csv / .txt / .json / 文字层 PDF 后导入。扫描 PDF 请先使用下方 OCR 测试功能转成文本或 DOCX，再核对导入。支持：A、选项(正确答案)、答案：D、答案：A/B/C、解析：……"></textarea>
+          <div class="ai-import-panel-v99 ai-hidden-v99" id="ai-import-panel-v99">
+            <div class="ai-import-panel-head-v99">
+              <div><p class="kicker">AI Assisted Import</p><h3>AI 辅助整理</h3></div>
+              <span class="ocr-badge" id="ai-import-badge-v99">AI 辅助</span>
+            </div>
+            <p class="muted">AI 只整理当前文本并生成题目预览，不会自动写入题库。原始文本会保留，整理失败时也不会覆盖现有识别结果。</p>
+            <div class="ai-import-meta-grid-v99">
+              <div><span>服务</span><b id="ai-import-provider-v99">未配置</b></div>
+              <div><span>模型</span><b id="ai-import-model-v99">—</b></div>
+              <div><span>当前文本</span><b id="ai-import-size-v99">0 字</b></div>
+              <div><span>当前预览</span><b id="ai-import-preview-count-v99">0 题</b></div>
+            </div>
+            <div id="ai-import-privacy-v99" class="notice">请先确认 AI 服务配置。</div>
+            <div class="actions ai-import-actions-v99">
+              <button id="ai-import-start-btn-v99" class="primary" type="button">开始整理</button>
+              <button id="ai-import-cancel-btn-v99" class="ghost" type="button">取消</button>
+              <button id="ai-import-settings-btn-v99" class="ghost ai-hidden-v99" type="button">前往 AI 设置</button>
+            </div>
+            <div id="ai-import-status-v99" class="notice">等待开始。</div>
+          </div>
           <div class="ocr-panel hidden" id="ocr-panel">
             <div class="ocr-panel-head">
               <div>
@@ -168,7 +189,7 @@
             <div class="notice" id="ocr-status">选择 PDF 后可使用 OCR 测试功能。首次使用会加载 OCR 扩展资源，识别速度取决于设备性能。</div>
             <textarea id="ocr-result" class="ocr-result" placeholder="OCR 识别结果会显示在这里，可核对后填入导入文本或下载 DOCX。"></textarea>
           </div>
-          <div class="actions import-actions-v51"><button id="parse-import-btn" class="primary">开始识别</button><button id="confirm-import-btn" class="primary" disabled>确认导入</button><button id="clear-import-btn" class="ghost">清空</button><span class="import-actions-spacer-v51" aria-hidden="true"></span><button id="find-replace-import-btn" class="ghost import-find-replace-trigger-v51" type="button">查找替换</button></div>
+          <div class="actions import-actions-v51"><button id="parse-import-btn" class="primary">开始识别</button><button id="ai-organize-import-btn-v99" class="ghost" type="button">AI 辅助整理</button><button id="confirm-import-btn" class="primary" disabled>确认导入</button><button id="clear-import-btn" class="ghost">清空</button><span class="import-actions-spacer-v51" aria-hidden="true"></span><button id="find-replace-import-btn" class="ghost import-find-replace-trigger-v51" type="button">查找替换</button></div>
         </div>
         <div class="card">
           <div class="section-head"><div><p class="kicker">Dual File Import</p><h2>双文件导入：题目文件 + 答案文件</h2></div><button id="dual-load-sample-btn" class="ghost">填入双文件示例</button></div>
@@ -311,6 +332,56 @@ C. 判断题
       <section id="wrongbook" class="view"><div class="card"><div class="section-head"><div><p class="kicker">Wrongbook</p><h2>错题整理</h2></div><button id="clear-wrong-btn" class="danger">清空错题</button></div><div class="page-art-strip wrongbook-art-strip"><div><b>错题复习与掌握状态</b><span>错题本页面使用一个复习素材，帮助区分学习场景，不额外堆叠图片。</span></div><img src="./media/wrong_question_review_clipboard.webp" alt="错题复习素材" /></div><div class="form-grid wrongbook-controls-v60"><label>掌握状态筛选<select id="wrong-status-filter"><option value="active">未掌握/复习中</option><option value="all">全部错题记录</option><option value="未掌握">未掌握</option><option value="复习中">复习中</option><option value="已掌握">已掌握</option></select></label><label>排序<select id="wrong-sort-mode"><option value="lastWrong">最近答错优先</option><option value="wrongCount">错误次数最多</option><option value="status">按掌握状态</option></select></label><label class="limit-field-v60">错题重练题量<div class="limit-control-v60"><select id="wrong-practice-limit"><option value="custom" selected>自定义</option><option value="50">50题</option><option value="100">100题</option><option value="half">一半</option><option value="all">全部</option></select><input id="wrong-practice-custom-count" type="number" value="20" min="1" inputmode="numeric" aria-label="自定义错题重练题量" /></div></label><label class="quick-action-field-v60">快捷操作<button id="practice-wrong-btn" class="primary" type="button">重练未掌握错题</button></label></div><div id="wrongbook-list" class="list"></div></div></section>
       <section id="favorites" class="view"><div class="card favorites-card-v596"><div class="section-head"><div><p class="kicker">Favorites</p><h2>收藏夹</h2></div><div class="pill" id="favorites-count-v596">0 道</div></div><div class="favorites-hero-v596"><div><b>收藏题独立复习</b><span>收藏夹已从错题本独立出来，保留当前题库的收藏题，可直接练习或取消收藏。</span></div><div class="favorites-actions-top-v596"><button id="practice-favorites-btn-v596" class="primary" type="button">练习收藏题</button><button id="clear-favorites-btn-v596" class="ghost danger" type="button">清空收藏</button></div></div><div id="favorites-list-v596" class="list favorites-list-v596"></div></div></section>
       <section id="records" class="view"><div class="card"><div class="section-head"><div><p class="kicker">Records</p><h2>记录筛选与导出</h2></div><div class="actions"><button id="export-records-btn" class="ghost">导出记录</button><button id="clear-records-btn" class="danger">清空记录</button></div></div><div class="page-art-strip records-art-strip"><div><b>查看练习与考试记录</b><span>记录页使用休息状态素材，表示阶段性回顾和复盘。</span></div><img src="./media/rest_sleep_pillow.webp" alt="休息睡眠素材" /></div><div class="form-grid"><label>记录类型<select id="record-mode-filter"><option value="all">全部</option><option value="练习">练习</option><option value="考试">考试</option></select></label><label>显示范围<select id="record-limit"><option value="30">最近30条</option><option value="100">最近100条</option><option value="all">全部</option></select></label><label>统计<button id="record-refresh-btn" class="ghost" type="button">刷新记录</button></label></div><div id="records-list" class="list"></div></div></section>
+      <section id="ai-settings" class="view">
+        <div class="card ai-settings-card-v99">
+          <div class="section-head">
+            <div><p class="kicker">AI Import</p><h2>AI 设置</h2></div>
+            <span id="ai-connection-pill-v99" class="pill ai-status-pill-v99">未配置</span>
+          </div>
+          <div class="ai-settings-intro-v99">
+            <b>配置用于题库辅助整理的 OpenAI-compatible 服务</b>
+            <p>支持本地 Ollama、LM Studio 和自定义兼容接口。普通解析仍是默认主线，AI 结果必须进入预览并由人工核对后才能导入。</p>
+          </div>
+          <div class="ai-settings-grid-v99">
+            <label>服务类型
+              <select id="ai-provider-v99">
+                <option value="ollama">Ollama（本地）</option>
+                <option value="lmstudio">LM Studio（本地）</option>
+                <option value="custom">自定义 OpenAI-compatible</option>
+              </select>
+            </label>
+            <label class="ai-endpoint-field-v99">Chat Completions 接口地址
+              <input id="ai-endpoint-v99" type="url" spellcheck="false" placeholder="http://127.0.0.1:11434/v1/chat/completions" />
+            </label>
+            <label>模型名称
+              <input id="ai-model-v99" spellcheck="false" placeholder="例如：qwen3:8b" />
+            </label>
+            <label>API Key（本地服务可留空）
+              <input id="ai-api-key-v99" type="password" autocomplete="off" spellcheck="false" placeholder="不会写入题库备份" />
+            </label>
+            <label>请求超时（秒）
+              <input id="ai-timeout-v99" type="number" min="10" max="600" step="10" value="120" />
+            </label>
+            <label class="ai-checkbox-label-v99"><span>密钥保存</span>
+              <span class="ai-checkbox-row-v99"><input id="ai-remember-key-v99" type="checkbox" />在本机浏览器中记住 API Key</span>
+            </label>
+          </div>
+          <div class="actions ai-settings-actions-v99">
+            <button id="ai-save-settings-v99" class="primary" type="button">保存设置</button>
+            <button id="ai-test-connection-v99" class="ghost" type="button">测试连接</button>
+            <button id="ai-clear-settings-v99" class="ghost danger" type="button">清除配置</button>
+          </div>
+          <div id="ai-settings-status-v99" class="notice">尚未测试连接。API Key 默认只保留在当前标签页；勾选“在本机浏览器中记住”后也不会进入 Web 完整备份。</div>
+        </div>
+        <div class="card ai-guide-card-v99">
+          <div class="section-head"><div><p class="kicker">Usage</p><h3>使用边界</h3></div></div>
+          <div class="ai-guide-grid-v99">
+            <div><b>本地服务</b><span>Ollama 和 LM Studio 通常无需填写密钥，但需要允许当前网页跨域访问本机接口。</span></div>
+            <div><b>远程服务</b><span>题库文本会发送到所填写的远程接口。纯前端页面无法绝对保护云端密钥，建议使用自己的代理服务。</span></div>
+            <div><b>人工核对</b><span>AI 可能误判题型、答案或合并题目。整理结果只进入现有预览，不会绕过确认导入。</span></div>
+          </div>
+        </div>
+      </section>
       <section id="settings" class="view"><div class="card"><h2>设置与导出</h2><div class="page-art-strip settings-art-strip"><div><b>定期导出备份，避免本地数据丢失</b><span>设置页只导出完整数据备份；单个题库或选中题库 JSON 请到题库管理页导出。</span></div><img src="./media/loading_waiting_hourglass.webp" alt="加载等待素材" /></div><p>数据保存在浏览器 localStorage 中。更换浏览器或清理缓存会丢失数据，请定期导出。Web 完整备份适合 Web 端恢复；Android 原生 ZIP 更适合跨端导入。</p><div class="actions settings-main-actions-v611"><button id="export-all-btn" class="primary">导出 Web 完整备份</button><button id="reset-data-btn" class="danger">清除全部本地数据</button></div><textarea id="export-output" readonly placeholder="导出内容会显示在这里，也会自动下载文件。"></textarea></div></section>
     </main>
   </div>
