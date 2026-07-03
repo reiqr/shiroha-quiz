@@ -7360,7 +7360,7 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
 /* v58.9.8.1: import preview toolbar alignment */
 .import-preview-head-v5981{
   display:grid !important;
-  grid-template-columns:minmax(360px,1fr) auto !important;
+  grid-template-columns:minmax(360px,1fr) minmax(0,690px) !important;
   align-items:start !important;
   gap:18px 24px !important;
 }
@@ -7375,8 +7375,9 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
   line-height:1.65 !important;
 }
 .import-preview-tools-v5981{
-  width:max-content !important;
-  max-width:100% !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:690px !important;
   margin-left:auto !important;
   display:flex !important;
   align-items:center !important;
