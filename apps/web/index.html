@@ -234,7 +234,18 @@ C. 判断题
           </div>
         </details>
         <div class="card">
-          <div class="section-head import-preview-head-v5981"><div class="import-preview-title-v5981"><h2>识别结果预览</h2><p class="muted">识别后请先核对题型、答案和异常提示。无法确认的题目会标记为待确认，建议修正后再导入。</p></div><div class="row-actions import-preview-tools-v5981"><label class="inline-filter import-preview-filter-v5981">筛选<select id="import-preview-filter"><option value="priority">异常优先</option><option value="problem">仅异常</option><option value="normal">仅正常</option><option value="all">全部</option></select></label><button id="revalidate-import-btn" class="ghost">重新校验</button><button id="batch-delete-import-btn" class="ghost danger" disabled>删除选中</button><button id="clear-import-selection-btn" class="ghost" disabled>清空选择</button></div></div>
+          <div class="section-head import-preview-head-v5981"><div class="import-preview-title-v5981"><h2>识别结果预览</h2><p class="muted">识别后请先核对题型、答案和异常提示。AI 核对与补解析只生成建议，不会自动修改题目。</p></div><div class="row-actions import-preview-tools-v5981"><button id="ai-review-import-btn-v991" class="ghost ai-preview-tool-v991" type="button" disabled>AI 核对</button><button id="ai-analysis-import-btn-v991" class="ghost ai-preview-tool-v991" type="button" disabled>AI 补解析</button><label class="inline-filter import-preview-filter-v5981">筛选<select id="import-preview-filter"><option value="priority">异常优先</option><option value="problem">仅异常</option><option value="normal">仅正常</option><option value="all">全部</option></select></label><button id="revalidate-import-btn" class="ghost">重新校验</button><button id="batch-delete-import-btn" class="ghost danger" disabled>删除选中</button><button id="clear-import-selection-btn" class="ghost" disabled>清空选择</button></div></div>
+          <div id="ai-preview-panel-v991" class="ai-preview-panel-v991 ai-hidden-v99">
+            <div class="ai-import-panel-head-v99"><div><p class="kicker">AI Preview Assistant</p><h3 id="ai-preview-title-v991">AI 核对</h3></div><span id="ai-preview-badge-v991" class="ocr-badge">结果核对</span></div>
+            <p id="ai-preview-description-v991" class="muted">检查识别结果，只生成修改建议，不会自动改题。</p>
+            <div class="ai-preview-control-grid-v991">
+              <label>处理范围<select id="ai-preview-scope-v991"></select></label>
+              <label>单批处理题数<input id="ai-preview-batch-v991" type="number" min="1" max="30" step="1" value="20" /></label>
+            </div>
+            <div class="ai-preview-meta-grid-v991"><div><span>服务</span><b id="ai-preview-service-v991">未配置</b></div><div><span>模型</span><b id="ai-preview-model-v991">—</b></div><div><span>本次范围</span><b id="ai-preview-count-v991">0 题</b></div></div>
+            <div class="actions ai-import-actions-v99"><button id="ai-preview-start-btn-v991" class="primary" type="button">开始处理</button><button id="ai-preview-cancel-btn-v991" class="ghost" type="button">取消</button><button id="ai-preview-settings-btn-v991" class="ghost ai-hidden-v99" type="button">前往 AI 设置</button></div>
+            <div id="ai-preview-status-v991" class="notice">AI 结果只作为建议，必须由你主动采纳。</div>
+          </div>
           <div id="import-summary" class="notice">尚未识别到题目。</div>
           <div id="import-report-panel" class="report-panel hidden"></div>
           <div class="table-wrap"><table id="import-preview"><thead><tr><th><input type="checkbox" id="import-select-all-visible" title="选择当前显示"></th><th>序号</th><th>题型</th><th>题干</th><th>选项数</th><th>答案</th><th>状态</th><th>操作</th></tr></thead><tbody></tbody></table></div>
@@ -378,7 +389,7 @@ C. 判断题
           <div class="ai-guide-grid-v99">
             <div><b>本地服务</b><span>Ollama 和 LM Studio 通常无需填写密钥，但需要允许当前网页跨域访问本机接口。</span></div>
             <div><b>远程服务</b><span>题库文本会发送到所填写的远程接口。纯前端页面无法绝对保护云端密钥，建议使用自己的代理服务。</span></div>
-            <div><b>人工核对</b><span>AI 可能误判题型、答案或合并题目。整理结果只进入现有预览，不会绕过确认导入。</span></div>
+            <div><b>人工核对</b><span>AI 整理、核对和补解析都只生成预览或建议，不会自动写入题库，也不会绕过确认导入。</span></div>
           </div>
         </div>
       </section>

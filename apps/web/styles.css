@@ -7703,3 +7703,36 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
 .ai-import-meta-grid-v99 b{display:block;color:#1e3a5f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ai-import-actions-v99{margin:12px 0}
 /* SHIROHA_WEB_ISSUE_99_AI_IMPORT_END */
+
+
+/* SHIROHA_WEB_ISSUE_99_STAGE1_AI_REVIEW_ANALYSIS_START */
+.import-preview-tools-v5981{flex-wrap:wrap!important;max-width:690px!important}
+.import-preview-tools-v5981 .ai-preview-tool-v991{border-color:rgba(37,99,235,.24)!important;background:#f7fbff!important;color:#2457a7!important}
+.ai-preview-panel-v991{margin:0 0 16px;padding:18px;border:1px solid rgba(37,99,235,.16);border-radius:20px;background:linear-gradient(135deg,rgba(248,251,255,.98),rgba(255,255,255,.98));box-shadow:0 14px 30px rgba(37,99,235,.07)}
+.ai-preview-control-grid-v991{display:grid;grid-template-columns:minmax(280px,1fr) minmax(180px,.45fr);gap:14px;margin:15px 0}
+.ai-preview-meta-grid-v991{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.ai-preview-meta-grid-v991>div{padding:13px 14px;border:1px solid var(--line);border-radius:15px;background:#fff;min-width:0}
+.ai-preview-meta-grid-v991 span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+.ai-preview-meta-grid-v991 b{display:block;color:#1e3a5f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-suggestion-row-v991>td{padding:0 12px 14px!important;background:rgba(248,250,252,.7)!important;border-top:0!important}
+.ai-suggestion-grid-v991{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.ai-suggestion-grid-v991>:only-child{grid-column:1/-1}
+.ai-suggestion-card-v991{padding:15px 16px;border:1px solid rgba(37,99,235,.16);border-radius:16px;background:#fff;box-shadow:0 8px 20px rgba(15,23,42,.045)}
+.ai-analysis-suggestion-v991{border-color:rgba(14,116,144,.2);background:linear-gradient(135deg,#f8fdff,#fff)}
+.ai-suggestion-head-v991{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:11px}
+.ai-suggestion-head-v991 b{display:block;color:#173a69;margin-bottom:4px}
+.ai-suggestion-head-v991 span:not(.pill){display:block;color:var(--muted);font-size:13px;line-height:1.55}
+.ai-suggestion-risk-v991{flex:0 0 auto;font-size:12px}
+.ai-suggestion-risk-v991.is-low{background:#effdf5;border-color:#bbf7d0;color:#166534}
+.ai-suggestion-risk-v991.is-confirm{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.ai-suggestion-risk-v991.is-cannot{background:#f8fafc;border-color:#cbd5e1;color:#475569}
+.ai-suggestion-risk-v991.is-analysis{background:#ecfeff;border-color:#a5f3fc;color:#0e7490}
+.ai-suggestion-note-v991{margin:8px 0;color:#64748b;font-size:13px;line-height:1.65}
+.ai-suggestion-changes-v991{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ai-suggestion-changes-v991>div{padding:10px 11px;border:1px solid #e5edf8;border-radius:12px;background:#f8fbff;min-width:0}
+.ai-suggestion-changes-v991 b{display:block;color:#31577f;font-size:12px;margin-bottom:5px}
+.ai-suggestion-changes-v991 p{margin:0;color:#334155;font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-analysis-text-v991{padding:12px 13px;border:1px solid #d9edf3;border-radius:13px;background:#f7fdff;color:#263f50;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-analysis-text-v991.is-empty{color:var(--muted)}
+.ai-suggestion-actions-v991{margin-top:12px}
+/* SHIROHA_WEB_ISSUE_99_STAGE1_AI_REVIEW_ANALYSIS_END */
