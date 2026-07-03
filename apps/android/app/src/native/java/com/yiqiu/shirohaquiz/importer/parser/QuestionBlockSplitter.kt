@@ -188,6 +188,18 @@ object QuestionBlockSplitter {
                 currentLines += line
                 return@forEachIndexed
             }
+            if (
+                activeNumber != null &&
+                shouldKeepAsAnalysisContinuation(
+                    currentLines = currentLines,
+                    line = line,
+                    sourceLines = sourceLines,
+                    lineIndex = lineIndex
+                )
+            ) {
+                currentLines += line
+                return@forEachIndexed
+            }
 
             val explicitStart = parseQuestionStart(line)
             if (explicitStart != null) {
@@ -479,8 +491,13 @@ object QuestionBlockSplitter {
             .any { it.isBlank() }
         val looksLikeQuestion = looksLikeSubjectiveQuestionRemainder(numberedItem.content)
         val hasOwnAnswerMarkerAhead = hasAnswerMarkerAheadBeforeNextQuestion(sourceLines, lineIndex)
+        val clearlyStartsLaterQuestion = currentQuestionIndex != null &&
+            numberedItem.number > currentQuestionIndex &&
+            numberedItem.number - currentQuestionIndex <= 5 &&
+            hasOwnAnswerMarkerAhead &&
+            looksLikeQuestion
 
-        val isHighConfidenceNextQuestion = isExpectedOfficialNext && (
+        val isHighConfidenceNextQuestion = clearlyStartsLaterQuestion || isExpectedOfficialNext && (
             hasOwnAnswerMarkerAhead ||
                 (rollsBackFromAnswerItems && looksLikeQuestion) ||
                 (breaksAnswerItemSequence && looksLikeQuestion) ||
@@ -494,6 +511,22 @@ object QuestionBlockSplitter {
         if (numberedItem.number == lastItemNumber + 1) return true
         if (numberedItem.number > lastItemNumber) return true
         return !isExpectedOfficialNext
+    }
+
+    private fun shouldKeepAsAnalysisContinuation(
+        currentLines: List<String>,
+        line: String,
+        sourceLines: List<String>,
+        lineIndex: Int
+    ): Boolean {
+        if (currentLines.none { analysisLineRegex.containsMatchIn(it) }) return false
+        val start = parseQuestionStart(line) ?: return false
+        return !looksLikeLikelyQuestionStructure(
+            sourceLines = sourceLines,
+            lineIndex = lineIndex,
+            start = start,
+            requireOwnSubjectiveAnswer = false
+        )
     }
 
     private fun shouldAttachSubjectiveAnswerMarkerToCurrentBlock(

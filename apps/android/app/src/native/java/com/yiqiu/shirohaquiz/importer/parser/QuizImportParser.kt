@@ -18,11 +18,10 @@ object QuizImportParser {
         val normalized = QuestionTextNormalizer.normalize(raw)
         val candidates = mutableListOf<Candidate>()
         val hasAnswerSection = AnswerSectionParser.hasAnswerSection(normalized)
-        val questionArea = if (hasAnswerSection) {
-            AnswerSectionParser.splitSections(normalized).first
-        } else {
-            normalized
-        }
+        // Keep the full text here: QuestionBlockSplitter can skip the answer
+        // section and resume later real questions. Pre-splitting would silently
+        // drop questions that appear after a mid-paper answer section.
+        val questionArea = normalized
 
         val rewrittenQuestionArea = SharedStemQuestionFallbackParser.rewrite(questionArea)
         val primaryQuestions = QuestionParser.parseStandardFirst(rewrittenQuestionArea ?: questionArea)
