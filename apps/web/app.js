@@ -1,5 +1,5 @@
 (function(){
-const APP_VERSION='V36：OCR测试版';
+const APP_VERSION='V37：AI功能强化版';
 const RICH_CONTENT_VERSION_V57='shiroha-web-rich-v1';
 const BANK_DEFAULT_GROUP_V58='未分组';
 const CURRENT_SCHEMA_VERSION=1;
