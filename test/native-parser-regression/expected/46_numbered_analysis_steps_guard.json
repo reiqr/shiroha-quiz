@@ -1,0 +1,26 @@
+{
+  "id": "46_numbered_analysis_steps_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "typeCounts": {
+      "SINGLE": 2
+    },
+    "answeredCount": 2,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "检查设备",
+        "answer": ["A"],
+        "analysisContains": "先确认设备"
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "stemContains": "设备异常",
+        "answer": ["A"]
+      }
+    ]
+  }
+}

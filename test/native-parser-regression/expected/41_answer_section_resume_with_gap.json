@@ -1,0 +1,52 @@
+{
+  "id": "41_answer_section_resume_with_gap",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 5,
+    "typeCounts": {
+      "MULTIPLE": 2,
+      "SINGLE": 3
+    },
+    "answeredCount": 3,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "安全帽",
+        "optionCount": 4,
+        "answer": ["A"],
+        "analysisContains": "保护头部"
+      },
+      {
+        "number": "2",
+        "type": "MULTIPLE",
+        "stemContains": "雨天驾驶",
+        "optionCount": 4,
+        "answer": ["A", "B"],
+        "analysisContains": "安全距离"
+      },
+      {
+        "number": "3",
+        "type": "MULTIPLE",
+        "stemContains": "临时用电",
+        "optionCount": 4,
+        "answer": ["A", "C"]
+      },
+      {
+        "number": "5",
+        "type": "SINGLE",
+        "stemContains": "受限空间",
+        "optionCount": 4,
+        "answer": []
+      },
+      {
+        "number": "6",
+        "type": "SINGLE",
+        "stemContains": "绿色区域",
+        "optionCount": 4,
+        "answer": []
+      }
+    ],
+    "mustNotCreateQuestionFrom": ["答案解析", "【答案】"]
+  }
+}

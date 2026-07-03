@@ -1,0 +1,28 @@
+{
+  "id": "44_real_reference_answer_section",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "typeCounts": {
+      "SINGLE": 2
+    },
+    "answeredCount": 2,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "个人防护用品",
+        "optionCount": 2,
+        "answer": ["A"]
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "stemContains": "雨天行车",
+        "optionCount": 2,
+        "answer": ["A"]
+      }
+    ],
+    "mustNotCreateQuestionFrom": ["参考答案", "1.A", "2.A"]
+  }
+}

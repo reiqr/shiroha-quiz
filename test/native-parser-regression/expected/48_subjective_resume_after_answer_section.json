@@ -1,0 +1,31 @@
+{
+  "id": "48_subjective_resume_after_answer_section",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 3,
+    "typeCounts": {
+      "SHORT": 3
+    },
+    "answeredCount": 3,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SHORT",
+        "stemContains": "安全管理水平",
+        "answerTextContains": "完善制度"
+      },
+      {
+        "number": "3",
+        "type": "SHORT",
+        "stemContains": "设备启动前",
+        "answerTextContains": "核对参数"
+      },
+      {
+        "number": "4",
+        "type": "SHORT",
+        "stemContains": "发现隐患",
+        "answerTextContains": "整改闭环"
+      }
+    ]
+  }
+}

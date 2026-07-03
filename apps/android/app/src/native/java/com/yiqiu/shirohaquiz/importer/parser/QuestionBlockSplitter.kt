@@ -371,7 +371,10 @@ object QuestionBlockSplitter {
         lastCompletedExplicitNumber: Int?
     ): Boolean {
         val currentNumber = start.number.toIntOrNull() ?: return false
-        if (lastCompletedExplicitNumber != null && currentNumber != lastCompletedExplicitNumber + 1) return false
+        if (lastCompletedExplicitNumber != null) {
+            if (currentNumber <= lastCompletedExplicitNumber) return false
+            if (currentNumber - lastCompletedExplicitNumber > 5) return false
+        }
         return looksLikeLikelyQuestionStructure(
             sourceLines = sourceLines,
             lineIndex = lineIndex,

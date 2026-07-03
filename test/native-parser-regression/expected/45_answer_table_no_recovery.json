@@ -1,0 +1,8 @@
+{
+  "id": "45_answer_table_no_recovery",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 0,
+    "answeredCount": 0
+  }
+}

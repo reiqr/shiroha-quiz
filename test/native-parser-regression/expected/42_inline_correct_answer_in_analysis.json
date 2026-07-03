@@ -1,0 +1,29 @@
+{
+  "id": "42_inline_correct_answer_in_analysis",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "typeCounts": {
+      "SINGLE": 2
+    },
+    "answeredCount": 2,
+    "questions": [
+      {
+        "number": "16",
+        "type": "SINGLE",
+        "stemContains": "呼吸频率",
+        "optionCount": 4,
+        "answer": ["B"],
+        "analysisContains": "正确答案为B"
+      },
+      {
+        "number": "17",
+        "type": "SINGLE",
+        "stemContains": "测量血压",
+        "optionCount": 4,
+        "answer": ["A"]
+      }
+    ],
+    "mustNotCreateQuestionFrom": ["正确答案为B"]
+  }
+}

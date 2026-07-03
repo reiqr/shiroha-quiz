@@ -1,0 +1,38 @@
+{
+  "id": "43_inline_analysis_labels_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 7,
+    "typeCounts": {
+      "SINGLE": 7
+    },
+    "answeredCount": 7,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "analysisContains": "安全防护用品"
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "analysisContains": "参考答案为A"
+      },
+      {
+        "number": "3",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "analysisContains": "正确答案是A"
+      },
+      {
+        "number": "7",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "analysisContains": "交接班"
+      }
+    ],
+    "mustNotCreateQuestionFrom": ["答案解析：参考答案", "详解：本题正确答案", "分析：", "理由：", "解答：", "说明："]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "47_non_contiguous_large_jump_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "typeCounts": {
+      "SINGLE": 1
+    },
+    "answeredCount": 1,
+    "questions": [
+      {
+        "number": "16",
+        "type": "SINGLE",
+        "stemContains": "安全交底",
+        "answer": ["A"]
+      }
+    ],
+    "mustNotCreateQuestionFrom": ["这一行看起来像题目"]
+  }
+}

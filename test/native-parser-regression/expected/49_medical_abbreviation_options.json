@@ -1,0 +1,27 @@
+{
+  "id": "49_medical_abbreviation_options",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "typeCounts": {
+      "SINGLE": 1
+    },
+    "answeredCount": 1,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "肌肉注射",
+        "optionCount": 5,
+        "answer": ["E"],
+        "options": {
+          "A": "IV:5°",
+          "B": "ID:40°",
+          "C": "(H):30°",
+          "D": "IV:90°",
+          "E": "IM:20°"
+        }
+      }
+    ]
+  }
+}

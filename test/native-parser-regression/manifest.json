@@ -282,6 +282,69 @@
       "sample": "samples/40_material_intro_skip.txt",
       "expected": "expected/40_material_intro_skip.json",
       "risk": "材料一/材料二导语不能被误判为独立题目"
+    },
+    {
+      "id": "41_answer_section_resume_with_gap",
+      "mode": "single",
+      "sample": "samples/41_answer_section_resume_with_gap.txt",
+      "expected": "expected/41_answer_section_resume_with_gap.json",
+      "risk": "集中答案区后题号断号时，应恢复后续真实题目，不能继续跳过"
+    },
+    {
+      "id": "42_inline_correct_answer_in_analysis",
+      "mode": "single",
+      "sample": "samples/42_inline_correct_answer_in_analysis.txt",
+      "expected": "expected/42_inline_correct_answer_in_analysis.json",
+      "risk": "解析正文出现“正确答案”时不能误入集中答案区并截断后续题目"
+    },
+    {
+      "id": "43_inline_analysis_labels_guard",
+      "mode": "single",
+      "sample": "samples/43_inline_analysis_labels_guard.txt",
+      "expected": "expected/43_inline_analysis_labels_guard.json",
+      "risk": "解析/答案解析/详解/分析/理由/解答/说明等行内解析标签应保留为当前题解析"
+    },
+    {
+      "id": "44_real_reference_answer_section",
+      "mode": "single",
+      "sample": "samples/44_real_reference_answer_section.txt",
+      "expected": "expected/44_real_reference_answer_section.json",
+      "risk": "真正的参考答案区仍应作为集中答案区合并，不能因保护过度失效"
+    },
+    {
+      "id": "45_answer_table_no_recovery",
+      "mode": "single",
+      "sample": "samples/45_answer_table_no_recovery.txt",
+      "expected": "expected/45_answer_table_no_recovery.json",
+      "risk": "纯答案表不能被误恢复成题目"
+    },
+    {
+      "id": "46_numbered_analysis_steps_guard",
+      "mode": "single",
+      "sample": "samples/46_numbered_analysis_steps_guard.txt",
+      "expected": "expected/46_numbered_analysis_steps_guard.json",
+      "risk": "解析正文中的 1/2/3 分步说明不能误切成新题"
+    },
+    {
+      "id": "47_non_contiguous_large_jump_guard",
+      "mode": "single",
+      "sample": "samples/47_non_contiguous_large_jump_guard.txt",
+      "expected": "expected/47_non_contiguous_large_jump_guard.json",
+      "risk": "答案区后题号大幅跳号时不能轻易自动恢复，避免章节号/页码误伤"
+    },
+    {
+      "id": "48_subjective_resume_after_answer_section",
+      "mode": "single",
+      "sample": "samples/48_subjective_resume_after_answer_section.txt",
+      "expected": "expected/48_subjective_resume_after_answer_section.json",
+      "risk": "答案区后出现高置信主观题结构时仍应恢复"
+    },
+    {
+      "id": "49_medical_abbreviation_options",
+      "mode": "single",
+      "sample": "samples/49_medical_abbreviation_options.txt",
+      "expected": "expected/49_medical_abbreviation_options.json",
+      "risk": "医学/技术缩写选项中的冒号、括号和角度符号应完整保留"
     }
   ]
 }
