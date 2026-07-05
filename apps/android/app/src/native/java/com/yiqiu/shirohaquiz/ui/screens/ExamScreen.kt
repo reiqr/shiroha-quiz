@@ -96,17 +96,17 @@ fun ExamScreen(
     onOpenRecord: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val activeBank = QuizRepository.activeBank()
-    val typeAvailableCounts = remember(activeBank?.id, activeBank?.questions?.size) {
-        QuizRepository.questionTypeCounts(activeBank?.questions.orEmpty())
-            .filterKeys { it in examTypeOrder }
-    }
+    val examScopeKey = QuizRepository.currentPracticeScopeKey()
+    val examScopeLabel = QuizRepository.currentPracticeScopeLabel()
+    val examScopeQuestions = QuizRepository.activePracticePoolQuestions()
+    val typeAvailableCounts = QuizRepository.questionTypeCounts(examScopeQuestions)
+        .filterKeys { it in examTypeOrder }
     val availableExamTypes = remember(typeAvailableCounts) {
         examTypeOrder.filter { (typeAvailableCounts[it] ?: 0) > 0 }.toSet()
     }
     val availableExamCount = typeAvailableCounts.values.sum()
     val initialExamCountChoice = remember(
-        activeBank?.id,
+        examScopeKey,
         availableExamCount,
         QuizRepository.rememberExamSettingsEnabled,
         QuizRepository.preferredExamQuestionCountMode,
@@ -126,20 +126,20 @@ fun ExamScreen(
             )
         }
     }
-    var selectedQuestionCount by remember(activeBank?.id, initialExamCountChoice.count) {
+    var selectedQuestionCount by remember(examScopeKey, initialExamCountChoice.count) {
         mutableIntStateOf(initialExamCountChoice.count)
     }
-    var selectedQuestionCountMode by remember(activeBank?.id, initialExamCountChoice.mode) {
+    var selectedQuestionCountMode by remember(examScopeKey, initialExamCountChoice.mode) {
         mutableStateOf(initialExamCountChoice.mode)
     }
     var selectedDurationMinutes by remember(
-        activeBank?.id,
+        examScopeKey,
         QuizRepository.rememberExamSettingsEnabled,
         QuizRepository.preferredExamDurationMinutes
     ) {
         mutableIntStateOf(if (QuizRepository.rememberExamSettingsEnabled) QuizRepository.preferredExamDurationMinutes else 30)
     }
-    var groupMode by remember(activeBank?.id, QuizRepository.rememberExamSettingsEnabled, QuizRepository.preferredExamGroupMode) {
+    var groupMode by remember(examScopeKey, QuizRepository.rememberExamSettingsEnabled, QuizRepository.preferredExamGroupMode) {
         mutableStateOf(
             if (QuizRepository.rememberExamSettingsEnabled && QuizRepository.preferredExamGroupMode == "custom") {
                 ExamGroupMode.CUSTOM
@@ -148,7 +148,7 @@ fun ExamScreen(
             }
         )
     }
-    var typeCountTexts by remember(activeBank?.id, QuizRepository.rememberExamSettingsEnabled, typeAvailableCounts) {
+    var typeCountTexts by remember(examScopeKey, QuizRepository.rememberExamSettingsEnabled, typeAvailableCounts) {
         mutableStateOf(
             if (QuizRepository.rememberExamSettingsEnabled) {
                 QuizRepository.preferredExamTypeCountTexts(typeAvailableCounts)
@@ -157,7 +157,7 @@ fun ExamScreen(
             }
         )
     }
-    var typeScoreTexts by remember(activeBank?.id, QuizRepository.rememberExamSettingsEnabled) {
+    var typeScoreTexts by remember(examScopeKey, QuizRepository.rememberExamSettingsEnabled) {
         mutableStateOf(
             if (QuizRepository.rememberExamSettingsEnabled) {
                 QuizRepository.preferredExamTypeScoreTexts()
@@ -225,7 +225,7 @@ fun ExamScreen(
             }
         }
 
-        if (activeBank == null || activeBank.questions.isEmpty() || availableExamCount == 0) {
+        if (examScopeQuestions.isEmpty() || availableExamCount == 0) {
             EmptyStateIllustration(
                 title = "还没有可用于考试的客观题",
                 message = "当前考试先支持单选题、多选题和判断题。",
@@ -244,8 +244,8 @@ fun ExamScreen(
 
         if (QuizRepository.examQuestions.isEmpty() && !QuizRepository.examFinished) {
             ExamSetupPanel(
-                bankName = activeBank.name,
-                totalQuestions = activeBank.questions.size,
+                bankName = examScopeLabel,
+                totalQuestions = examScopeQuestions.size,
                 availableExamCount = availableExamCount,
                 typeAvailableCounts = typeAvailableCounts,
                 selectedQuestionCount = selectedQuestionCount.coerceAtMost(availableExamCount),

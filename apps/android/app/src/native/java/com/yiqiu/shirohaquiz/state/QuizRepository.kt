@@ -394,6 +394,10 @@ object QuizRepository {
     var examOptionShuffleSessionEnabled by mutableStateOf(false)
         private set
     val examAnswers = mutableStateMapOf<String, List<String>>()
+    private val examQuestionBankIds = mutableStateMapOf<String, String>()
+    private val examQuestionBankNames = mutableStateMapOf<String, String>()
+    private var examSessionScopeType by mutableStateOf<String?>(null)
+    private var examSessionScopeName by mutableStateOf<String?>(null)
     var examTypeScores by mutableStateOf(defaultExamTypeScores())
         private set
 
@@ -2157,12 +2161,12 @@ object QuizRepository {
         randomize: Boolean = false
     ): Boolean {
         val selectedTypes = allowedTypes.ifEmpty { objectiveQuestionTypes() }
-        val source = activeBank()?.questions.orEmpty().filter { it.type in selectedTypes }
+        val source = activePracticePoolSources().filter { it.question.type in selectedTypes }
         if (source.isEmpty()) return false
 
         val count = questionCount.coerceIn(1, source.size)
-        val pickedQuestions = if (randomize) source.shuffled().take(count) else source.take(count)
-        return beginExam(pickedQuestions, durationMinutes, typeScores)
+        val pickedItems = if (randomize) source.shuffled().take(count) else source.take(count)
+        return beginExam(pickedItems, durationMinutes, typeScores)
     }
 
     fun startExamByTypeCounts(
@@ -2170,21 +2174,21 @@ object QuizRepository {
         durationMinutes: Int,
         typeScores: Map<QuestionType, Double>
     ): Boolean {
-        val source = activeBank()?.questions.orEmpty()
-        val pickedQuestions = typeCounts.entries.flatMap { (type, count) ->
-            if (count <= 0) emptyList() else source.filter { it.type == type }.shuffled().take(count)
+        val source = activePracticePoolSources()
+        val pickedItems = typeCounts.entries.flatMap { (type, count) ->
+            if (count <= 0) emptyList() else source.filter { it.question.type == type }.shuffled().take(count)
         }.shuffled()
-        if (pickedQuestions.isEmpty()) return false
-        return beginExam(pickedQuestions, durationMinutes, typeScores)
+        if (pickedItems.isEmpty()) return false
+        return beginExam(pickedItems, durationMinutes, typeScores)
     }
 
     private fun beginExam(
-        questions: List<Question>,
+        sourceItems: List<PracticeQuestionSource>,
         durationMinutes: Int,
         typeScores: Map<QuestionType, Double>
     ): Boolean {
-        if (questions.isEmpty()) return false
-        examQuestions = questions
+        if (sourceItems.isEmpty()) return false
+        examQuestions = sourceItems.map { it.question }
         examTypeScores = defaultExamTypeScores() + typeScores.mapValues { it.value.coerceAtLeast(0.0) }
         examIndex = 0
         examDurationSeconds = durationMinutes.coerceAtLeast(1) * 60
@@ -2194,6 +2198,14 @@ object QuizRepository {
         examOptionShuffleSessionEnabled = examOptionShuffleEnabled
         examOptionShuffleSeed = System.currentTimeMillis()
         examAnswers.clear()
+        examQuestionBankIds.clear()
+        examQuestionBankNames.clear()
+        sourceItems.forEach { item ->
+            if (item.bankId.isNotBlank()) examQuestionBankIds[item.question.id] = item.bankId
+            if (item.bankName.isNotBlank()) examQuestionBankNames[item.question.id] = item.bankName
+        }
+        examSessionScopeType = practiceScopeType
+        examSessionScopeName = currentPracticeScopeLabel()
         return true
     }
 
@@ -2208,6 +2220,10 @@ object QuizRepository {
         examOptionShuffleSeed = 0L
         examTypeScores = defaultExamTypeScores()
         examAnswers.clear()
+        examQuestionBankIds.clear()
+        examQuestionBankNames.clear()
+        examSessionScopeType = null
+        examSessionScopeName = null
     }
 
     fun currentExamQuestion(): Question? {
@@ -2273,13 +2289,21 @@ object QuizRepository {
         examAutoSubmitted = autoSubmitted
 
         val summary = examSummary()
-        val bank = activeBank()
         val now = System.currentTimeMillis()
         val usedSeconds = summary.durationSeconds - summary.remainingSeconds
+        val involvedBankIds = examQuestions.mapNotNull { examQuestionBankIds[it.id] }.distinct()
+        val isGroupExam = examSessionScopeType == PRACTICE_SCOPE_GROUP
+        val recordBank = if (isGroupExam) null else involvedBankIds.singleOrNull()?.let { bankId -> banks.firstOrNull { it.id == bankId } }
+        val recordName = if (isGroupExam) {
+            examSessionScopeName ?: "分组考试"
+        } else {
+            recordBank?.name ?: examSessionScopeName ?: "未命名题库"
+        }
         val detailResults = examQuestions.map { question ->
             val userAnswer = examAnswers[question.id].orEmpty()
             val result = evaluateQuestion(question, userAnswer)
             val maxScore = scoreForExamQuestion(question)
+            val sourceBank = bankForExamQuestion(question)
             StudyQuestionResult(
                 question = question,
                 userAnswer = result.userAnswer,
@@ -2289,18 +2313,18 @@ object QuizRepository {
                 earnedScore = if (result.autoScored) { if (result.correct) maxScore else 0.0 } else null,
                 maxScore = if (result.autoScored) maxScore else null,
                 autoScored = result.autoScored,
-                sourceBankId = bank?.id,
-                sourceBankName = bank?.name
+                sourceBankId = sourceBank?.id,
+                sourceBankName = sourceBank?.name ?: examQuestionBankNames[question.id]
             )
         }
         studyRecords.add(
             0,
             StudyRecord(
                 id = "exam_${now}",
-                bankId = bank?.id,
-                bankName = bank?.name ?: "未命名题库",
+                bankId = recordBank?.id,
+                bankName = recordName,
                 source = "考试",
-                title = "原生考试",
+                title = if (isGroupExam) "${recordName} · 分组考试" else "原生考试",
                 total = summary.total,
                 correct = summary.correct,
                 timestamp = now,
@@ -2309,18 +2333,21 @@ object QuizRepository {
                 startedAt = now - usedSeconds * 1000L,
                 earnedScore = summary.earnedScore,
                 totalScore = summary.totalScore,
-                questionResults = detailResults
+                questionResults = detailResults,
+                scopeType = examSessionScopeType,
+                scopeName = examSessionScopeName
             )
         )
 
         examQuestions.forEach { question ->
             val userAnswer = examAnswers[question.id].orEmpty()
             val result = evaluateQuestion(question, userAnswer)
+            val sourceBank = bankForExamQuestion(question)
             if (result.autoScored && result.correct) {
-                markWrongQuestionRight(bank = bank, question = question)
+                markWrongQuestionRight(bank = sourceBank, question = question)
             } else if (result.autoScored) {
                 addWrongQuestion(
-                    bank = bank,
+                    bank = sourceBank,
                     question = question,
                     userAnswer = userAnswer,
                     source = "考试"
@@ -3985,6 +4012,11 @@ object QuizRepository {
         val index = practiceQuestions.indices.firstOrNull { practiceQuestions[it] === question }
             ?: practiceQuestions.indexOfFirst { it == question }.takeIf { it >= 0 }
         return index?.let(::bankForPracticeIndex) ?: activeBank()
+    }
+
+    private fun bankForExamQuestion(question: Question): QuizBank? {
+        val mappedBankId = examQuestionBankIds[question.id]
+        return mappedBankId?.let { bankId -> banks.firstOrNull { it.id == bankId } } ?: activeBank()
     }
 
     private fun isWrongEntryDueForSmartReview(entry: WrongQuestionEntry, now: Long): Boolean {

@@ -116,7 +116,7 @@ function renderPracticeScopeUiV8916(){
   const home=$('#home-practice-scope-v8916');if(home)home.innerHTML=`<span>${scope.type===PRACTICE_SCOPE_GROUP_V8916?'当前练习范围':'当前题库'}</span><b>${esc(label)}</b><small>${esc(summary)}</small>`;
   const bank=$('#bank-practice-scope-v8916');if(bank)bank.innerHTML=`<div><span>当前题库</span><b>${esc(activeBank().name||'暂无题库')}</b></div><div><span>练习范围</span><b>${esc(label)}</b><small>${esc(summary)}</small></div>`;
   const practiceEl=$('#practice-scope-summary-v8916');if(practiceEl)practiceEl.innerHTML=`<span>题目来源</span><b>${esc(label)}</b><small>${esc(summary)}</small>`;
-  const examEl=$('#exam-bank-summary-v8916');if(examEl)examEl.textContent=`考试题库：${activeBank().name||'暂无题库'}（考试仍使用当前具体题库）`;
+  const examEl=$('#exam-bank-summary-v8916');if(examEl)examEl.textContent=`考试范围：${label}（跟随当前练习范围 · ${summary}）`;
 }
 
 function resetViewScrollV282(){
@@ -7039,8 +7039,13 @@ function finishPractice(exited=false){
 }
 
 function scoreOf(q){if(q.score)return q.score;return Number(q.type==='multiple'?$('#score-multiple').value:q.type==='judge'?$('#score-judge').value:q.type==='blank'?$('#score-blank').value:q.type==='short'?$('#score-short').value:$('#score-single').value)||0}
-function collectExamTextAnswers(){if(!exam.items)return;exam.items.forEach(q=>{if(!isTextType(q.type))return;const box=$(`#exam-card [data-qid="${CSS.escape(q.id)}"]`);if(box)exam.answers[q.id]=collectTextAnswerFromElementV58914(box,q)})}
-function addWrongOnExam(id,isWrong){if(isWrong)addWrong(id);else markRight(id)}
+function examQuestionV113(item){return practiceQuestionV8916(item)}
+function examItemKeyV113(item){return practiceItemKeyV8916(item)}
+function examRenderQuestionV113(item){const q=examQuestionV113(item);return {...q,id:examItemKeyV113(item)}}
+function examItemByKeyV113(key){return (exam.items||[]).find(item=>String(examItemKeyV113(item))===String(key))||null}
+function filteredExamItemsV113(type,order,count){return filteredPracticeItemsV8916('all',type,order,count)}
+function collectExamTextAnswers(){if(!exam.items)return;exam.items.forEach(item=>{const q=examQuestionV113(item),key=examItemKeyV113(item);if(!isTextType(q.type))return;const box=$(`#exam-card [data-qid="${CSS.escape(key)}"]`);if(box)exam.answers[key]=collectTextAnswerFromElementV58914(box,q)})}
+function addWrongOnExam(item,isWrong){const q=examQuestionV113(item),bid=practiceItemBankIdV8916(item);if(isWrong)addWrong(q.id,bid);else markRight(q.id,bid)}
 function renderRecordAnswerCellV58914(detail,kind){
   const groups=blankAnswersFromDetailV58914(detail);if(groups.length){const users=blankUserAnswersFromDetailV58914(detail);return kind==='user'?`<div class="multi-blank-record-v58914">${groups.map((_,i)=>`<span><b>第${i+1}空：</b>${esc(users[i]||'未答')}</span>`).join('')}</div>`:`<div class="multi-blank-record-v58914">${groups.map((accepted,i)=>`<span><b>第${i+1}空：</b>${esc(accepted.join(' / ')||'未提供')}</span>`).join('')}</div>`}
   const value=kind==='user'?((detail.chosen||[]).join('；')||'未答'):((detail.answer||[]).join('；')||'未提供');
@@ -7933,8 +7938,9 @@ function exitExamFocus(){
 }
 function startExam(){
   let count=Number($('#exam-count').value)||50;
-  exam={name:($('#exam-name').value||'模拟考试').trim(),passScore:Number($('#exam-pass-score').value)||0,items:filteredQuestions('all',$('#exam-type').value,$('#exam-order').value,count),answers:{},start:Date.now(),deadline:0,timer:null,submitted:false};
-  if(!exam.items.length){$('#exam-card').innerHTML='<div class="empty">当前条件下没有题目。</div>';return}
+  const scope=practiceScopeV8916();const scopeLabel=practiceScopeLabelV8916(scope);const scopeSummary=practiceScopeSummaryV8916(scope);
+  exam={name:($('#exam-name').value||'模拟考试').trim(),passScore:Number($('#exam-pass-score').value)||0,items:filteredExamItemsV113($('#exam-type').value,$('#exam-order').value,count),answers:{},start:Date.now(),deadline:0,timer:null,submitted:false,scopeType:scope.type===PRACTICE_SCOPE_GROUP_V8916?'GROUP':'BANK',scopeName:scopeLabel,scopeSummary};
+  if(!exam.items.length){$('#exam-card').innerHTML='<div class="empty">当前考试范围下没有题目。</div>';return}
   const min=Number($('#exam-minutes').value)||0;
   if(min>0){exam.deadline=Date.now()+min*60000;clearInterval(exam.timer);exam.timer=setInterval(updateTimer,1000);updateTimer()}else $('#exam-timer').textContent='不限时';
   $('#submit-exam-btn').disabled=false;
@@ -7956,8 +7962,8 @@ function updateTimer(){
 }
 function renderExamPaper(){
   const timerText=exam.deadline?($('#exam-timer')?.textContent||'计时中'):'不限时';
-  let html=`<main class="exam-focus-main-v31"><div class="exam-focus-head"><div><b>${esc(exam.name||'模拟考试')}</b><span id="exam-focus-timer">${esc(timerText)}</span></div><div class="exam-head-actions"><button class="ghost mini-btn focus-mini-btn" id="exam-exit-focus" type="button">退出考试</button><button class="danger focus-mini-btn" id="exam-submit-focus" type="button">交卷评分</button></div></div><div class="notice warn">考试中：多选题需完全一致才得分；填空/简答按参考答案规范化匹配评分，简答题建议交卷后人工核对。</div>`;
-  exam.items.forEach((q,i)=>{html+=`<div class="exam-q" data-qid="${esc(q.id)}" id="exam-q-${i+1}">${questionHtml(q,true,i+1)}</div>`});
+  let html=`<main class="exam-focus-main-v31"><div class="exam-focus-head"><div><b>${esc(exam.name||'模拟考试')}</b><span id="exam-focus-timer">${esc(timerText)}</span>${exam.scopeName?`<span class="pill">范围：${esc(exam.scopeName)}</span>`:''}</div><div class="exam-head-actions"><button class="ghost mini-btn focus-mini-btn" id="exam-exit-focus" type="button">退出考试</button><button class="danger focus-mini-btn" id="exam-submit-focus" type="button">交卷评分</button></div></div><div class="notice warn">考试中：多选题需完全一致才得分；填空/简答按参考答案规范化匹配评分，简答题建议交卷后人工核对。</div>`;
+  exam.items.forEach((item,i)=>{const key=examItemKeyV113(item);html+=`<div class="exam-q" data-qid="${esc(key)}" id="exam-q-${i+1}">${questionHtml(examRenderQuestionV113(item),true,i+1)}</div>`});
   html+=`<div class="exam-focus-actions"><button class="danger" id="exam-submit-focus-bottom" type="button">交卷评分</button></div></main><aside class="exam-side-v31">${renderExamAnswerCardV30()}</aside>`;
   $('#exam-card').innerHTML=html;
   $('#exam-submit-focus').onclick=()=>submitExam(false);
@@ -7966,14 +7972,14 @@ function renderExamPaper(){
   bindExamAnswerCardV30();
   bindFocusRailToggleV34();
   $$('#exam-card .option').forEach(opt=>{opt.onclick=()=>setTimeout(()=>{const box=opt.closest('.exam-q');const id=box.dataset.qid;exam.answers[id]=selectedKeys(`[data-qid="${CSS.escape(id)}"]`);box.querySelectorAll('.option').forEach(o=>o.classList.toggle('selected',o.querySelector('input').checked));refreshExamAnswerCardV30();},0)});
-  $$('#exam-card .text-answer').forEach(el=>{el.oninput=()=>{const box=el.closest('.exam-q');if(box){const q=exam.items.find(item=>String(item.id)===String(box.dataset.qid));if(q)exam.answers[box.dataset.qid]=collectTextAnswerFromElementV58914(box,q);refreshExamAnswerCardV30();}}});
+  $$('#exam-card .text-answer').forEach(el=>{el.oninput=()=>{const box=el.closest('.exam-q');if(box){const item=examItemByKeyV113(box.dataset.qid);if(item)exam.answers[box.dataset.qid]=collectTextAnswerFromElementV58914(box,examQuestionV113(item));refreshExamAnswerCardV30();}}});
 }
-function examAnsweredCountV30(){return (exam.items||[]).filter(q=>hasAnswerValueV58914((exam.answers||{})[q.id]||[])).length;}
+function examAnsweredCountV30(){return (exam.items||[]).filter(item=>hasAnswerValueV58914((exam.answers||{})[examItemKeyV113(item)]||[])).length;}
 function renderExamAnswerCardV30(){
   const total=(exam.items||[]).length;
   const answered=examAnsweredCountV30();
   const remain=Math.max(0,total-answered);
-  const buttons=(exam.items||[]).map((q,i)=>{const done=hasAnswerValueV58914((exam.answers||{})[q.id]||[]);return `<button type="button" class="${done?'answered':''}" data-exam-jump="${i}" title="第${i+1}题">${i+1}</button>`}).join('');
+  const buttons=(exam.items||[]).map((item,i)=>{const done=hasAnswerValueV58914((exam.answers||{})[examItemKeyV113(item)]||[]);return `<button type="button" class="${done?'answered':''}" data-exam-jump="${i}" title="第${i+1}题">${i+1}</button>`}).join('');
   return `<div id="exam-answer-card-v30" class="exam-answer-card-v30"><div class="exam-answer-card-head-v30"><div><b>答题卡</b><span>已答 ${answered} / ${total}，未答 ${remain}</span></div><div class="exam-answer-mini-stats-v30"><span>进度</span><b>${total?Math.round(answered/total*100):0}%</b></div><button class="rail-hide-btn-v34" data-rail-toggle-v34="exam" type="button" title="隐藏答题卡">隐藏</button></div><div class="exam-nav-grid-v30">${buttons}</div><button class="rail-show-btn-v34" data-rail-toggle-v34="exam" type="button" title="显示答题卡">答题卡</button></div>`;
 }
 function refreshExamAnswerCardV30(){
@@ -8022,17 +8028,17 @@ function bindFocusRailToggleV34(){
 function submitExam(auto){
   if(exam.submitted)return;
   collectExamTextAnswers();exam.submitted=true;clearInterval(exam.timer);let got=0,total=0,correct=0;const details=[];const byType={};
-  exam.items.forEach(q=>{const sc=scoreOf(q);total+=sc;const ans=exam.answers[q.id]||[];const ok=sameAnswerForQuestion(q,ans,q.answer);if(ok){got+=sc;correct++} addWrongOnExam(q.id,!ok);details.push(makeAnswerDetail(q,ans,ok,sc,sc));const k=q.type||'single';byType[k]=byType[k]||{total:0,correct:0,score:0,fullScore:0};byType[k].total++;if(ok)byType[k].correct++;byType[k].score+=ok?sc:0;byType[k].fullScore+=sc;});
-  const acc=Math.round(correct/exam.items.length*100);const rec={id:makeId('rec','exam'),name:exam.name||'模拟考试',mode:'考试',bankId:activeBank().id,bankName:activeBank().name,total:exam.items.length,answered:examAnsweredCountV30(),correct,wrong:exam.items.length-correct,accuracy:acc,score:got,totalScore:total,passScore:exam.passScore,passed:got>=Number(exam.passScore||0),autoSubmitted:!!auto,date:now(),duration:Math.round((Date.now()-exam.start)/1000),details,byType};
+  exam.items.forEach(item=>{const q=examQuestionV113(item),key=examItemKeyV113(item);const sc=scoreOf(q);total+=sc;const ans=exam.answers[key]||[];const ok=sameAnswerForQuestion(q,ans,q.answer);if(ok){got+=sc;correct++} addWrongOnExam(item,!ok);details.push(makeAnswerDetail(item,ans,ok,sc,sc));const k=q.type||'single';byType[k]=byType[k]||{total:0,correct:0,score:0,fullScore:0};byType[k].total++;if(ok)byType[k].correct++;byType[k].score+=ok?sc:0;byType[k].fullScore+=sc;});
+  const acc=Math.round(correct/exam.items.length*100);const groupMode=exam.scopeType==='GROUP';const firstItem=exam.items[0]||null;const rec={id:makeId('rec','exam'),name:exam.name||'模拟考试',mode:'考试',bankId:groupMode?'':(practiceItemBankIdV8916(firstItem)||activeBank().id),bankName:groupMode?(exam.scopeName||'分组考试'):(practiceItemBankNameV8916(firstItem)||activeBank().name),scopeType:exam.scopeType||'BANK',scopeName:exam.scopeName||practiceItemBankNameV8916(firstItem),total:exam.items.length,answered:examAnsweredCountV30(),correct,wrong:exam.items.length-correct,accuracy:acc,score:got,totalScore:total,passScore:exam.passScore,passed:got>=Number(exam.passScore||0),autoSubmitted:!!auto,date:now(),duration:Math.round((Date.now()-exam.start)/1000),details,byType};
   state.records.unshift(rec);saveSilent();$('#submit-exam-btn').disabled=true;$('#exam-timer').textContent=auto?'已自动交卷':'已交卷';renderExamResult(rec);renderAll();
 }
 function renderExamResult(rec){
   const typeRows=Object.entries(rec.byType||{}).map(([t,v])=>`<tr><td>${label(t)}</td><td>${v.correct}/${v.total}</td><td>${Number(v.score.toFixed? v.score.toFixed(1):v.score)}/${v.fullScore}</td></tr>`).join('');
   let html=`<div class="exam-focus-head"><div><b>考试结果</b><span>${esc(rec.name||'模拟考试')}</span></div><div class="exam-head-actions"><button class="primary focus-mini-btn" id="exam-back-setup" type="button">返回考试设置</button></div></div><div class="score-card"><div class="metric"><span>得分</span><b>${rec.score}/${rec.totalScore}</b></div><div class="metric"><span>结果</span><b>${rec.passed?'合格':'未合格'}</b></div><div class="metric"><span>正确率</span><b>${rec.accuracy}%</b></div><div class="metric"><span>用时</span><b>${rec.duration}秒</b></div></div><div class="notice ${rec.passed?'ok':'warn'}">${esc(rec.name||'模拟考试')}：及格线 ${rec.passScore} 分，${rec.autoSubmitted?'系统已自动交卷。':'已交卷。'}</div>${typeRows?`<div class="table-wrap"><table><thead><tr><th>题型</th><th>正确</th><th>得分</th></tr></thead><tbody>${typeRows}</tbody></table></div>`:''}`;
-  exam.items.forEach((q,i)=>{const ans=exam.answers[q.id]||[];html+=`<div class="exam-q" data-result-qid="${esc(q.id)}">${questionHtml(q,true,i+1)}<div class="feedback ${sameAnswerForQuestion(q,ans,q.answer)?'ok':'bad'}">${feedbackAnswerHtmlV58914(q,ans)}${q.analysis?'<br>解析：'+renderQuestionContent(q.analysis):''}</div></div>`});
+  exam.items.forEach((item,i)=>{const q=examQuestionV113(item),key=examItemKeyV113(item),ans=exam.answers[key]||[];html+=`<div class="exam-q" data-result-qid="${esc(key)}">${questionHtml(examRenderQuestionV113(item),true,i+1)}<div class="feedback ${sameAnswerForQuestion(q,ans,q.answer)?'ok':'bad'}">${feedbackAnswerHtmlV58914(q,ans)}${q.analysis?'<br>解析：'+renderQuestionContent(q.analysis):''}</div></div>`});
   $('#exam-card').innerHTML=html;
   $('#exam-back-setup').onclick=()=>exitExamFocus();
-  exam.items.forEach(q=>markOptions(`#exam-card [data-result-qid="${CSS.escape(q.id)}"]`,q,exam.answers[q.id]||[]));
+  exam.items.forEach(item=>{const q=examQuestionV113(item),key=examItemKeyV113(item);markOptions(`#exam-card [data-result-qid="${CSS.escape(key)}"]`,q,exam.answers[key]||[])});
 }
 /* SHIROHA_WEB_V28_2_LAYOUT_AND_IMMERSIVE_FIX_END */
 
