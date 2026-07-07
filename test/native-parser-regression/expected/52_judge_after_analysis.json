@@ -1,0 +1,31 @@
+{
+  "id": "52_judge_after_analysis",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "typeCounts": {
+      "JUDGE": 1,
+      "SINGLE": 1
+    },
+    "answeredCount": 2,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "安全帽",
+        "optionCount": 4,
+        "answer": ["A"],
+        "analysisContains": "保护头部"
+      },
+      {
+        "number": "2",
+        "type": "JUDGE",
+        "stemContains": "安全第一",
+        "optionCount": 0,
+        "answer": ["正确"],
+        "analysisContains": "正确"
+      }
+    ]
+  }
+}

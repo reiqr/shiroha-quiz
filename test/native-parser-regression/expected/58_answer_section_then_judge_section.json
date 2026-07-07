@@ -1,0 +1,14 @@
+{
+  "id": "58_answer_section_then_judge_section",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 4,
+    "typeCounts": {
+      "JUDGE": 2,
+      "SINGLE": 2
+    },
+    "answeredCount": 4,
+    "errorCountMax": 0,
+    "mustNotCreateQuestionFrom": ["参考答案"]
+  }
+}

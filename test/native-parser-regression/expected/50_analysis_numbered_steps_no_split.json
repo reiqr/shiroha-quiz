@@ -1,0 +1,23 @@
+{
+  "id": "50_analysis_numbered_steps_no_split",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "typeCounts": {
+      "SINGLE": 1
+    },
+    "answeredCount": 1,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "已知函数",
+        "optionCount": 4,
+        "answer": ["A"],
+        "analysisContains": "先判断条件"
+      }
+    ],
+    "mustNotCreateQuestionFrom": ["先判断条件", "再代入公式", "最后得到正确结论"]
+  }
+}

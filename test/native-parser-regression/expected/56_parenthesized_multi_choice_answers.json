@@ -1,0 +1,42 @@
+{
+  "id": "56_parenthesized_multi_choice_answers",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 4,
+    "typeCounts": {
+      "MULTIPLE": 4
+    },
+    "answeredCount": 4,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "MULTIPLE",
+        "stemContains": "水果",
+        "optionCount": 4,
+        "answer": ["A", "B"]
+      },
+      {
+        "number": "2",
+        "type": "MULTIPLE",
+        "stemContains": "水果",
+        "optionCount": 4,
+        "answer": ["A", "B"]
+      },
+      {
+        "number": "3",
+        "type": "MULTIPLE",
+        "stemContains": "水果",
+        "optionCount": 4,
+        "answer": ["A", "B"]
+      },
+      {
+        "number": "4",
+        "type": "MULTIPLE",
+        "stemContains": "水果",
+        "optionCount": 4,
+        "answer": ["A", "B"]
+      }
+    ]
+  }
+}

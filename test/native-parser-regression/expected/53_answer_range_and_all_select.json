@@ -1,0 +1,42 @@
+{
+  "id": "53_answer_range_and_all_select",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 4,
+    "typeCounts": {
+      "MULTIPLE": 4
+    },
+    "answeredCount": 4,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "MULTIPLE",
+        "stemContains": "选项均正确",
+        "optionCount": 4,
+        "answer": ["A", "B", "C", "D"]
+      },
+      {
+        "number": "2",
+        "type": "MULTIPLE",
+        "stemContains": "选项均正确",
+        "optionCount": 4,
+        "answer": ["A", "B", "C", "D"]
+      },
+      {
+        "number": "3",
+        "type": "MULTIPLE",
+        "stemContains": "选项均正确",
+        "optionCount": 4,
+        "answer": ["A", "B", "C", "D"]
+      },
+      {
+        "number": "4",
+        "type": "MULTIPLE",
+        "stemContains": "选项均正确",
+        "optionCount": 5,
+        "answer": ["A", "B", "C", "D", "E"]
+      }
+    ]
+  }
+}

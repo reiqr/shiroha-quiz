@@ -1,0 +1,14 @@
+{
+  "id": "57_answer_section_then_blank_section",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 4,
+    "typeCounts": {
+      "BLANK": 2,
+      "SINGLE": 2
+    },
+    "answeredCount": 4,
+    "errorCountMax": 0,
+    "mustNotCreateQuestionFrom": ["参考答案"]
+  }
+}

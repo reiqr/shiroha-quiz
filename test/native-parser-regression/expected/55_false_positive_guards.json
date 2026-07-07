@@ -1,0 +1,30 @@
+{
+  "id": "55_false_positive_guards",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "typeCounts": {
+      "SINGLE": 2
+    },
+    "answeredCount": 2,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "A型血",
+        "optionCount": 4,
+        "answer": ["A"],
+        "analysisContains": "A型血"
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "stemContains": "维生素B12",
+        "optionCount": 4,
+        "answer": ["A"],
+        "analysisContains": "维生素B12"
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "54_answer_section_range_all_select",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "typeCounts": {
+      "MULTIPLE": 2
+    },
+    "answeredCount": 2,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "MULTIPLE",
+        "stemContains": "选项均正确",
+        "optionCount": 4,
+        "answer": ["A", "B", "C", "D"]
+      },
+      {
+        "number": "2",
+        "type": "MULTIPLE",
+        "stemContains": "选项均正确",
+        "optionCount": 5,
+        "answer": ["A", "B", "C", "D", "E"]
+      }
+    ],
+    "mustNotCreateQuestionFrom": ["参考答案"]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "51_blank_after_analysis",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "typeCounts": {
+      "BLANK": 1,
+      "SINGLE": 1
+    },
+    "answeredCount": 2,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "良好学习习惯",
+        "optionCount": 4,
+        "answer": ["A"],
+        "analysisContains": "课前预习"
+      },
+      {
+        "number": "2",
+        "type": "BLANK",
+        "stemContains": "中国的首都",
+        "optionCount": 0,
+        "answer": ["北京"],
+        "analysisContains": "中华人民共和国首都"
+      }
+    ]
+  }
+}

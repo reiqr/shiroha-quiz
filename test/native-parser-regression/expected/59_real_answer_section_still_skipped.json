@@ -1,0 +1,31 @@
+{
+  "id": "59_real_answer_section_still_skipped",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "typeCounts": {
+      "SINGLE": 2
+    },
+    "answeredCount": 2,
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "stemContains": "题目一",
+        "optionCount": 4,
+        "answer": ["A"],
+        "analysisContains": "第一题解析"
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "stemContains": "题目二",
+        "optionCount": 4,
+        "answer": ["B"],
+        "analysisContains": "第二题解析"
+      }
+    ],
+    "mustNotCreateQuestionFrom": ["答案解析"]
+  }
+}

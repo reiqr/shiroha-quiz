@@ -345,6 +345,76 @@
       "sample": "samples/49_medical_abbreviation_options.txt",
       "expected": "expected/49_medical_abbreviation_options.json",
       "risk": "医学/技术缩写选项中的冒号、括号和角度符号应完整保留"
+    },
+    {
+      "id": "50_analysis_numbered_steps_no_split",
+      "mode": "single",
+      "sample": "samples/50_analysis_numbered_steps_no_split.txt",
+      "expected": "expected/50_analysis_numbered_steps_no_split.json",
+      "risk": "解析正文中的编号分步不能被误切成新题"
+    },
+    {
+      "id": "51_blank_after_analysis",
+      "mode": "single",
+      "sample": "samples/51_blank_after_analysis.txt",
+      "expected": "expected/51_blank_after_analysis.json",
+      "risk": "标准填空题跟在上一题解析后，应作为新题恢复解析"
+    },
+    {
+      "id": "52_judge_after_analysis",
+      "mode": "single",
+      "sample": "samples/52_judge_after_analysis.txt",
+      "expected": "expected/52_judge_after_analysis.json",
+      "risk": "标准判断题跟在上一题解析后，应作为新题恢复解析"
+    },
+    {
+      "id": "53_answer_range_and_all_select",
+      "mode": "single",
+      "sample": "samples/53_answer_range_and_all_select.txt",
+      "expected": "expected/53_answer_range_and_all_select.json",
+      "risk": "A-D/A至D/全选/以上全选应按当前题真实选项展开"
+    },
+    {
+      "id": "54_answer_section_range_all_select",
+      "mode": "single",
+      "sample": "samples/54_answer_section_range_all_select.txt",
+      "expected": "expected/54_answer_section_range_all_select.json",
+      "risk": "集中答案区中的范围答案和全选答案应合并回对应多选题"
+    },
+    {
+      "id": "55_false_positive_guards",
+      "mode": "single",
+      "sample": "samples/55_false_positive_guards.txt",
+      "expected": "expected/55_false_positive_guards.json",
+      "risk": "A型血、维生素B12等正文缩写不能被误识别为括号答案或答案解析"
+    },
+    {
+      "id": "56_parenthesized_multi_choice_answers",
+      "mode": "single",
+      "sample": "samples/56_parenthesized_multi_choice_answers.txt",
+      "expected": "expected/56_parenthesized_multi_choice_answers.json",
+      "risk": "题干括号中的多选答案应兼容 A、B / A，B / A,B / A B"
+    },
+    {
+      "id": "57_answer_section_then_blank_section",
+      "mode": "single",
+      "sample": "samples/57_answer_section_then_blank_section.txt",
+      "expected": "expected/57_answer_section_then_blank_section.json",
+      "risk": "集中答案区后遇到填空题章节，应退出答案区跳过状态并恢复后续题"
+    },
+    {
+      "id": "58_answer_section_then_judge_section",
+      "mode": "single",
+      "sample": "samples/58_answer_section_then_judge_section.txt",
+      "expected": "expected/58_answer_section_then_judge_section.json",
+      "risk": "集中答案区后遇到判断题章节，应退出答案区跳过状态并恢复后续题"
+    },
+    {
+      "id": "59_real_answer_section_still_skipped",
+      "mode": "single",
+      "sample": "samples/59_real_answer_section_still_skipped.txt",
+      "expected": "expected/59_real_answer_section_still_skipped.json",
+      "risk": "真正的答案解析区仍应作为答案和解析来源，不能被恢复成新题"
     }
   ]
 }
