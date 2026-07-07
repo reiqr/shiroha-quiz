@@ -1010,6 +1010,7 @@ function normalizeQuestion(q,i=0){
     if(type==='blank'&&blankAnswersV58914.length)answer=[primaryBlankAnswerV58914(blankAnswersV58914)];
   }else{
     answer=normalizeAnswer(answer,options,type);
+    if(shouldUpgradeSingleToMultipleV372(type,options,answer))type='multiple';
   }
   let analysisText=trimMultilineBoundaryV5910(pickRichTextFieldV57(q,'analysis',q.analysis||q.explanation||q.explain||''));
   const analysisImageOptionsV589=extractInlineImageTokensV589(analysisText);
@@ -5835,6 +5836,24 @@ function mapType(s){
   if(/单选|單選|单项|單項|single/i.test(s))return'single';
   return'';
 }
+function compactChoiceAnswerTokenV373(value){
+  return String(value||'').replace(/[\s　,，、;；/\|]+/g,'').toUpperCase();
+}
+function expandLetterAnswerRangeV373(value){
+  const s=String(value||'').trim();
+  const m=s.match(/^\s*([A-Ga-g])\s*(?:-|－|–|—|~|～|至|到)\s*([A-Ga-g])\s*$/);
+  if(!m)return null;
+  const start=m[1].toUpperCase().charCodeAt(0);
+  const end=m[2].toUpperCase().charCodeAt(0);
+  if(start>end)return null;
+  const out=[];
+  for(let c=start;c<=end;c++)out.push(String.fromCharCode(c));
+  return out;
+}
+function isFullChoiceAnswerTokenV373(value){
+  const s=String(value||'').trim().replace(/[\s　,，、;；.。]+/g,'');
+  return /^(?:全选|全部|全部选项|所有选项|以上全选|以上都选|全都选|都选)$/.test(s);
+}
 function shouldUpgradeSingleToMultipleV372(type,options,answer){
   if(type!=='single')return false;
   const opts=(options||[]).filter(o=>o&&String(o.key||'').trim());
@@ -5889,6 +5908,8 @@ function splitAnswer(s){
   s=s.replace(/^[【\[]\s*([\s\S]{1,80})\s*[】\]]$/,'$1').trim();
   s=s.replace(/[。．.、，,；;：:\s]+$/,'').trim();
   if(!s)return[];
+  const letterRangeV373=expandLetterAnswerRangeV373(s);if(letterRangeV373)return letterRangeV373;
+  if(isFullChoiceAnswerTokenV373(s))return ['__ALL_OPTIONS__'];
   const numeric=s.match(/^[（(]?\s*([1-9])\s*[）)]?$/);if(numeric)return[numeric[1]];
   const numericCompact=s.replace(/[\s,，、;；/\\()（）]+/g,'');
   if(/^[1-9]{2,9}$/.test(numericCompact))return numericCompact.split('');
@@ -5919,6 +5940,11 @@ function normalizeAnswer(answer,options,type){
 function mapAnswerToken(token,options,type){
   let t=String(token).trim();
   if(type==='judge')return judgeToKey(t,options);
+  const rangeV373=expandLetterAnswerRangeV373(t);if(rangeV373)return rangeV373;
+  if(t==='__ALL_OPTIONS__'||isFullChoiceAnswerTokenV373(t)){
+    const keys=(options||[]).map(o=>normalizeOptionKey(o.key)).filter(k=>/^[A-G1-9]$/.test(k));
+    return keys.length>=2?keys:[];
+  }
   if(/^[A-Ga-g]$/.test(t))return t.toUpperCase();
   if(/^[A-Ga-g]{2,7}$/.test(t))return t.toUpperCase().split('');
   if(/^[1-9]$/.test(t))return t;
@@ -6046,7 +6072,7 @@ function cleanQuestionStemAndAnswer(question,answer=[],type='',options=[]){
     if(inLatexV58920(offset,m.length))return m;
     const raw=String(inner||'').trim();
     if(!raw)return '（ ）';
-    const compact=raw.replace(/[\s,??;?/\\]+/g,'').toUpperCase();
+    const compact=compactChoiceAnswerTokenV373(raw).replace(/[-－–—~～]/g,'');
     const looksLikeChoiceAnswer=/^[A-G]{1,7}$/.test(compact)||/^[1-9]{1,9}$/.test(compact);
     const looksLikeJudgeAnswer=/^(?:\u5bf9|\u9519|\u6b63\u786e|\u9519\u8bef|\u662f|\u5426|\u221A|\u00D7|X|x|v|V|T|F|TRUE|FALSE)$/i.test(raw);
     const allowChoiceAnswer=looksLikeChoiceAnswer && type!=='judge';
