@@ -87,3 +87,14 @@ apps/server/
 # Server runtime
 *.sqlite
 .env
+
+# ECC generated artifacts
+docs/CODEMAPS/
+.reports/
+
+# AI-generated context docs (local only, not for commit)
+.claude/
+CLAUDE.md
+apps/web/CLAUDE.md
+apps/android/CLAUDE.md
+test/native-parser-regression/CLAUDE.md

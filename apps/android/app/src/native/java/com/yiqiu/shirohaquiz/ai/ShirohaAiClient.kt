@@ -181,7 +181,7 @@ object ShirohaAiClient {
     ): AiSingleQuestionFollowUpResult {
         validateConfig(apiBaseUrl, apiKey, modelName)
         val normalizedFollowUp = followUp.trim()
-        require(normalizedFollowUp.isNotBlank()) { "追问内容不能为空。" }
+        checkAiInput(normalizedFollowUp.isNotBlank()) { "追问内容不能为空。" }
         val history = JSONArray().also { array ->
             conversation.forEach { message ->
                 val normalizedRole = when (message.role.trim().lowercase()) {
@@ -238,7 +238,7 @@ object ShirohaAiClient {
         timeoutSeconds: Int = DEFAULT_AI_TIMEOUT_SECONDS
     ): AiRefactorResult {
         validateConfig(apiBaseUrl, apiKey, modelName)
-        require(rawText.trim().isNotBlank()) { "AI 重构需要原始文本。" }
+        checkAiInput(rawText.trim().isNotBlank()) { "AI 重构需要原始文本。" }
         val content = requestChatCompletion(
             apiBaseUrl = apiBaseUrl,
             apiKey = apiKey,
@@ -334,17 +334,21 @@ object ShirohaAiClient {
     }
 
     private fun validateConfig(apiBaseUrl: String, apiKey: String, modelName: String) {
-        require(apiBaseUrl.trim().isNotBlank()) { "请先填写 API 地址。" }
-        require(apiKey.trim().isNotBlank()) { "请先填写 API Key。" }
-        require(modelName.trim().isNotBlank()) { "请先填写模型名称。" }
+        checkAiInput(apiBaseUrl.trim().isNotBlank()) { "请先填写 API 地址。" }
+        checkAiInput(apiKey.trim().isNotBlank()) { "请先填写 API Key。" }
+        checkAiInput(modelName.trim().isNotBlank()) { "请先填写模型名称。" }
     }
 
     private fun normalizeChatEndpoint(apiBaseUrl: String): String {
         val clean = apiBaseUrl.trim().trimEnd('/')
-        require(clean.startsWith("https://")) {
+        checkAiInput(clean.startsWith("https://")) {
             "API 地址必须以 https:// 开头，不支持明文 HTTP。"
         }
         return if (clean.endsWith("/chat/completions")) clean else "$clean/chat/completions"
+    }
+
+    private inline fun checkAiInput(condition: Boolean, message: () -> String) {
+        if (!condition) throw IllegalStateException(message())
     }
 
     private fun formatHttpError(code: Int, responseText: String): String {

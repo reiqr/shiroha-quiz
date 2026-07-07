@@ -2,6 +2,8 @@ package com.yiqiu.shirohaquiz.importer.parser
 
 import com.yiqiu.shirohaquiz.util.SafeZipReader
 import java.nio.charset.Charset
+import java.nio.charset.IllegalCharsetNameException
+import java.nio.charset.UnsupportedCharsetException
 import java.util.Locale
 import java.util.zip.ZipInputStream
 
@@ -75,7 +77,9 @@ object TextImportDecoder {
         if ('�' !in utf8) return utf8
         return try {
             bytes.toString(Charset.forName("GB18030"))
-        } catch (_: Exception) {
+        } catch (_: IllegalCharsetNameException) {
+            utf8
+        } catch (_: UnsupportedCharsetException) {
             utf8
         }
     }
