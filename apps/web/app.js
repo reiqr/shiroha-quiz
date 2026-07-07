@@ -994,6 +994,7 @@ function normalizeQuestion(q,i=0){
   const fixedStem=cleanQuestionStemAndAnswer(questionText,answer,type,options);
   questionText=fixedStem.question;
   answer=fixedStem.answer;
+  if(shouldUpgradeSingleToMultipleV372(type,options,answer))type='multiple';
   const structuredImages=normalizeQuestionImagesForWebV83(q.images||q.questionImages||q.media||[]);
   questionText=injectQuestionImagesForWebV83(questionText,structuredImages);
   // 兼容纯判断题：题干末尾直接写（√）（×）（对）（错），且没有 A/B 选项和题型标题。
@@ -5833,6 +5834,15 @@ function mapType(s){
   if(/判断题|判斷題|判断正误|判斷正誤|正误判断|是非题|judge|truefalse/i.test(s))return'judge';
   if(/单选|單選|单项|單項|single/i.test(s))return'single';
   return'';
+}
+function shouldUpgradeSingleToMultipleV372(type,options,answer){
+  if(type!=='single')return false;
+  const opts=(options||[]).filter(o=>o&&String(o.key||'').trim());
+  if(opts.length<2)return false;
+  const validKeys=new Set(opts.map(o=>normalizeOptionKey(o.key)).filter(k=>/^[A-G]$/.test(k)));
+  if(validKeys.size<2)return false;
+  const keys=(answer||[]).flatMap(a=>splitAnswer(a)).map(a=>String(a||'').trim().toUpperCase()).filter(a=>validKeys.has(a));
+  return new Set(keys).size>1;
 }
 function guessType(question,options,answer,group=''){
   const gt=mapType(group);if(gt)return gt;
