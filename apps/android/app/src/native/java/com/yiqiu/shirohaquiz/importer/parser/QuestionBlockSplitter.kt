@@ -147,6 +147,20 @@ object QuestionBlockSplitter {
             }
 
             if (skippingGlobalAnswerSection) {
+                SectionTitleParser.parse(line)?.let { section ->
+                    if (section.isAnswerSection) {
+                        skippingMaterialIntro = false
+                        return@forEachIndexed
+                    }
+                    flush()
+                    currentCategory = section.title.ifBlank { category }
+                    currentSectionForcedType = section.forcedType ?: forcedType
+                    currentForcedType = currentSectionForcedType
+                    skippingGlobalAnswerSection = false
+                    skippingMaterialIntro = false
+                    return@forEachIndexed
+                }
+
                 val restart = parseQuestionStart(line)
                 if (
                     restart == null ||
