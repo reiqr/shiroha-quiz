@@ -274,7 +274,9 @@ object AnswerParser {
                 continue
             }
             if (inNumberedAnalysisSection) {
-                parseNumberedAnalysisOnlyLine(lines[index])?.let { entry ->
+                val analysisEntry = parseNumberedAnalysisOnlyLine(lines[index])
+                if (analysisEntry != null) {
+                    val entry = analysisEntry
                     upsertEntry(entries, entry.copy(sequence = sequence))
                     sequence += 1
                     index += 1
@@ -287,7 +289,7 @@ object AnswerParser {
 
             when (result) {
                 is AnswerRuleResult.Entries -> {
-                    result.values.forEach { upsertEntry(entries, it) }
+                    entries += result.values
                     result.values.lastOrNull { it.category.isNotBlank() }?.let { entry ->
                         currentCategory = entry.category
                         currentType = entry.type ?: currentType

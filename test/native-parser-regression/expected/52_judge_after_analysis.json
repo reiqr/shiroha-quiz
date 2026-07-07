@@ -16,15 +16,15 @@
         "stemContains": "安全帽",
         "optionCount": 4,
         "answer": ["A"],
-        "analysisContains": "保护头部"
+        "analysisContains": "减轻坠落物"
       },
       {
         "number": "2",
         "type": "JUDGE",
         "stemContains": "安全第一",
-        "optionCount": 0,
+        "optionCount": 2,
         "answer": ["正确"],
-        "analysisContains": "正确"
+        "analysisContains": "基础判断题"
       }
     ]
   }

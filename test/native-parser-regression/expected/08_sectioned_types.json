@@ -14,7 +14,7 @@
       {
         "number": "1",
         "type": "SINGLE",
-        "answer": ["正确"]
+        "answer": ["A"]
       },
       {
         "number": "2",
@@ -24,7 +24,7 @@
       {
         "number": "3",
         "type": "JUDGE",
-        "answer": ["A"]
+        "answer": ["正确"]
       }
     ]
   }

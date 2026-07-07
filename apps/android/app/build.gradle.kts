@@ -65,6 +65,7 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += "-XXLanguage:+BreakContinueInInlineLambdas"
     }
 
     composeOptions {
