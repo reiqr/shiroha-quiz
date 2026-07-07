@@ -17,11 +17,17 @@ object AnswerTokenParser {
     private val judgeTrueRegex = Regex("""^(正确|对|是|√|true|t)$""", RegexOption.IGNORE_CASE)
     private val judgeFalseRegex = Regex("""^(错误|错|否|×|x|false|f)$""", RegexOption.IGNORE_CASE)
     private val leadingChoiceRegex = Regex("""^\s*([A-Ga-g]{1,7})(?=\s*(?:[.、．:：)）;；\]\}]|[\u4e00-\u9fa5]|$))""")
+    private val choiceRangeRegex = Regex("""^\s*([A-Ga-g])\s*(?:-|－|–|—|~|～|至|到)\s*([A-Ga-g])\s*$""")
+    private val allChoiceRegex = Regex("""^(?:全选|全部|全部选|以上全选|所有选项|全都选|都选)$""")
 
     fun isObjectiveAnswerText(raw: String): Boolean {
         val value = cleanup(raw)
         if (value.isBlank()) return false
         if (isJudgeAnswerText(value)) return true
+        if (parseChoiceRange(value).isNotEmpty()) return true
+        if (allChoiceRegex.matches(value)) return true
+        val separated = parseSeparatedChoiceLetters(value)
+        if (separated.isNotEmpty()) return true
         if (leadingChoiceRegex.find(value) != null) return true
         val compact = value.replace(Regex("""[,，、;；/\\s]+"""), "").uppercase()
         return Regex("""^[A-G]{1,7}$""").matches(compact)
@@ -37,28 +43,52 @@ object AnswerTokenParser {
         ).matches(value)
     }
 
-    fun parseObjectiveAnswers(raw: String): List<String> {
+    fun parseObjectiveAnswers(raw: String, availableOptionKeys: List<String> = emptyList()): List<String> {
         val value = cleanup(raw)
         if (value.isBlank()) return emptyList()
         if (judgeTrueRegex.matches(value)) return listOf("A")
         if (judgeFalseRegex.matches(value)) return listOf("B")
 
+        val normalizedOptionKeys = availableOptionKeys
+            .map { it.trim().uppercase() }
+            .filter { Regex("""^[A-G]$""").matches(it) }
+            .distinct()
+
+        if (allChoiceRegex.matches(value)) {
+            return if (normalizedOptionKeys.isNotEmpty()) normalizedOptionKeys else listOf("全选")
+        }
+
+        parseChoiceRange(value).takeIf { it.isNotEmpty() }?.let { rangeAnswers ->
+            return filterAnswersByAvailableOptions(rangeAnswers, normalizedOptionKeys)
+        }
+
+        parseSeparatedChoiceLetters(value).takeIf { it.isNotEmpty() }?.let { separatedAnswers ->
+            return filterAnswersByAvailableOptions(separatedAnswers, normalizedOptionKeys)
+        }
+
         leadingChoiceRegex.find(value)?.let { match ->
             val letters = match.groupValues[1].uppercase()
             if (Regex("""^[A-G]{1,7}$""").matches(letters)) {
-                return letters.map { it.toString() }.distinct()
+                return filterAnswersByAvailableOptions(letters.map { it.toString() }.distinct(), normalizedOptionKeys)
             }
         }
 
         val compact = value.replace(Regex("""[,，、;；/\\\s]+"""), "").uppercase()
         if (Regex("""^[A-G]{1,7}$""").matches(compact)) {
-            return compact.map { it.toString() }.distinct()
+            return filterAnswersByAvailableOptions(compact.map { it.toString() }.distinct(), normalizedOptionKeys)
         }
 
-        return value.split(Regex("""[,，、;；/\\]+"""))
-            .map { it.trim().uppercase() }
-            .filter { Regex("""^[A-G]$""").matches(it) }
-            .distinct()
+        return filterAnswersByAvailableOptions(
+            value.split(Regex("""[,，、;；/\\]+"""))
+                .map { it.trim().uppercase() }
+                .filter { Regex("""^[A-G]$""").matches(it) }
+                .distinct(),
+            normalizedOptionKeys
+        )
+    }
+
+    fun isAllChoiceAnswerText(raw: String): Boolean {
+        return allChoiceRegex.matches(cleanup(raw))
     }
 
     fun parseTextAnswer(raw: String): List<String> {
@@ -76,13 +106,38 @@ object AnswerTokenParser {
             .trim('[', ']', '【', '】', '(', ')', '（', '）')
             .trim()
     }
+
+    private fun parseChoiceRange(value: String): List<String> {
+        val match = choiceRangeRegex.find(value) ?: return emptyList()
+        val start = match.groupValues[1].uppercase().first()
+        val end = match.groupValues[2].uppercase().first()
+        if (end < start) return emptyList()
+        return (start..end).map { it.toString() }
+    }
+
+    private fun parseSeparatedChoiceLetters(value: String): List<String> {
+        if (!Regex("""^[A-Ga-g](?:\s*[,，、;；/\\]\s*[A-Ga-g]|\s+[A-Ga-g]){1,6}$""").matches(value)) {
+            return emptyList()
+        }
+        return value
+            .split(Regex("""[,，、;；/\\\s]+"""))
+            .map { it.trim().uppercase() }
+            .filter { Regex("""^[A-G]$""").matches(it) }
+            .distinct()
+    }
+
+    private fun filterAnswersByAvailableOptions(answers: List<String>, availableOptionKeys: List<String>): List<String> {
+        if (answers.isEmpty()) return emptyList()
+        if (availableOptionKeys.isEmpty()) return answers
+        return answers.filter { it in availableOptionKeys }.distinct()
+    }
 }
 
 object AnswerParser {
     private const val ANSWER_LABEL_PATTERN = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
     private const val ANALYSIS_LABEL_PATTERN = "答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明"
     private const val ANSWER_SEPARATOR_PATTERN = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
-    private const val OBJECTIVE_ANSWER_VALUE_PATTERN = """[\(（]?\s*(?:[A-Ga-g]{1,7}|对|错|正确|错误|√|×|True|False)\s*[\)）]?"""
+    private const val OBJECTIVE_ANSWER_VALUE_PATTERN = """[\(（]?\s*(?:[A-Ga-g]\s*(?:-|－|–|—|~|～|至|到)\s*[A-Ga-g]|全选|[A-Ga-g]{1,7}|全部|全部选|以上全选|所有选项|全都选|都选|对|错|正确|错误|√|×|True|False)\s*[\)）]?"""
     private val inlineEntryRegex = Regex(
         """(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：]?\s*(?:(?:答案)$ANSWER_SEPARATOR_PATTERN)?($OBJECTIVE_ANSWER_VALUE_PATTERN)(?=\s*(?:\d{1,4}\s*[.、．:：]|$|\[|【|解析|[;；]))""",
         RegexOption.IGNORE_CASE

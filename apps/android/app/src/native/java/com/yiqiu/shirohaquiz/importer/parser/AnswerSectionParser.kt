@@ -4,7 +4,7 @@ import com.yiqiu.shirohaquiz.importer.model.QuestionType
 
 object AnswerSectionParser {
     private const val implicitObjectiveAnswerPattern =
-        """[\(（]?\s*(?:[A-Ga-g]{1,7}|对|错|正确|错误|√|×|True|False)\s*[\)）]?"""
+        """[\(（]?\s*(?:[A-Ga-g]\s*(?:-|－|–|—|~|～|至|到)\s*[A-Ga-g]|全选|全部|全部选|以上全选|所有选项|全都选|都选|[A-Ga-g]{1,7}|对|错|正确|错误|√|×|True|False)\s*[\)）]?"""
     private const val implicitAnswerLabelPattern =
         """(?:[【\[]\s*(?:答案|正确答案|参考答案|标准答案)\s*[】\]]\s*[:：]?|(?:本题)?(?:答案|正确答案|参考答案|标准答案)\s*(?:[:：]|为|是))"""
     private const val implicitAnalysisLabelPattern =

@@ -244,6 +244,11 @@ object DualFileMerger {
                 else -> answer
             }
         }
+        if (question.type == QuestionType.SINGLE || question.type == QuestionType.MULTIPLE) {
+            val optionKeys = question.options.map { it.key.uppercase() }
+            val normalized = AnswerTokenParser.parseObjectiveAnswers(answer.joinToString(","), optionKeys)
+            if (normalized.isNotEmpty()) return normalized
+        }
         return answer
     }
 }

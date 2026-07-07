@@ -8,9 +8,9 @@ import com.yiqiu.shirohaquiz.importer.model.QuestionType
 object StandardQuestionParser {
     private const val answerLabelPattern = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
     private const val analysisLabelPattern = "答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明"
-    private const val objectiveAnswerValuePattern = "[A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False"
+    private const val objectiveAnswerValuePattern = "[A-Ga-g]\\s*(?:-|－|–|—|~|～|至|到)\\s*[A-Ga-g]|全选|[A-Ga-g]{1,7}|全部|全部选|以上全选|所有选项|全都选|都选|对|错|正确|错误|是|否|√|×|True|False"
     private const val embeddedChoiceLetterPattern =
-        "(?:[A-Ga-g]{1,7}|[A-Ga-g](?:\\s*[,，、;；/\\\\]\\s*[A-Ga-g]){1,6}|[A-Ga-g](?:\\s+[A-Ga-g]){1,6})"
+        "(?:[A-Ga-g](?:\\s*[,，、;；/\\\\]\\s*[A-Ga-g]){1,6}|[A-Ga-g](?:\\s+[A-Ga-g]){1,6}|[A-Ga-g]{1,7})"
     private const val answerSeparatorPattern = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
     private val answerLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$answerLabelPattern)\s*[\]】]\s*)|(?:(?:本题)?(?:$answerLabelPattern)$answerSeparatorPattern))(.+?)\s*$""")
     private val analysisLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$analysisLabelPattern)\s*[\]】]\s*)|(?:(?:$analysisLabelPattern)\s*[:：]\s*))(.*)$""")
@@ -148,7 +148,7 @@ object StandardQuestionParser {
             inlineBlankAnalysis = inlineBlankAnalysis
         )
         val normalizedOptions = normalizeOptionsForType(options, type)
-        val answer = normalizeAnswer(answerText, type)
+        val answer = normalizeAnswer(answerText, type, normalizedOptions)
         val multiBlank = MultiBlankQuestionParser.extract(
             stem = stem,
             type = type,
@@ -489,7 +489,7 @@ object StandardQuestionParser {
         )
         if (looksLikeJudgePair && shouldInferJudgeFromBinaryOptions(stem, answerText)) return QuestionType.JUDGE
 
-        val tokens = AnswerTokenParser.parseObjectiveAnswers(answerText)
+        val tokens = AnswerTokenParser.parseObjectiveAnswers(answerText, optionKeys)
         return if (tokens.size > 1) QuestionType.MULTIPLE else QuestionType.SINGLE
     }
 
@@ -506,10 +506,11 @@ object StandardQuestionParser {
         }
     }
 
-    private fun normalizeAnswer(answerText: String, type: QuestionType): List<String> {
+    private fun normalizeAnswer(answerText: String, type: QuestionType, options: List<Option>): List<String> {
         if (answerText.isBlank()) return emptyList()
+        val optionKeys = options.map { it.key.uppercase() }
         return when (type) {
-            QuestionType.SINGLE, QuestionType.MULTIPLE -> AnswerTokenParser.parseObjectiveAnswers(answerText)
+            QuestionType.SINGLE, QuestionType.MULTIPLE -> AnswerTokenParser.parseObjectiveAnswers(answerText, optionKeys)
             QuestionType.JUDGE -> {
                 val normalized = AnswerTokenParser.parseObjectiveAnswers(answerText)
                 when {
