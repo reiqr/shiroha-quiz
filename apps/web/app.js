@@ -1122,13 +1122,6 @@ function hasExplicitBlankPrompt(question){
   const q=String(question||'');
   return /_{2,}|____|[（(]\s*[）)]|\[\s*\]|填空|填入|补全|补充完整|空白处|空格|横线|括号内|空内/.test(q);
 }
-function shouldGuessBlankFromNoOption(question,answer){
-  // v52：填空题必须有明确填空特征；短答案不再单独作为填空依据。
-  // v58.9.3：格式优先于语义。出现（）/横线等填空标记时，除非显式简答分区/标签已指定，否则优先填空。
-  if(hasExplicitBlankPrompt(question))return true;
-  if(hasShortAnswerPrompt(question))return false;
-  return false;
-}
 function normalizeJsonMultilineTextV5910(value){return String(value??'').replace(/\r\n?/g,'\n')}
 function trimMultilineBoundaryV5910(value){
   const normalized=normalizeJsonMultilineTextV5910(value);

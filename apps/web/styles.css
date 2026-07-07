@@ -997,17 +997,6 @@ button:disabled{
   width:min(22vw,240px);
   max-width:240px
 }
-.hero-mascot-badge{
-  position:absolute;
-  left:16px;
-  top:16px;
-  width:84px;
-  height:84px;
-  border-radius:24px;
-  border:1px solid rgba(37,99,235,.14);
-  background:#fff;
-  box-shadow:0 10px 24px rgba(37,99,235,.12)
-}
 .import-stage-panel{
   display:grid;
   grid-template-columns:1.15fr .85fr;
@@ -1078,13 +1067,6 @@ button:disabled{
   width:min(20vw,176px);
   max-width:176px
 }
-.import-art-float{
-  position:absolute;
-  left:6px;
-  top:8px;
-  width:72px;
-  transform:rotate(-10deg)
-}
 .import-help-details>summary{
   list-style:none;
   cursor:pointer;
@@ -1129,9 +1111,6 @@ html,body{
 }
 .main,.view,.card,.hero-card,.form-grid,.split-grid,.section-head{
   min-width:0
-}
-.hero-mascot-badge,.import-art-float{
-  display:none!important
 }
 .hero-visual-card{
   display:flex;
@@ -5235,25 +5214,17 @@ body.exam-focus #exam-card{
   color:#5f7290;
   font-weight:700;
 }
-.practice-stat-grid-v30{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:8px;
-}
-.practice-stat-grid-v30 div,
 .exam-answer-mini-stats-v30{
   padding:10px;
   border:1px solid rgba(148,163,184,.18);
   border-radius:14px;
   background:#fff;
 }
-.practice-stat-grid-v30 span,
 .exam-answer-mini-stats-v30 span{
   display:block;
   font-size:12px;
   color:#64748b;
 }
-.practice-stat-grid-v30 b,
 .exam-answer-mini-stats-v30 b{
   display:block;
   margin-top:4px;
@@ -5308,10 +5279,6 @@ body.exam-focus .exam-q{
   .exam-answer-card-head-v30{
     align-items:flex-start;
   }
-  .practice-stat-grid-v30{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-  .practice-stat-grid-v30 div,
   .exam-answer-mini-stats-v30{
     padding:9px;
   }
@@ -7753,4 +7720,3 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
 .ai-preview-range-fields-v992 p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.55}
 .ai-preview-meta-grid-v991{grid-template-columns:repeat(5,minmax(0,1fr))}
 /* SHIROHA_WEB_ISSUE_99_STAGE1_RANGE_CONTROL_V992_END */
-
