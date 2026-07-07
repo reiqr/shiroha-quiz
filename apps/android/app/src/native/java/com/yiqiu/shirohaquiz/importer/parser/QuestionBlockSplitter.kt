@@ -71,6 +71,12 @@ object QuestionBlockSplitter {
         """^\s*(?:[\[【(（]\s*)?(?:[A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False)(?:\s*[\]】)）])?\s*[.。]?\s*$""",
         RegexOption.IGNORE_CASE
     )
+    private val inlineAnswerMarkerRegex = Regex("""(?:本题)?(?:答案|正确答案|参考答案|标准答案)\s*(?:[:：]|为)""")
+    private val fillBlankCueRegex = Regex("""_{2,}|＿{2,}|[（(]\s*(?:_{1,}|＿+|填空|空白)\s*[)）]""")
+    private val judgeCueRegex = Regex(
+        """[（(]\s*(?:对|错|正确|错误|√|×|True|False)\s*[)）]""",
+        RegexOption.IGNORE_CASE
+    )
     private val pureFrontMatterLineRegex = Regex(
         """^(?:[【\[]?\s*)?(?:绝密|密卷|注意事项(?:\s*[:：].*)?|说明\s*[:：]\s*(?:请|考试|答题|作答|时间|考生).*|请(?:认真|仔细)作答|请在规定时间内完成(?:答题|作答)|请将答案(?:填写|填涂|写在|写到).*|请用\s*2B.*|请勿.*|答题前.*|答题卡.*|考试时间\s*[:：].*|时间\s*[:：].*|在考试结束.*|考试结束.*|全部测验到此结束.*|祝各位考生.*|监考老师.*)(?:\s*[】\]])?\s*[。.!！]?$""",
         RegexOption.IGNORE_CASE
@@ -405,12 +411,42 @@ object QuestionBlockSplitter {
         if (remainder.isBlank() || shortObjectiveAnswerRemainderRegex.matches(remainder)) return false
         if (CompactQuestionRepair.hasCompactOptionSequence(remainder)) return true
         if (countStandardOptionsAhead(sourceLines, lineIndex) >= 2) return true
+        if (looksLikeStandardBlankOrJudgeQuestionStructure(sourceLines, lineIndex, start)) return true
 
         val subjectiveLike = start.forcedType == QuestionType.SHORT ||
             start.forcedType == QuestionType.BLANK ||
             looksLikeSubjectiveQuestionRemainder(remainder)
         if (!subjectiveLike) return false
         return !requireOwnSubjectiveAnswer || hasAnswerMarkerAheadBeforeNextQuestion(sourceLines, lineIndex)
+    }
+
+    private fun looksLikeStandardBlankOrJudgeQuestionStructure(
+        sourceLines: List<String>,
+        lineIndex: Int,
+        start: ParsedQuestionStart
+    ): Boolean {
+        val remainder = start.remainder.trim()
+        if (remainder.isBlank() || shortObjectiveAnswerRemainderRegex.matches(remainder)) return false
+        if (!hasInlineOrAheadAnswerMarker(sourceLines, lineIndex, remainder)) return false
+        if (fillBlankCueRegex.containsMatchIn(remainder)) return true
+        if (judgeCueRegex.containsMatchIn(remainder)) return true
+        if (CodeLikeTextGuard.hasUnprotectedEmptyParentheses(remainder)) return true
+        return false
+    }
+
+    private fun hasInlineOrAheadAnswerMarker(
+        sourceLines: List<String>,
+        lineIndex: Int,
+        currentRemainder: String
+    ): Boolean {
+        return inlineAnswerMarkerRegex.containsMatchIn(currentRemainder) ||
+            hasAnswerMarkerAheadBeforeNextQuestion(sourceLines, lineIndex)
+    }
+
+    private fun startsLaterQuestionWithinWindow(currentNumber: String, start: ParsedQuestionStart): Boolean {
+        val currentIndex = currentNumber.substringBefore('-').toIntOrNull() ?: return false
+        val nextIndex = start.number.toIntOrNull() ?: return false
+        return nextIndex > currentIndex && nextIndex - currentIndex <= 5
     }
 
     private fun countStandardOptionsAhead(sourceLines: List<String>, questionLineIndex: Int): Int {
@@ -471,6 +507,13 @@ object QuestionBlockSplitter {
         if (looksLikeTypedQuestionStart(line)) return false
         if (Regex("""^\s*\d{2,4}\s*[.、．:：)）]""").containsMatchIn(line)) return false
         if (Regex("""^\s*(?:问题|题目|第\s*[一二三四五六七八九十百0-9]+\s*(?:题|问|道题|个问题))""").containsMatchIn(line)) return false
+        parseQuestionStart(line)?.let { start ->
+            if (startsLaterQuestionWithinWindow(currentNumber, start) &&
+                looksLikeStandardBlankOrJudgeQuestionStructure(sourceLines, lineIndex, start)
+            ) {
+                return false
+            }
+        }
 
         val numberedItem = parseNumberedSubjectiveItem(line)
         if (numberedItem == null) {
