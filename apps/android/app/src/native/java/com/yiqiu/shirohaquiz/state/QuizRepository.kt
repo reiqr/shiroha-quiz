@@ -3706,7 +3706,7 @@ object QuizRepository {
 
     private fun stripEmbeddedAnswerBracket(stem: String, answer: List<String>): String {
         if (stem.isBlank() || answer.isEmpty()) return stem
-        val expected = answer.map { it.trim().uppercase() }.filter { it.isNotBlank() }.sorted()
+        val expected = answer.flatMap(::answerToObjectiveKeys).filter { it.isNotBlank() }.sorted()
         if (expected.isEmpty()) return stem
 
         val match = Regex(
@@ -3725,6 +3725,10 @@ object QuizRepository {
     }
 
     private fun embeddedAnswerToKeys(raw: String): List<String> {
+        return answerToObjectiveKeys(raw)
+    }
+
+    private fun answerToObjectiveKeys(raw: String): List<String> {
         val value = raw.trim().uppercase()
         return when {
             value.matches(Regex("""^[A-G]{1,7}$""")) -> value.map { it.toString() }.distinct().sorted()
@@ -3732,6 +3736,10 @@ object QuizRepository {
             value in listOf("错误", "错", "否", "×", "X", "FALSE", "F") -> listOf("B")
             else -> emptyList()
         }
+    }
+
+    private fun normalizeJudgeAnswersForCompare(answer: List<String>): List<String> {
+        return answer.flatMap(::answerToObjectiveKeys).distinct().sorted()
     }
 
     private fun scoreForExamQuestion(question: Question): Double {
@@ -3765,7 +3773,9 @@ object QuizRepository {
         val correct = when (question.type) {
             QuestionType.SINGLE,
             QuestionType.MULTIPLE,
-            QuestionType.JUDGE -> normalizedUserAnswer.sorted() == question.answer.sorted() && normalizedUserAnswer.isNotEmpty()
+            QuestionType.JUDGE -> normalizeJudgeAnswersForCompare(normalizedUserAnswer) ==
+                normalizeJudgeAnswersForCompare(question.answer) &&
+                normalizedUserAnswer.isNotEmpty()
             QuestionType.BLANK -> if (structuredBlank) {
                 isStructuredBlankAnswerCorrect(
                     userAnswers = normalizedUserAnswer,

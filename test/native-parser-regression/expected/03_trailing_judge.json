@@ -13,7 +13,7 @@
         "type": "JUDGE",
         "stemContains": "国家安全生产方针",
         "stemNotContains": ["（对）", "(对)"],
-        "answer": ["A"]
+        "answer": ["正确"]
       }
     ]
   }

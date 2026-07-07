@@ -314,13 +314,7 @@ object ExcelQuestionTableParser {
         return when (type) {
             QuestionType.SINGLE, QuestionType.MULTIPLE -> AnswerTokenParser.parseObjectiveAnswers(raw)
             QuestionType.JUDGE -> {
-                val parsed = AnswerTokenParser.parseObjectiveAnswers(raw)
-                when {
-                    parsed.isNotEmpty() -> parsed
-                    Regex("""^(对|正确|是|√|true|t)$""", RegexOption.IGNORE_CASE).matches(raw.trim()) -> listOf("A")
-                    Regex("""^(错|错误|否|×|x|false|f)$""", RegexOption.IGNORE_CASE).matches(raw.trim()) -> listOf("B")
-                    else -> emptyList()
-                }
+                AnswerTokenParser.parseJudgeAnswer(raw)
             }
             QuestionType.BLANK, QuestionType.SHORT -> AnswerTokenParser.parseTextAnswer(raw)
         }

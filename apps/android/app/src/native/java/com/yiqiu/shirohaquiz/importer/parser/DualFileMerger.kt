@@ -237,12 +237,7 @@ object DualFileMerger {
     private fun normalizeAnswerForQuestion(question: Question, answer: List<String>): List<String> {
         if (answer.isEmpty()) return emptyList()
         if (question.type == QuestionType.JUDGE) {
-            val first = answer.first().trim()
-            return when (first) {
-                "正确", "对", "是", "√", "T", "TRUE" -> listOf("A")
-                "错误", "错", "否", "×", "F", "FALSE" -> listOf("B")
-                else -> answer
-            }
+            return AnswerTokenParser.parseJudgeAnswer(answer.joinToString(",")).ifEmpty { answer }
         }
         if (question.type == QuestionType.SINGLE || question.type == QuestionType.MULTIPLE) {
             val optionKeys = question.options.map { it.key.uppercase() }

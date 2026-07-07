@@ -43,6 +43,26 @@ object AnswerTokenParser {
         ).matches(value)
     }
 
+    fun parseJudgeAnswer(raw: String): List<String> {
+        val value = cleanup(raw)
+        if (value.isBlank()) return emptyList()
+        if (judgeTrueRegex.matches(value)) return listOf("正确")
+        if (judgeFalseRegex.matches(value)) return listOf("错误")
+        when (value.uppercase()) {
+            "A" -> return listOf("正确")
+            "B" -> return listOf("错误")
+        }
+        val labeled = Regex(
+            """^([ABab])\s*[.、．:：)）]?\s*(?:正确|错误|对|错|是|否|√|×|True|False)$""",
+            RegexOption.IGNORE_CASE
+        ).find(value)?.groupValues?.getOrNull(1)?.uppercase()
+        return when (labeled) {
+            "A" -> listOf("正确")
+            "B" -> listOf("错误")
+            else -> emptyList()
+        }
+    }
+
     fun parseObjectiveAnswers(raw: String, availableOptionKeys: List<String> = emptyList()): List<String> {
         val value = cleanup(raw)
         if (value.isBlank()) return emptyList()
@@ -184,6 +204,12 @@ object AnswerParser {
     private val tableNumberTokenRegex = Regex("""(?:第\s*)?([0-9]{1,4}|[一二三四五六七八九十百]{1,4})(?:\s*题)?""")
     private val compactAnswerPairRegex = Regex("""(\d{1,4})\s*([A-Ga-g])(?=\s*\d{1,4}|\s*$)""")
     private val compactAnswerNoiseRegex = Regex("""[\s,，、;；:：.．\-—_()（）\[\]【】第章节单项选择题答案参考标准正确]+""")
+    private val analysisOnlySectionHeadingRegex = Regex(
+        """^\s*(?:[一二三四五六七八九十百]+|\d{1,3})?[、.．]?\s*(?:答案解析|集中解析|参考解析|解析区|解题思路|解析思路|解题分析|详解|分析|理由|解答|解析|说明)\s*[:：]?\s*$"""
+    )
+    private val numberedAnalysisOnlyLineRegex = Regex(
+        """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：)）]\s*(.+)$"""
+    )
 
 
     private data class AnswerParseContext(
@@ -237,33 +263,79 @@ object AnswerParser {
         var currentType: QuestionType? = null
         var currentCategory = ""
         var sequence = 0
+        var inNumberedAnalysisSection = false
 
         val lines = text.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.toList()
         var index = 0
         while (index < lines.size) {
+            if (analysisOnlySectionHeadingRegex.matches(lines[index])) {
+                inNumberedAnalysisSection = true
+                index += 1
+                continue
+            }
+            if (inNumberedAnalysisSection) {
+                parseNumberedAnalysisOnlyLine(lines[index])?.let { entry ->
+                    upsertEntry(entries, entry.copy(sequence = sequence))
+                    sequence += 1
+                    index += 1
+                    continue
+                }
+            }
+
             val context = AnswerParseContext(lines, index, currentType, currentCategory, sequence)
             val result = answerParseRules.firstNotNullOfOrNull { rule -> rule.parse(context) }
 
             when (result) {
                 is AnswerRuleResult.Entries -> {
-                    entries += result.values
+                    result.values.forEach { upsertEntry(entries, it) }
                     result.values.lastOrNull { it.category.isNotBlank() }?.let { entry ->
                         currentCategory = entry.category
                         currentType = entry.type ?: currentType
                     }
                     sequence += result.values.size
                     index += result.consumedLines
+                    inNumberedAnalysisSection = false
                 }
                 is AnswerRuleResult.ConsumeLine -> {
                     currentType = result.nextType
                     result.nextCategory?.let { currentCategory = it }
                     index += result.consumedLines
+                    inNumberedAnalysisSection = false
                 }
                 null -> index += 1
             }
         }
 
         return entries
+    }
+
+    private fun parseNumberedAnalysisOnlyLine(line: String): ParsedAnswerEntry? {
+        val match = numberedAnalysisOnlyLineRegex.find(line) ?: return null
+        val number = normalizeQuestionIndex(match.groupValues[1])
+        val analysis = match.groupValues[2].trim()
+        if (number.isBlank() || analysis.isBlank()) return null
+        if (AnswerTokenParser.parseObjectiveAnswers(analysis).isNotEmpty()) return null
+        return ParsedAnswerEntry(number = number, answer = emptyList(), analysis = analysis)
+    }
+
+    private fun upsertEntry(entries: MutableList<ParsedAnswerEntry>, incoming: ParsedAnswerEntry) {
+        val index = entries.indexOfLast { existing ->
+            existing.number == incoming.number &&
+                (incoming.category.isBlank() || existing.category.isBlank() || existing.category == incoming.category) &&
+                (incoming.type == null || existing.type == null || existing.type == incoming.type)
+        }
+        if (index < 0) {
+            entries += incoming
+            return
+        }
+
+        val existing = entries[index]
+        entries[index] = existing.copy(
+            answer = existing.answer.ifEmpty { incoming.answer },
+            analysis = existing.analysis.ifBlank { incoming.analysis },
+            type = existing.type ?: incoming.type,
+            category = existing.category.ifBlank { incoming.category }
+        )
     }
 
 

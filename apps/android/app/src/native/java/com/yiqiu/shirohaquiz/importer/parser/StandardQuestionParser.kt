@@ -512,13 +512,7 @@ object StandardQuestionParser {
         return when (type) {
             QuestionType.SINGLE, QuestionType.MULTIPLE -> AnswerTokenParser.parseObjectiveAnswers(answerText, optionKeys)
             QuestionType.JUDGE -> {
-                val normalized = AnswerTokenParser.parseObjectiveAnswers(answerText)
-                when {
-                    normalized.isNotEmpty() -> normalized
-                    Regex("""^(对|正确|是|√|true|t)$""", RegexOption.IGNORE_CASE).matches(answerText.trim()) -> listOf("A")
-                    Regex("""^(错|错误|否|×|x|false|f)$""", RegexOption.IGNORE_CASE).matches(answerText.trim()) -> listOf("B")
-                    else -> emptyList()
-                }
+                AnswerTokenParser.parseJudgeAnswer(answerText)
             }
             QuestionType.BLANK, QuestionType.SHORT -> AnswerTokenParser.parseTextAnswer(answerText)
         }

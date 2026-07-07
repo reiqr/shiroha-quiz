@@ -951,7 +951,7 @@ fun PracticeScreen(
                             selected = displayedSelection.any { it.trim().equals(option.originalKey, ignoreCase = true) },
                             resultStyle = practiceOptionResultStyle(
                                 optionKey = option.originalKey,
-                                correctAnswers = question.answer,
+                                correctAnswers = optionCorrectAnswersForDisplay(question),
                                 result = effectiveResult,
                                 revealAnswer = isReciteMode
                             ),
@@ -3261,6 +3261,17 @@ private fun practiceAnswersForDisplay(
         val normalized = answer.trim().uppercase()
         originalToDisplay[normalized] ?: answer
     }
+}
+
+private fun optionCorrectAnswersForDisplay(question: Question): List<String> {
+    if (question.type != QuestionType.JUDGE) return question.answer
+    return question.answer.mapNotNull { answer ->
+        when (answer.trim().uppercase()) {
+            "正确", "对", "是", "TRUE", "T", "√", "A" -> "A"
+            "错误", "错", "否", "FALSE", "F", "×", "X", "B" -> "B"
+            else -> null
+        }
+    }.distinct()
 }
 
 private fun practiceQuestionForDisplay(
