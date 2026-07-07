@@ -9,6 +9,6 @@
     "typeCounts": {
       "SINGLE": 5
     },
-    "warningContains": ["未匹配到对应答案"]
+    "warningContains": ["未识别到答案"]
   }
 }
