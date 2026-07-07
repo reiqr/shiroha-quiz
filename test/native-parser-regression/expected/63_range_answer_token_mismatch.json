@@ -1,0 +1,14 @@
+{
+  "id": "63_range_answer_token_mismatch",
+  "mode": "dual-file",
+  "questionSample": "samples/63_range_answer_token_mismatch_questions.txt",
+  "answerSample": "samples/63_range_answer_token_mismatch_answers.txt",
+  "expected": {
+    "questionCount": 5,
+    "answeredCount": 0,
+    "typeCounts": {
+      "SINGLE": 5
+    },
+    "warningContains": ["未匹配到对应答案"]
+  }
+}

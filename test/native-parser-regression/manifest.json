@@ -415,6 +415,44 @@
       "sample": "samples/59_real_answer_section_still_skipped.txt",
       "expected": "expected/59_real_answer_section_still_skipped.json",
       "risk": "真正的答案解析区仍应作为答案和解析来源，不能被恢复成新题"
+    },
+    {
+      "id": "60_dual_shuffled_answers",
+      "mode": "dual",
+      "questionSample": "samples/60_dual_shuffled_answers_questions.txt",
+      "answerSample": "samples/60_dual_shuffled_answers_answers.txt",
+      "expected": "expected/60_dual_shuffled_answers.json",
+      "risk": "双文件答案顺序乱序时，自动策略必须按题号合并，不能退成顺序串题"
+    },
+    {
+      "id": "61_dual_judge_symbol_answers",
+      "mode": "dual",
+      "questionSample": "samples/61_dual_judge_symbol_answers_questions.txt",
+      "answerSample": "samples/61_dual_judge_symbol_answers_answers.txt",
+      "expected": "expected/61_dual_judge_symbol_answers.json",
+      "risk": "双文件判断题答案中的 正确/错误/✓/✗ 应统一标准化为判断题答案"
+    },
+    {
+      "id": "62_analysis_only_choice_words_guard",
+      "mode": "single",
+      "sample": "samples/62_analysis_only_choice_words_guard.txt",
+      "expected": "expected/62_analysis_only_choice_words_guard.json",
+      "risk": "答案解析区中的 A项正确、B项错误 是解析文本，不能被误当成答案条目"
+    },
+    {
+      "id": "63_range_answer_token_mismatch",
+      "mode": "dual",
+      "questionSample": "samples/63_range_answer_token_mismatch_questions.txt",
+      "answerSample": "samples/63_range_answer_token_mismatch_answers.txt",
+      "expected": "expected/63_range_answer_token_mismatch.json",
+      "risk": "区间答案题数与令牌数不一致时不能静默只填前几题"
+    },
+    {
+      "id": "64_subjective_answer_item_10_guard",
+      "mode": "single",
+      "sample": "samples/64_subjective_answer_item_10_guard.txt",
+      "expected": "expected/64_subjective_answer_item_10_guard.json",
+      "risk": "主观题答案中的 10. 这类分项应保留在同一答案内，不能误切成新题"
     }
   ]
 }

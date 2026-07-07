@@ -1,0 +1,30 @@
+{
+  "id": "60_dual_shuffled_answers",
+  "mode": "dual-file",
+  "questionSample": "samples/60_dual_shuffled_answers_questions.txt",
+  "answerSample": "samples/60_dual_shuffled_answers_answers.txt",
+  "expected": {
+    "questionCount": 3,
+    "answeredCount": 3,
+    "typeCounts": {
+      "SINGLE": 3
+    },
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "answer": ["A"]
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "answer": ["B"]
+      },
+      {
+        "number": "3",
+        "type": "SINGLE",
+        "answer": ["C"]
+      }
+    ]
+  }
+}

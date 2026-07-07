@@ -1,0 +1,19 @@
+{
+  "id": "64_subjective_answer_item_10_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "answeredCount": 1,
+    "typeCounts": {
+      "SHORT": 1
+    },
+    "questions": [
+      {
+        "number": "1",
+        "type": "SHORT",
+        "optionCount": 0,
+        "answerTextContains": "10. 记录检查结果"
+      }
+    ]
+  }
+}

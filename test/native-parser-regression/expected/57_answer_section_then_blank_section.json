@@ -9,6 +9,34 @@
     },
     "answeredCount": 4,
     "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "optionCount": 4
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "answer": ["B"],
+        "optionCount": 4
+      },
+      {
+        "number": "3",
+        "type": "BLANK",
+        "answer": ["北京"],
+        "optionCount": 0,
+        "analysisContains": "中华人民共和国首都"
+      },
+      {
+        "number": "4",
+        "type": "BLANK",
+        "answer": ["H₂O"],
+        "optionCount": 0,
+        "analysisContains": "化学式"
+      }
+    ],
     "mustNotCreateQuestionFrom": ["参考答案"]
   }
 }

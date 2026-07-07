@@ -64,17 +64,17 @@ object QuestionBlockSplitter {
         RegexOption.IGNORE_CASE
     )
     private val unnumberedObjectiveMarkerRegex = Regex(
-        """[（(]\s*(?:([A-Ga-g]{1,7})|(对|错|正确|错误|√|×|True|False))\s*[)）]""",
+        """[（(]\s*(?:([A-Ga-g]{1,7})|(对|错|正确|错误|√|✓|✔|☑|×|✗|✖|❌|True|False))\s*[)）]""",
         RegexOption.IGNORE_CASE
     )
     private val shortObjectiveAnswerRemainderRegex = Regex(
-        """^\s*(?:[\[【(（]\s*)?(?:[A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|×|True|False)(?:\s*[\]】)）])?\s*[.。]?\s*$""",
+        """^\s*(?:[\[【(（]\s*)?(?:[A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|✓|✔|☑|×|✗|✖|❌|True|False)(?:\s*[\]】)）])?\s*[.。]?\s*$""",
         RegexOption.IGNORE_CASE
     )
     private val inlineAnswerMarkerRegex = Regex("""(?:本题)?(?:答案|正确答案|参考答案|标准答案)\s*(?:[:：]|为)""")
     private val fillBlankCueRegex = Regex("""_{2,}|＿{2,}|[（(]\s*(?:_{1,}|＿+|填空|空白)\s*[)）]""")
     private val judgeCueRegex = Regex(
-        """[（(]\s*(?:对|错|正确|错误|√|×|True|False)\s*[)）]""",
+        """[（(]\s*(?:对|错|正确|错误|√|✓|✔|☑|×|✗|✖|❌|True|False)\s*[)）]""",
         RegexOption.IGNORE_CASE
     )
     private val pureFrontMatterLineRegex = Regex(
@@ -444,6 +444,7 @@ object QuestionBlockSplitter {
         if (!hasInlineOrAheadAnswerMarker(sourceLines, lineIndex, remainder)) return false
         if (fillBlankCueRegex.containsMatchIn(remainder)) return true
         if (judgeCueRegex.containsMatchIn(remainder)) return true
+        if (hasJudgeAnswerMarkerAheadBeforeNextQuestion(sourceLines, lineIndex)) return true
         if (CodeLikeTextGuard.hasUnprotectedEmptyParentheses(remainder)) return true
         return false
     }
@@ -519,9 +520,18 @@ object QuestionBlockSplitter {
         val answerMarkerIndex = findSubjectiveAnswerMarkerIndex(currentLines, forcedType)
         if (answerMarkerIndex < 0) return false
         if (looksLikeTypedQuestionStart(line)) return false
-        if (Regex("""^\s*\d{2,4}\s*[.、．:：)）]""").containsMatchIn(line)) return false
         if (Regex("""^\s*(?:问题|题目|第\s*[一二三四五六七八九十百0-9]+\s*(?:题|问|道题|个问题))""").containsMatchIn(line)) return false
         parseQuestionStart(line)?.let { start ->
+            if (
+                looksLikeLikelyQuestionStructure(
+                    sourceLines = sourceLines,
+                    lineIndex = lineIndex,
+                    start = start,
+                    requireOwnSubjectiveAnswer = true
+                )
+            ) {
+                return false
+            }
             if (startsLaterQuestionWithinWindow(currentNumber, start) &&
                 looksLikeStandardBlankOrJudgeQuestionStructure(sourceLines, lineIndex, start)
             ) {
@@ -655,6 +665,25 @@ object QuestionBlockSplitter {
             if (nextLine.isBlank()) continue
             nonBlankCount += 1
             if (extractSubjectiveAnswerMarkerTail(nextLine) != null) return true
+            if (parseQuestionStart(nextLine) != null) return false
+            if (SectionTitleParser.isSectionHeading(nextLine)) return false
+            if (nonBlankCount >= 12) return false
+        }
+        return false
+    }
+
+    private fun hasJudgeAnswerMarkerAheadBeforeNextQuestion(
+        sourceLines: List<String>,
+        currentLineIndex: Int
+    ): Boolean {
+        var nonBlankCount = 0
+        for (index in (currentLineIndex + 1) until sourceLines.size) {
+            val nextLine = sourceLines[index].trim()
+            if (nextLine.isBlank()) continue
+            nonBlankCount += 1
+            extractSubjectiveAnswerMarkerTail(nextLine)?.let { tail ->
+                if (AnswerTokenParser.parseJudgeAnswer(tail).isNotEmpty()) return true
+            }
             if (parseQuestionStart(nextLine) != null) return false
             if (SectionTitleParser.isSectionHeading(nextLine)) return false
             if (nonBlankCount >= 12) return false

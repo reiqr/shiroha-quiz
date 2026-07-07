@@ -19,16 +19,43 @@ object DualFileMerger {
         questions: List<Question>,
         answers: List<ParsedAnswerEntry>
     ): MergeResult {
-        val candidates = listOf(
+        val numberCandidates = listOf(
             mergeByNumber(questions, answers),
             mergeByTypeAndNumber(questions, answers),
-            mergeByChapterAndNumber(questions, answers),
-            mergeBySequence(questions, answers)
+            mergeByChapterAndNumber(questions, answers)
         )
+        val sequenceCandidate = mergeBySequence(questions, answers)
+        val candidates = if (hasQuestionAnswerNumberOverlap(questions, answers)) {
+            // When both sides carry explicit matching numbers, keep number-based merges authoritative.
+            // Sequence merge is only a fallback for truly unnumbered or non-overlapping answer sources.
+            numberCandidates
+        } else {
+            numberCandidates + sequenceCandidate
+        }
         return candidates.maxByOrNull { candidate ->
             val validation = ImportValidator.validate(candidate.questions)
             ImportStrategyScorer.score(candidate.questions, validation + candidate.warnings)
         } ?: mergeByNumber(questions, answers)
+    }
+
+    private fun hasQuestionAnswerNumberOverlap(
+        questions: List<Question>,
+        answers: List<ParsedAnswerEntry>
+    ): Boolean {
+        val questionNumbers = questions
+            .mapNotNull { normalizeMergeNumber(it.number) }
+            .toSet()
+        if (questionNumbers.isEmpty()) return false
+        return answers.any { entry ->
+            normalizeMergeNumber(entry.number)?.let { it in questionNumbers } == true
+        }
+    }
+
+    private fun normalizeMergeNumber(raw: String): String? {
+        val value = raw.trim().substringBefore('-').trimStart('0')
+        return value.ifBlank { "0" }.takeIf { normalized ->
+            normalized.all { char -> char.isDigit() } && normalized != "0"
+        }
     }
 
     fun mergeByNumber(

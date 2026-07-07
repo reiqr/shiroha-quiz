@@ -14,8 +14,8 @@ data class ParsedAnswerEntry(
 object AnswerTokenParser {
     private const val ANSWER_LABEL_PATTERN = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
     private const val ANSWER_SEPARATOR_PATTERN = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
-    private val judgeTrueRegex = Regex("""^(正确|对|是|√|true|t)$""", RegexOption.IGNORE_CASE)
-    private val judgeFalseRegex = Regex("""^(错误|错|否|×|x|false|f)$""", RegexOption.IGNORE_CASE)
+    private val judgeTrueRegex = Regex("""^(正确|对|是|√|✓|✔|☑|true|t)$""", RegexOption.IGNORE_CASE)
+    private val judgeFalseRegex = Regex("""^(错误|错|否|×|✗|✖|❌|x|false|f)$""", RegexOption.IGNORE_CASE)
     private val leadingChoiceRegex = Regex("""^\s*([A-Ga-g]{1,7})(?=\s*(?:[.、．:：)）;；\]\}]|[\u4e00-\u9fa5]|$))""")
     private val choiceRangeRegex = Regex("""^\s*([A-Ga-g])\s*(?:-|－|–|—|~|～|至|到)\s*([A-Ga-g])\s*$""")
     private val allChoiceRegex = Regex("""^(?:全选|全部|全部选|以上全选|所有选项|全都选|都选)$""")
@@ -38,7 +38,7 @@ object AnswerTokenParser {
         if (value.isBlank()) return false
         if (judgeTrueRegex.matches(value) || judgeFalseRegex.matches(value)) return true
         return Regex(
-            """^[ABab]\s*[.、．:：)）]?\s*(?:正确|错误|对|错|是|否|√|×|True|False)$""",
+            """^[ABab]\s*[.、．:：)）]?\s*(?:正确|错误|对|错|是|否|√|✓|✔|☑|×|✗|✖|❌|True|False)$""",
             RegexOption.IGNORE_CASE
         ).matches(value)
     }
@@ -53,7 +53,7 @@ object AnswerTokenParser {
             "B" -> return listOf("错误")
         }
         val labeled = Regex(
-            """^([ABab])\s*[.、．:：)）]?\s*(?:正确|错误|对|错|是|否|√|×|True|False)$""",
+            """^([ABab])\s*[.、．:：)）]?\s*(?:正确|错误|对|错|是|否|√|✓|✔|☑|×|✗|✖|❌|True|False)$""",
             RegexOption.IGNORE_CASE
         ).find(value)?.groupValues?.getOrNull(1)?.uppercase()
         return when (labeled) {
@@ -157,7 +157,7 @@ object AnswerParser {
     private const val ANSWER_LABEL_PATTERN = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
     private const val ANALYSIS_LABEL_PATTERN = "答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明"
     private const val ANSWER_SEPARATOR_PATTERN = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
-    private const val OBJECTIVE_ANSWER_VALUE_PATTERN = """[\(（]?\s*(?:[A-Ga-g]\s*(?:-|－|–|—|~|～|至|到)\s*[A-Ga-g]|全选|[A-Ga-g]{1,7}|全部|全部选|以上全选|所有选项|全都选|都选|对|错|正确|错误|√|×|True|False)\s*[\)）]?"""
+    private const val OBJECTIVE_ANSWER_VALUE_PATTERN = """[\(（]?\s*(?:[A-Ga-g]\s*(?:-|－|–|—|~|～|至|到)\s*[A-Ga-g]|全选|[A-Ga-g]{1,7}|全部|全部选|以上全选|所有选项|全都选|都选|对|错|正确|错误|√|✓|✔|☑|×|✗|✖|❌|True|False)\s*[\)）]?"""
     private val inlineEntryRegex = Regex(
         """(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：]?\s*(?:(?:答案)$ANSWER_SEPARATOR_PATTERN)?($OBJECTIVE_ANSWER_VALUE_PATTERN)(?=\s*(?:\d{1,4}\s*[.、．:：]|$|\[|【|解析|[;；]))""",
         RegexOption.IGNORE_CASE
@@ -316,16 +316,27 @@ object AnswerParser {
         val number = normalizeQuestionIndex(match.groupValues[1])
         val analysis = match.groupValues[2].trim()
         if (number.isBlank() || analysis.isBlank()) return null
-        if (AnswerTokenParser.parseObjectiveAnswers(analysis).isNotEmpty()) return null
+        if (looksLikePureObjectiveAnswer(analysis)) return null
         return ParsedAnswerEntry(number = number, answer = emptyList(), analysis = analysis)
     }
 
     private fun upsertEntry(entries: MutableList<ParsedAnswerEntry>, incoming: ParsedAnswerEntry) {
-        val index = entries.indexOfLast { existing ->
+        val candidates = entries.withIndex().filter { (_, existing) ->
             existing.number == incoming.number &&
-                (incoming.category.isBlank() || existing.category.isBlank() || existing.category == incoming.category) &&
                 (incoming.type == null || existing.type == null || existing.type == incoming.type)
         }
+        val index = if (incoming.category.isNotBlank()) {
+            candidates.lastOrNull { (_, existing) ->
+                existing.category == incoming.category || existing.category.isBlank()
+            }?.index
+        } else {
+            val blankCategory = candidates.lastOrNull { (_, existing) -> existing.category.isBlank() }
+            val nonBlankCategories = candidates
+                .map { it.value.category }
+                .filter { it.isNotBlank() }
+                .distinct()
+            blankCategory?.index ?: candidates.lastOrNull { nonBlankCategories.size == 1 }?.index
+        } ?: -1
         if (index < 0) {
             entries += incoming
             return
@@ -338,6 +349,18 @@ object AnswerParser {
             type = existing.type ?: incoming.type,
             category = existing.category.ifBlank { incoming.category }
         )
+    }
+
+    private fun looksLikePureObjectiveAnswer(raw: String): Boolean {
+        val value = raw.trim()
+            .trim('[', ']', '【', '】', '(', ')', '（', '）')
+            .trimEnd('。', '.', '，', ',', '；', ';')
+            .trim()
+        if (value.isBlank()) return false
+        return Regex(
+            """^(?:[A-Ga-g]\s*(?:-|－|–|—|~|～|至|到)\s*[A-Ga-g]|[A-Ga-g]{1,7}|全选|全部|全部选|以上全选|所有选项|全都选|都选|对|错|正确|错误|是|否|√|✓|✔|☑|×|✗|✖|❌|True|False)$""",
+            RegexOption.IGNORE_CASE
+        ).matches(value)
     }
 
 
@@ -499,6 +522,7 @@ object AnswerParser {
                 parsed.takeIf { it.isNotEmpty() }
             }
         if (tokens.isEmpty() || end < start) return null
+        if (tokens.size != end - start + 1) return null
 
         val entries = (start..end).mapIndexedNotNull { offset, number ->
             if (offset >= tokens.size) return@mapIndexedNotNull null

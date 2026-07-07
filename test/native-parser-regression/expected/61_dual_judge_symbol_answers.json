@@ -1,0 +1,35 @@
+{
+  "id": "61_dual_judge_symbol_answers",
+  "mode": "dual-file",
+  "questionSample": "samples/61_dual_judge_symbol_answers_questions.txt",
+  "answerSample": "samples/61_dual_judge_symbol_answers_answers.txt",
+  "expected": {
+    "questionCount": 4,
+    "answeredCount": 4,
+    "typeCounts": {
+      "JUDGE": 4
+    },
+    "questions": [
+      {
+        "number": "1",
+        "type": "JUDGE",
+        "answer": ["正确"]
+      },
+      {
+        "number": "2",
+        "type": "JUDGE",
+        "answer": ["错误"]
+      },
+      {
+        "number": "3",
+        "type": "JUDGE",
+        "answer": ["正确"]
+      },
+      {
+        "number": "4",
+        "type": "JUDGE",
+        "answer": ["错误"]
+      }
+    ]
+  }
+}

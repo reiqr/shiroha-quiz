@@ -27,6 +27,24 @@
         "analysisContains": "正确答案是A"
       },
       {
+        "number": "4",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "analysisContains": "及时报告并处理"
+      },
+      {
+        "number": "5",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "analysisContains": "做好防护"
+      },
+      {
+        "number": "6",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "analysisContains": "核对参数"
+      },
+      {
         "number": "7",
         "type": "SINGLE",
         "answer": ["A"],

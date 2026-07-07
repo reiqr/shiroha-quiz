@@ -9,6 +9,34 @@
     },
     "answeredCount": 4,
     "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "optionCount": 4
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "answer": ["B"],
+        "optionCount": 4
+      },
+      {
+        "number": "3",
+        "type": "JUDGE",
+        "answer": ["正确"],
+        "optionCount": 2,
+        "analysisContains": "正确"
+      },
+      {
+        "number": "4",
+        "type": "JUDGE",
+        "answer": ["错误"],
+        "optionCount": 2,
+        "analysisContains": "错误"
+      }
+    ],
     "mustNotCreateQuestionFrom": ["参考答案"]
   }
 }

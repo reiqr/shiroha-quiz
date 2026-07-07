@@ -36,7 +36,7 @@ object ImportValidator {
                 QuestionType.JUDGE -> {
                     if (question.options.size < 2) warnings += ImportWarning(WarningLevel.WARNING, question.number, "判断题缺少对/错选项，已尝试自动补全")
                     if (question.answer.isEmpty()) warnings += ImportWarning(WarningLevel.WARNING, question.number, "判断题未识别到答案")
-                    if (question.answer.any { it !in listOf("A", "B") }) warnings += ImportWarning(WarningLevel.WARNING, question.number, "判断题答案不是标准对/错标记")
+                    if (question.answer.any { !isValidJudgeAnswer(it) }) warnings += ImportWarning(WarningLevel.WARNING, question.number, "判断题答案不是标准对/错标记")
                 }
 
                 QuestionType.BLANK -> {
@@ -79,6 +79,14 @@ object ImportValidator {
         val invalid = question.answer.filterNot { it in keys }
         if (invalid.isNotEmpty()) {
             warnings += ImportWarning(WarningLevel.WARNING, question.number, "答案选项不在当前题目选项范围内")
+        }
+    }
+
+    private fun isValidJudgeAnswer(answer: String): Boolean {
+        return when (answer.trim().lowercase()) {
+            "a", "b", "正确", "错误", "对", "错", "是", "否",
+            "√", "✓", "✔", "☑", "×", "✗", "✖", "true", "false", "t", "f" -> true
+            else -> false
         }
     }
 }

@@ -6,7 +6,6 @@
   "expected": {
     "questionCount": 2,
     "answeredCount": 2,
-    "mergePriority": "question-number",
     "questions": [
       {
         "number": "1",

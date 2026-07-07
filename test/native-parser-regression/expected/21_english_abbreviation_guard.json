@@ -1,41 +1,34 @@
 {
   "id": "21_english_abbreviation_guard",
   "mode": "single-file",
-  "strategyName": "标准优先解析（单题紧凑修复）",
-  "questionCount": 2,
-  "answeredCount": 0,
-  "typeCounts": {"SINGLE": 2},
-  "warnings": [
-    {"level":"WARNING","number":"1","message":"单选题未识别到答案"},
-    {"level":"WARNING","number":"2","message":"单选题未识别到答案"}
-  ],
-  "diagnostics": {
-    "normalizedLength": 150,
-    "blockCount": 2,
-    "candidateCount": 1,
-    "errorCount": 0,
-    "warningCount": 2
-  },
-  "questions": [
-    {
-      "number": "1",
-      "type": "SINGLE",
-      "question": "Vitamin A is essential for vision and immune function.",
-      "optionCount": 2,
-      "options": {"A": "正确", "B": "错误"},
-      "answer": [],
-      "analysis": "",
-      "category": ""
+  "expected": {
+    "questionCount": 2,
+    "answeredCount": 0,
+    "typeCounts": {
+      "SINGLE": 2
     },
-    {
-      "number": "2",
-      "type": "SINGLE",
-      "question": "The U.S.A. was founded in 1776 and e.g. is commonly used.",
-      "optionCount": 2,
-      "options": {"A": "是", "B": "否"},
-      "answer": [],
-      "analysis": "",
-      "category": ""
-    }
-  ]
+    "errorCountMax": 0,
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "optionCount": 2,
+        "stemContains": "Vitamin A",
+        "options": {
+          "A": "正确",
+          "B": "错误"
+        }
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "optionCount": 2,
+        "stemContains": "U.S.A.",
+        "options": {
+          "A": "是",
+          "B": "否"
+        }
+      }
+    ]
+  }
 }

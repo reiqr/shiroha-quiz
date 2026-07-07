@@ -1,0 +1,20 @@
+{
+  "id": "62_analysis_only_choice_words_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "answeredCount": 1,
+    "typeCounts": {
+      "SINGLE": 1
+    },
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "analysisContains": "A项正确"
+      }
+    ],
+    "mustNotCreateQuestionFrom": ["A项正确"]
+  }
+}
