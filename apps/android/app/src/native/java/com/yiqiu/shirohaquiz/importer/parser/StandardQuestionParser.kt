@@ -115,7 +115,7 @@ object StandardQuestionParser {
         }
 
         if (options.isEmpty()) {
-            val inferred = inferImageOptionLabelLine(stemLines, forcedType)
+            val inferred = inferImageOptionLabelLine(stemLines, forcedType, answerText)
                 ?: inferPlainOptionLines(stemLines, forcedType, answerText)
             inferred?.let {
                 stemLines.clear()
@@ -305,7 +305,8 @@ object StandardQuestionParser {
 
     private fun inferImageOptionLabelLine(
         stemLines: List<String>,
-        forcedType: QuestionType?
+        forcedType: QuestionType?,
+        answerText: String
     ): InferredPlainOptions? {
         if (forcedType == QuestionType.BLANK || forcedType == QuestionType.SHORT || forcedType == QuestionType.JUDGE) {
             return null
@@ -324,7 +325,11 @@ object StandardQuestionParser {
             .joinToString(" ")
             .replace(Regex("""\s+"""), " ")
             .trim()
-        if (!looksLikeChoiceStemNeedingOptions(plainStem)) return null
+        val imageOnlyChoice = plainStem.isBlank() && shouldInferPlainImageChoiceOptions(
+            forcedType = forcedType,
+            answerText = answerText
+        )
+        if (!imageOnlyChoice && !looksLikeChoiceStemNeedingOptions(plainStem)) return null
 
         return InferredPlainOptions(
             stem = remainingStem,
@@ -341,6 +346,15 @@ object StandardQuestionParser {
         if (tokens.any { !Regex("""^[A-G]$""").matches(it) }) return null
         val expected = ('A'..'G').take(tokens.size).map { it.toString() }
         return tokens.takeIf { it == expected }
+    }
+
+    private fun shouldInferPlainImageChoiceOptions(
+        forcedType: QuestionType?,
+        answerText: String
+    ): Boolean {
+        if (forcedType == QuestionType.SINGLE || forcedType == QuestionType.MULTIPLE) return true
+        if (forcedType == QuestionType.BLANK || forcedType == QuestionType.SHORT || forcedType == QuestionType.JUDGE) return false
+        return AnswerTokenParser.parseObjectiveAnswers(answerText).isNotEmpty()
     }
 
     private fun inferPlainOptionLines(

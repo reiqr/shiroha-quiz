@@ -1,5 +1,6 @@
 package com.yiqiu.shirohaquiz.importer.parser
 
+import com.yiqiu.shirohaquiz.importer.assets.QuestionImageMarker
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 
 data class QuestionBlock(
@@ -421,9 +422,12 @@ object QuestionBlockSplitter {
         requireOwnSubjectiveAnswer: Boolean
     ): Boolean {
         val remainder = start.remainder.trim()
-        if (remainder.isBlank() || shortObjectiveAnswerRemainderRegex.matches(remainder)) return false
+        if (remainder.isBlank() || shortObjectiveAnswerRemainderRegex.matches(remainder)) {
+            return looksLikeImageOnlyObjectiveQuestionStructure(sourceLines, lineIndex, start)
+        }
         if (CompactQuestionRepair.hasCompactOptionSequence(remainder)) return true
         if (countStandardOptionsAhead(sourceLines, lineIndex) >= 2) return true
+        if (looksLikeImageOnlyObjectiveQuestionStructure(sourceLines, lineIndex, start)) return true
         if (looksLikeStandardBlankOrJudgeQuestionStructure(sourceLines, lineIndex, start)) return true
 
         val subjectiveLike = start.forcedType == QuestionType.SHORT ||
@@ -431,6 +435,89 @@ object QuestionBlockSplitter {
             looksLikeSubjectiveQuestionRemainder(remainder)
         if (!subjectiveLike) return false
         return !requireOwnSubjectiveAnswer || hasAnswerMarkerAheadBeforeNextQuestion(sourceLines, lineIndex)
+    }
+
+    private fun looksLikeImageOnlyObjectiveQuestionStructure(
+        sourceLines: List<String>,
+        lineIndex: Int,
+        start: ParsedQuestionStart
+    ): Boolean {
+        val forcedType = start.forcedType
+        val forcedObjective = forcedType == QuestionType.SINGLE || forcedType == QuestionType.MULTIPLE
+        val remainder = start.remainder.trim()
+        val remainderLooksObjective = remainder.isNotBlank() && (
+            CompactQuestionRepair.hasCompactOptionSequence(remainder) ||
+                Regex("""(?:下列|以下|哪个|哪项|哪一项|选择|选出|正确|错误|不正确|符合|不符合|最(?:合适|符合|恰当))""").containsMatchIn(remainder)
+            )
+        val evidence = scanQuestionStructureAhead(sourceLines, lineIndex)
+
+        if (forcedObjective && (evidence.hasObjectiveOptions || evidence.hasImageChoiceLayout || evidence.hasImageAndAnswer)) {
+            return true
+        }
+        if (remainderLooksObjective && (evidence.hasObjectiveOptions || evidence.hasImageChoiceLayout)) {
+            return true
+        }
+        if (remainder.isBlank() && evidence.hasImageChoiceLayout && evidence.hasAnswerMarker) {
+            return true
+        }
+        return false
+    }
+
+    private data class AheadStructureEvidence(
+        val hasImageMarker: Boolean,
+        val hasObjectiveOptions: Boolean,
+        val hasImageChoiceLayout: Boolean,
+        val hasAnswerMarker: Boolean
+    ) {
+        val hasImageAndAnswer: Boolean get() = hasImageMarker && hasAnswerMarker
+    }
+
+    private fun scanQuestionStructureAhead(
+        sourceLines: List<String>,
+        questionLineIndex: Int
+    ): AheadStructureEvidence {
+        var nonBlankCount = 0
+        var standardOptionCount = 0
+        var hasImageMarker = false
+        var hasCompactOptions = false
+        var hasImageChoiceLabels = false
+        var hasAnswerMarker = false
+
+        for (index in (questionLineIndex + 1) until sourceLines.size) {
+            val line = sourceLines[index].trim()
+            if (line.isBlank()) continue
+            nonBlankCount += 1
+            if (parseQuestionStart(line) != null) break
+            if (SectionTitleParser.isSectionHeading(line)) break
+
+            if (QuestionImageMarker.contains(line)) hasImageMarker = true
+            if (CompactQuestionRepair.isStandardOptionLine(line)) standardOptionCount += 1
+            if (CompactQuestionRepair.hasCompactOptionSequence(line)) hasCompactOptions = true
+            if (isSequentialImageOptionLabelLine(line)) hasImageChoiceLabels = true
+            if (answerLineRegex.containsMatchIn(line) || inlineAnswerMarkerRegex.containsMatchIn(line)) hasAnswerMarker = true
+
+            if (nonBlankCount >= 14) break
+        }
+
+        val hasObjectiveOptions = standardOptionCount >= 2 || hasCompactOptions
+        val hasImageChoiceLayout = hasImageMarker && (hasImageChoiceLabels || hasObjectiveOptions)
+        return AheadStructureEvidence(
+            hasImageMarker = hasImageMarker,
+            hasObjectiveOptions = hasObjectiveOptions,
+            hasImageChoiceLayout = hasImageChoiceLayout,
+            hasAnswerMarker = hasAnswerMarker
+        )
+    }
+
+    private fun isSequentialImageOptionLabelLine(line: String): Boolean {
+        val tokens = line.trim()
+            .split(Regex("""\s+"""))
+            .map { it.trim().uppercase() }
+            .filter { it.isNotBlank() }
+        if (tokens.size !in 2..7) return false
+        if (tokens.any { !Regex("""^[A-G]$""").matches(it) }) return false
+        val expected = ('A'..'G').take(tokens.size).map { it.toString() }
+        return tokens == expected
     }
 
     private fun looksLikeStandardBlankOrJudgeQuestionStructure(
