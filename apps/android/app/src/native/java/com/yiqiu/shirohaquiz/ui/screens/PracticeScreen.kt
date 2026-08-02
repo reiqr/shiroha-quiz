@@ -294,11 +294,36 @@ fun PracticeScreen(
     }
 
     val isPracticeRunning = QuizRepository.practiceQuestions.isNotEmpty()
-    var isPracticeProgressExpanded by rememberSaveable(practiceQuestions.size) { mutableStateOf(true) }
+    var isPracticeProgressExpanded by rememberSaveable(QuizRepository.practiceOptionShuffleSeed) { mutableStateOf(false) }
+    var showPracticeAnswerSheet by rememberSaveable(QuizRepository.practiceOptionShuffleSeed) { mutableStateOf(false) }
     val practiceAnsweredCount = QuizRepository.practiceAnsweredCount()
     val practiceAutoScoredAnsweredCount = QuizRepository.practiceAutoScoredAnsweredCount()
     val practiceCorrectCount = QuizRepository.practiceCorrectCount()
     val practiceAccuracy = if (practiceAutoScoredAnsweredCount == 0) 0 else practiceCorrectCount * 100 / practiceAutoScoredAnsweredCount
+    val compactIsBatchPractice = QuizRepository.practiceMode == QuizRepository.PRACTICE_MODE_BATCH
+    val compactBatchBeforeSubmit = compactIsBatchPractice && !QuizRepository.practiceBatchSubmitted
+    val compactBatchScoredAnswered = if (compactIsBatchPractice && QuizRepository.practiceBatchSubmitted) {
+        QuizRepository.practiceCurrentBatchAutoScoredSubmittedCount()
+    } else {
+        practiceAutoScoredAnsweredCount
+    }
+    val compactBatchCorrect = if (compactIsBatchPractice && QuizRepository.practiceBatchSubmitted) {
+        QuizRepository.practiceCurrentBatchCorrectCount()
+    } else {
+        practiceCorrectCount
+    }
+    val compactBatchAccuracy = if (compactBatchScoredAnswered == 0) 0 else compactBatchCorrect * 100 / compactBatchScoredAnswered
+    val compactProgressText = when {
+        isReciteMode -> "${(QuizRepository.practiceIndex + 1).coerceIn(1, practiceQuestions.size.coerceAtLeast(1))}/${practiceQuestions.size.coerceAtLeast(1)}"
+        compactBatchBeforeSubmit -> "${QuizRepository.practiceDraftAnsweredCount()}/${QuizRepository.practiceCurrentBatchTotal().coerceAtLeast(1)}"
+        compactIsBatchPractice -> "$compactBatchAccuracy%"
+        else -> "$practiceAccuracy%"
+    }
+    val compactProgressDescription = when {
+        isReciteMode -> "背题进度 $compactProgressText，点击展开练习统计"
+        compactBatchBeforeSubmit -> "当前组已答 $compactProgressText，点击展开练习统计"
+        else -> "正确率 $compactProgressText，点击展开练习统计"
+    }
 
     val screenScrollState = rememberScrollState()
     var practiceViewportHeightPx by remember { mutableIntStateOf(0) }
@@ -355,23 +380,31 @@ fun PracticeScreen(
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "练习模式",
+                        modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Bottom
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (isPracticeRunning && !isPracticeProgressExpanded) {
-                            PracticeAccuracyCapsule(
-                                accuracy = practiceAccuracy,
-                                modifier = Modifier.height(34.dp),
+                            PracticeProgressCapsule(
+                                text = compactProgressText,
+                                accessibilityLabel = compactProgressDescription,
                                 onClick = { isPracticeProgressExpanded = true }
+                            )
+                        }
+                        if (isPracticeRunning && !isReciteMode) {
+                            PracticeAnswerSheetShortcut(
+                                onClick = { showPracticeAnswerSheet = true }
                             )
                         }
                         ActionPillButton(
@@ -540,12 +573,11 @@ fun PracticeScreen(
         val batchDraftAnsweredCount = QuizRepository.practiceDraftAnsweredCount()
         var showBatchSubmitConfirm by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
         var showExitPracticeConfirm by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
-        var showBatchAnswerSheet by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
         var showUnsubmittedCompleteConfirm by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
         var isUnsubmittedReviewMode by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
 
         BackHandler(
-            enabled = !showExitPracticeConfirm && !showBatchSubmitConfirm && !showBatchAnswerSheet && !showUnsubmittedCompleteConfirm
+            enabled = !showExitPracticeConfirm && !showBatchSubmitConfirm && !showPracticeAnswerSheet && !showUnsubmittedCompleteConfirm
         ) {
             showExitPracticeConfirm = true
         }
@@ -599,12 +631,14 @@ fun PracticeScreen(
             if (correct &&
                 !isBatchPractice &&
                 !isReciteMode &&
+                !showPracticeAnswerSheet &&
                 QuizRepository.practiceAutoNextEnabled &&
                 autoNextIndex < practiceQuestions.lastIndex
             ) {
                 autoNextScope.launch {
                     delay(320)
-                    if (QuizRepository.practiceIndex == autoNextIndex &&
+                    if (!showPracticeAnswerSheet &&
+                        QuizRepository.practiceIndex == autoNextIndex &&
                         QuizRepository.currentPracticeSessionKey() == autoNextQuestionId
                     ) {
                         QuizRepository.nextQuestion()
@@ -615,12 +649,14 @@ fun PracticeScreen(
         val scheduleBatchAutoNextAfterSelect: (String, Int) -> Unit = { autoNextQuestionId, autoNextIndex ->
             if (isBatchBeforeSubmit &&
                 !isReciteMode &&
+                !showPracticeAnswerSheet &&
                 QuizRepository.practiceBatchAutoNextEnabled &&
                 autoNextIndex < batchGroupEnd
             ) {
                 autoNextScope.launch {
                     delay(180)
-                    if (QuizRepository.practiceIndex == autoNextIndex &&
+                    if (!showPracticeAnswerSheet &&
+                        QuizRepository.practiceIndex == autoNextIndex &&
                         QuizRepository.currentPracticeSessionKey() == autoNextQuestionId
                     ) {
                         QuizRepository.nextQuestion()
@@ -844,7 +880,6 @@ fun PracticeScreen(
                     expanded = true,
                     reciteMode = isReciteMode,
                     reciteIndex = QuizRepository.practiceIndex + 1,
-                    onOpenAnswerSheet = if (isBatchPractice && !isReciteMode) { { showBatchAnswerSheet = true } } else null,
                     onToggleWrongOnly = if (isBatchSubmitted && !isReciteMode) {
                         {
                             if (batchReviewWrongOnly) {
@@ -1336,20 +1371,60 @@ fun PracticeScreen(
                 )
             }
 
-            if (showBatchAnswerSheet) {
-                BatchPracticeAnswerSheetDialog(
-                    groupNumber = batchGroupNumber,
-                    groupCount = batchGroupCount,
-                    indexes = batchGroupIndexes,
-                    currentIndex = QuizRepository.practiceIndex,
-                    submitted = isBatchSubmitted,
-                    isAnswered = QuizRepository::isPracticeDraftAnswered,
-                    isCorrect = QuizRepository::practiceResultCorrectAt,
+            if (showPracticeAnswerSheet && !isReciteMode) {
+                val answerSheetIndexes = if (isBatchPractice) batchGroupIndexes else practiceQuestions.indices.toList()
+                val firstRestrictedUnsubmittedIndex = if (!isBatchPractice && QuizRepository.practiceNextRequiresResult) {
+                    answerSheetIndexes.firstOrNull { index ->
+                        val sessionKey = QuizRepository.practiceSessionKeyAt(index)
+                        sessionKey == null || !QuizRepository.practiceAnswerResults.containsKey(sessionKey)
+                    }
+                } else {
+                    null
+                }
+                val answerSheetEntries = answerSheetIndexes.map { index ->
+                    val sessionKey = QuizRepository.practiceSessionKeyAt(index)
+                    val submittedResult = sessionKey?.let { key -> QuizRepository.practiceAnswerResults[key] }
+                    val canJump = when {
+                        isBatchPractice -> true
+                        !QuizRepository.practiceNextRequiresResult -> true
+                        submittedResult != null -> true
+                        firstRestrictedUnsubmittedIndex == null -> true
+                        index <= firstRestrictedUnsubmittedIndex -> true
+                        index == QuizRepository.practiceIndex -> true
+                        else -> false
+                    }
+                    val status = when {
+                        !canJump -> PracticeAnswerSheetStatus.LOCKED
+                        isBatchBeforeSubmit && QuizRepository.isPracticeDraftAnswered(index) -> PracticeAnswerSheetStatus.ANSWERED
+                        isBatchBeforeSubmit -> PracticeAnswerSheetStatus.UNANSWERED
+                        submittedResult == null -> PracticeAnswerSheetStatus.UNANSWERED
+                        !submittedResult.autoScored -> PracticeAnswerSheetStatus.PENDING_REVIEW
+                        submittedResult.correct -> PracticeAnswerSheetStatus.CORRECT
+                        else -> PracticeAnswerSheetStatus.INCORRECT
+                    }
+                    PracticeAnswerSheetEntry(
+                        index = index,
+                        number = if (isBatchPractice) index - answerSheetIndexes.first() + 1 else index + 1,
+                        current = index == QuizRepository.practiceIndex,
+                        status = status,
+                        enabled = canJump
+                    )
+                }
+                PracticeAnswerSheetDialog(
+                    entries = answerSheetEntries,
+                    batchBeforeSubmit = isBatchBeforeSubmit,
+                    batchSubmitted = isBatchSubmitted,
+                    batchGroupNumber = batchGroupNumber,
+                    batchGroupCount = batchGroupCount,
                     onJump = { index ->
+                        if (isBatchSubmitted && batchReviewWrongOnly && index !in batchWrongIndexes) {
+                            batchReviewWrongOnly = false
+                        }
                         QuizRepository.goToPracticeQuestion(index)
-                        showBatchAnswerSheet = false
+                        showPracticeAnswerSheet = false
+                        autoNextScope.launch { screenScrollState.scrollTo(0) }
                     },
-                    onDismiss = { showBatchAnswerSheet = false }
+                    onDismiss = { showPracticeAnswerSheet = false }
                 )
             }
         }
@@ -2469,7 +2544,6 @@ private fun PracticeProgressCard(
     expanded: Boolean,
     reciteMode: Boolean = false,
     reciteIndex: Int = 0,
-    onOpenAnswerSheet: (() -> Unit)?,
     onToggleWrongOnly: (() -> Unit)?,
     onToggle: () -> Unit
 ) {
@@ -2536,9 +2610,6 @@ private fun PracticeProgressCard(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (onOpenAnswerSheet != null) {
-                    PracticePanelCapsule(text = "答题卡", onClick = onOpenAnswerSheet)
-                }
                 if (onToggleWrongOnly != null) {
                     PracticePanelCapsule(
                         text = if (wrongOnly) "看全部" else "只看错题",
@@ -2581,25 +2652,69 @@ private fun PracticePanelCapsule(
 }
 
 @Composable
-private fun PracticeAccuracyCapsule(
-    accuracy: Int,
+private fun PracticeProgressCapsule(
+    text: String,
+    accessibilityLabel: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Box(
         modifier = modifier
-            .width(38.dp)
+            .height(44.dp)
+            .semantics { contentDescription = accessibilityLabel }
             .practiceNoRipplePillClick(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "$accuracy%",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Surface(
+            modifier = Modifier.defaultMinSize(minWidth = 46.dp, minHeight = 32.dp),
+            shape = RoundedCornerShape(ShirohaRadius.Pill),
+            color = ShirohaColors.BrandPrimarySoft,
+            border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSelected)
+        ) {
+            Box(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PracticeAnswerSheetShortcut(
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .semantics { contentDescription = "打开答题卡" }
+            .practiceNoRipplePillClick(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier.size(34.dp),
+            shape = CircleShape,
+            color = ShirohaColors.CardWhite86,
+            border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSelected)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = "答",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
 
@@ -2653,58 +2768,119 @@ private fun Modifier.questionSwipeNavigation(
 }
 
 
+private enum class PracticeAnswerSheetStatus {
+    UNANSWERED,
+    ANSWERED,
+    CORRECT,
+    INCORRECT,
+    PENDING_REVIEW,
+    LOCKED
+}
+
+private data class PracticeAnswerSheetEntry(
+    val index: Int,
+    val number: Int,
+    val current: Boolean,
+    val status: PracticeAnswerSheetStatus,
+    val enabled: Boolean
+)
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun BatchPracticeAnswerSheetDialog(
-    groupNumber: Int,
-    groupCount: Int,
-    indexes: List<Int>,
-    currentIndex: Int,
-    submitted: Boolean,
-    isAnswered: (Int) -> Boolean,
-    isCorrect: (Int) -> Boolean?,
+private fun PracticeAnswerSheetDialog(
+    entries: List<PracticeAnswerSheetEntry>,
+    batchBeforeSubmit: Boolean,
+    batchSubmitted: Boolean,
+    batchGroupNumber: Int,
+    batchGroupCount: Int,
     onJump: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val answeredCount = entries.count {
+        it.status == PracticeAnswerSheetStatus.ANSWERED ||
+            it.status == PracticeAnswerSheetStatus.CORRECT ||
+            it.status == PracticeAnswerSheetStatus.INCORRECT ||
+            it.status == PracticeAnswerSheetStatus.PENDING_REVIEW
+    }
+    val correctCount = entries.count { it.status == PracticeAnswerSheetStatus.CORRECT }
+    val incorrectCount = entries.count { it.status == PracticeAnswerSheetStatus.INCORRECT }
+    val pendingCount = entries.count { it.status == PracticeAnswerSheetStatus.PENDING_REVIEW }
+    val lockedCount = entries.count { it.status == PracticeAnswerSheetStatus.LOCKED }
+    val title = when {
+        batchBeforeSubmit -> "第 $batchGroupNumber / $batchGroupCount 组答题卡"
+        batchSubmitted -> "第 $batchGroupNumber / $batchGroupCount 组复盘答题卡"
+        else -> "练习答题卡"
+    }
+    val summary = if (batchBeforeSubmit) {
+        "已答 $answeredCount / ${entries.size}"
+    } else {
+        buildString {
+            append("已提交 $answeredCount / ${entries.size} · 正确 $correctCount · 错误 $incorrectCount")
+            if (pendingCount > 0) append(" · 待自评 $pendingCount")
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (submitted) "第 $groupNumber / $groupCount 组复盘答题卡" else "第 $groupNumber / $groupCount 组答题卡") },
+        title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BatchLegendChip("当前", selected = true)
-                    if (submitted) {
-                        BatchLegendChip("正确", correct = true)
-                        BatchLegendChip("错误", correct = false)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    PracticeAnswerSheetLegendChip(text = "当前", current = true)
+                    if (batchBeforeSubmit) {
+                        PracticeAnswerSheetLegendChip(text = "已答", status = PracticeAnswerSheetStatus.ANSWERED)
+                        PracticeAnswerSheetLegendChip(text = "未答", status = PracticeAnswerSheetStatus.UNANSWERED)
                     } else {
-                        BatchLegendChip("已答")
-                        BatchLegendChip("未答", muted = true)
+                        PracticeAnswerSheetLegendChip(text = "正确", status = PracticeAnswerSheetStatus.CORRECT)
+                        PracticeAnswerSheetLegendChip(text = "错误", status = PracticeAnswerSheetStatus.INCORRECT)
+                        if (pendingCount > 0) {
+                            PracticeAnswerSheetLegendChip(text = "待自评", status = PracticeAnswerSheetStatus.PENDING_REVIEW)
+                        }
+                        PracticeAnswerSheetLegendChip(text = "未答", status = PracticeAnswerSheetStatus.UNANSWERED)
+                    }
+                    if (lockedCount > 0) {
+                        PracticeAnswerSheetLegendChip(text = "锁定", status = PracticeAnswerSheetStatus.LOCKED)
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    indexes.chunked(5).forEach { rowIndexes ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    entries.chunked(5).forEach { rowEntries ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(7.dp)
                         ) {
-                            rowIndexes.forEach { index ->
-                                val current = index == currentIndex
-                                val correct = if (submitted) isCorrect(index) else null
-                                val answered = isAnswered(index)
-                                BatchAnswerNumberChip(
-                                    number = index - indexes.first() + 1,
-                                    current = current,
-                                    answered = answered,
-                                    submitted = submitted,
-                                    correct = correct,
+                            rowEntries.forEach { entry ->
+                                PracticeAnswerSheetNumberChip(
+                                    entry = entry,
                                     modifier = Modifier.weight(1f),
-                                    onClick = { onJump(index) }
+                                    onClick = { onJump(entry.index) }
                                 )
                             }
-                            repeat(5 - rowIndexes.size) {
+                            repeat(5 - rowEntries.size) {
                                 Spacer(modifier = Modifier.weight(1f))
                             }
                         }
                     }
+                }
+                if (lockedCount > 0) {
+                    Text(
+                        text = "已开启顺序练习限制，灰色题号暂不可跳转。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ShirohaColors.TextSecondary
+                    )
                 }
             }
         },
@@ -2713,29 +2889,33 @@ private fun BatchPracticeAnswerSheetDialog(
 }
 
 @Composable
-private fun BatchLegendChip(
+private fun PracticeAnswerSheetLegendChip(
     text: String,
-    selected: Boolean = false,
-    correct: Boolean? = null,
-    muted: Boolean = false
+    current: Boolean = false,
+    status: PracticeAnswerSheetStatus = PracticeAnswerSheetStatus.UNANSWERED
 ) {
     val background = when {
-        selected -> ShirohaColors.BrandPrimarySoft
-        correct == true -> ShirohaColors.StateSuccessSoft
-        correct == false -> ShirohaColors.StateDangerSoft
-        muted -> ShirohaColors.CardMuted
-        else -> ShirohaColors.CardWhite86
+        current -> ShirohaColors.BrandPrimarySoft
+        status == PracticeAnswerSheetStatus.CORRECT -> ShirohaColors.StateSuccessSoft
+        status == PracticeAnswerSheetStatus.INCORRECT -> ShirohaColors.StateDangerSoft
+        status == PracticeAnswerSheetStatus.PENDING_REVIEW -> ShirohaColors.StateWarningSoft
+        status == PracticeAnswerSheetStatus.ANSWERED -> ShirohaColors.CardWhite86
+        else -> ShirohaColors.CardMuted
     }
     val borderColor = when {
-        selected -> ShirohaColors.LineSelected
-        correct == true -> ShirohaColors.StateSuccess
-        correct == false -> ShirohaColors.StateDanger
+        current -> ShirohaColors.LineSelected
+        status == PracticeAnswerSheetStatus.CORRECT -> ShirohaColors.StateSuccess
+        status == PracticeAnswerSheetStatus.INCORRECT -> ShirohaColors.StateDanger
+        status == PracticeAnswerSheetStatus.PENDING_REVIEW -> ShirohaColors.StateWarning
+        status == PracticeAnswerSheetStatus.ANSWERED -> ShirohaColors.LineStrong
         else -> ShirohaColors.LineSoft
     }
     val textColor = when {
-        selected -> MaterialTheme.colorScheme.primary
-        correct == true -> ShirohaColors.StateSuccess
-        correct == false -> ShirohaColors.StateDanger
+        current -> MaterialTheme.colorScheme.primary
+        status == PracticeAnswerSheetStatus.CORRECT -> ShirohaColors.StateSuccess
+        status == PracticeAnswerSheetStatus.INCORRECT -> ShirohaColors.StateDanger
+        status == PracticeAnswerSheetStatus.PENDING_REVIEW -> ShirohaColors.TextWarning
+        status == PracticeAnswerSheetStatus.LOCKED -> ShirohaColors.TextTertiary
         else -> ShirohaColors.TextSecondary
     }
     Surface(
@@ -2755,46 +2935,61 @@ private fun BatchLegendChip(
 }
 
 @Composable
-private fun BatchAnswerNumberChip(
-    number: Int,
-    current: Boolean,
-    answered: Boolean,
-    submitted: Boolean,
-    correct: Boolean?,
+private fun PracticeAnswerSheetNumberChip(
+    entry: PracticeAnswerSheetEntry,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val background = when {
-        current -> ShirohaColors.BrandPrimarySoft
-        submitted && correct == true -> ShirohaColors.StateSuccessSoft
-        submitted && correct == false -> ShirohaColors.StateDangerSoft
-        answered -> ShirohaColors.CardWhite86
+        entry.current -> ShirohaColors.BrandPrimarySoft
+        entry.status == PracticeAnswerSheetStatus.CORRECT -> ShirohaColors.StateSuccessSoft
+        entry.status == PracticeAnswerSheetStatus.INCORRECT -> ShirohaColors.StateDangerSoft
+        entry.status == PracticeAnswerSheetStatus.PENDING_REVIEW -> ShirohaColors.StateWarningSoft
+        entry.status == PracticeAnswerSheetStatus.ANSWERED -> ShirohaColors.CardWhite86
         else -> ShirohaColors.CardMuted
     }
     val borderColor = when {
-        current -> ShirohaColors.LineSelected
-        submitted && correct == true -> ShirohaColors.StateSuccess
-        submitted && correct == false -> ShirohaColors.StateDanger
-        answered -> ShirohaColors.LineStrong
+        entry.current -> ShirohaColors.LineSelected
+        entry.status == PracticeAnswerSheetStatus.CORRECT -> ShirohaColors.StateSuccess
+        entry.status == PracticeAnswerSheetStatus.INCORRECT -> ShirohaColors.StateDanger
+        entry.status == PracticeAnswerSheetStatus.PENDING_REVIEW -> ShirohaColors.StateWarning
+        entry.status == PracticeAnswerSheetStatus.ANSWERED -> ShirohaColors.LineStrong
         else -> ShirohaColors.LineSoft
     }
     val textColor = when {
-        current -> MaterialTheme.colorScheme.primary
-        submitted && correct == true -> ShirohaColors.StateSuccess
-        submitted && correct == false -> ShirohaColors.StateDanger
+        entry.current -> MaterialTheme.colorScheme.primary
+        entry.status == PracticeAnswerSheetStatus.CORRECT -> ShirohaColors.StateSuccess
+        entry.status == PracticeAnswerSheetStatus.INCORRECT -> ShirohaColors.StateDanger
+        entry.status == PracticeAnswerSheetStatus.PENDING_REVIEW -> ShirohaColors.TextWarning
+        entry.status == PracticeAnswerSheetStatus.LOCKED -> ShirohaColors.TextTertiary
         else -> MaterialTheme.colorScheme.onSurface
+    }
+    val stateLabel = when (entry.status) {
+        PracticeAnswerSheetStatus.UNANSWERED -> "未答"
+        PracticeAnswerSheetStatus.ANSWERED -> "已答"
+        PracticeAnswerSheetStatus.CORRECT -> "正确"
+        PracticeAnswerSheetStatus.INCORRECT -> "错误"
+        PracticeAnswerSheetStatus.PENDING_REVIEW -> "待自评"
+        PracticeAnswerSheetStatus.LOCKED -> "暂不可跳转"
+    }
+    val description = buildString {
+        append("第 ${entry.number} 题，")
+        if (entry.current) append("当前题，")
+        append(stateLabel)
     }
     Surface(
         modifier = modifier
-            .height(36.dp)
-            .practiceNoRipplePillClick(onClick = onClick),
+            .height(38.dp)
+            .alpha(if (entry.enabled) 1f else 0.56f)
+            .semantics { contentDescription = description }
+            .practiceNoRipplePillClick(enabled = entry.enabled, onClick = onClick),
         shape = RoundedCornerShape(ShirohaRadius.Pill),
         color = background,
         border = BorderStroke(ShirohaDimens.Hairline, borderColor)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = number.toString(),
+                text = entry.number.toString(),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = textColor,
