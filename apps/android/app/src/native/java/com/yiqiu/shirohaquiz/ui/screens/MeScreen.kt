@@ -776,12 +776,36 @@ fun PracticePreferenceScreen(
         ShirohaHeader(
             kicker = "Practice",
             title = "刷题偏好",
-            subtitle = "管理答题方式、组题与练习交互。"
+            subtitle = "分别管理综合交互、练习方式与考试体验。"
         )
 
         GlassCard {
             Text(
-                text = "刷题体验",
+                text = "综合体验",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "启用滑动切题",
+                desc = "练习和考试中左滑下一题，右滑上一题。",
+                checked = QuizRepository.swipeNavigationEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setSwipeNavigationEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "读屏辅助优化",
+                desc = "为 TalkBack 等屏幕阅读器优化选项状态、答题结果和切题提示。",
+                checked = QuizRepository.screenReaderAssistEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setScreenReaderAssistEnabled(context, enabled) }
+            )
+        }
+
+        GlassCard {
+            Text(
+                text = "练习方式",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -796,94 +820,10 @@ fun PracticePreferenceScreen(
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
-                title = "记住上次考试设置",
-                desc = "恢复上次题量、时长和组题方式。",
-                checked = QuizRepository.rememberExamSettingsEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setRememberExamSettingsEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "启用滑动切题",
-                desc = "练习和考试中左滑下一题，右滑上一题。",
-                checked = QuizRepository.swipeNavigationEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setSwipeNavigationEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "选择后立即判题",
-                desc = "仅即时练习：单选、判断选后立即判题。",
-                checked = QuizRepository.practiceAutoSubmitEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setPracticeAutoSubmitEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "答对后自动下一题",
-                desc = "即时练习答对自动切题，答错停留。",
-                checked = QuizRepository.practiceAutoNextEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setPracticeAutoNextEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "批量做题自动切题",
-                desc = "单选、判断选后进入本组下一题，不判题、不提交。",
-                checked = QuizRepository.practiceBatchAutoNextEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setPracticeBatchAutoNextEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "读屏辅助优化",
-                desc = "为 TalkBack 等屏幕阅读器优化选项状态、答题结果和切题提示。",
-                checked = QuizRepository.screenReaderAssistEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setScreenReaderAssistEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
                 title = "练习页答题方式切换",
                 desc = "练习页显示答题方式和每组题数设置。",
                 checked = QuizRepository.practiceInlineAnswerSettingsEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeInlineAnswerSettingsEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "背题模式",
-                desc = "直接显示答案与解析，不提交、不计成绩或错题。",
-                checked = QuizRepository.practiceReciteModeEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setPracticeReciteModeEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "斩题功能",
-                desc = "显示斩题按钮，将已掌握题移出后续练习。",
-                checked = QuizRepository.practiceSlashEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setPracticeSlashEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "题目快速编辑",
-                desc = "练习时可直接编辑当前题目。",
-                checked = QuizRepository.practiceQuickEditEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setPracticeQuickEditEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "练习打乱选项",
-                desc = "只打乱选项内容，字母和原始答案不变。",
-                checked = QuizRepository.practiceOptionShuffleEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setPracticeOptionShuffleEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "考试自动切题",
-                desc = "单选、判断选后进入下一题；最后一题不会自动交卷。",
-                checked = QuizRepository.examAutoNextEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setExamAutoNextEnabled(context, enabled) }
-            )
-            Spacer(Modifier.height(12.dp))
-            PreferenceSwitchRow(
-                title = "考试打乱选项",
-                desc = "只打乱选项内容，字母、答案和记录不变。",
-                checked = QuizRepository.examOptionShuffleEnabled,
-                onCheckedChange = { enabled -> QuizRepository.setExamOptionShuffleEnabled(context, enabled) }
             )
             Spacer(Modifier.height(12.dp))
             Text(
@@ -972,10 +912,110 @@ fun PracticePreferenceScreen(
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
+                title = "练习打乱选项",
+                desc = "只打乱选项内容，字母和原始答案不变。",
+                checked = QuizRepository.practiceOptionShuffleEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticeOptionShuffleEnabled(context, enabled) }
+            )
+        }
+
+        GlassCard {
+            Text(
+                text = "练习交互",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "选择后立即判题",
+                desc = "仅即时练习：单选、判断选后立即判题。",
+                checked = QuizRepository.practiceAutoSubmitEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticeAutoSubmitEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "答对后自动下一题",
+                desc = "即时练习答对自动切题，答错停留。",
+                checked = QuizRepository.practiceAutoNextEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticeAutoNextEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "批量做题自动切题",
+                desc = "单选、判断选后进入本组下一题，不判题、不提交。",
+                checked = QuizRepository.practiceBatchAutoNextEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticeBatchAutoNextEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
                 title = "限制练习下一题",
                 desc = "提交答案或查看解析后才能切题。",
                 checked = QuizRepository.practiceNextRequiresResult,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeNextRequiresResult(context, enabled) }
+            )
+        }
+
+        GlassCard {
+            Text(
+                text = "练习辅助",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "背题模式",
+                desc = "直接显示答案与解析，不提交、不计成绩或错题。",
+                checked = QuizRepository.practiceReciteModeEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticeReciteModeEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "斩题功能",
+                desc = "显示斩题按钮，将已掌握题移出后续练习。",
+                checked = QuizRepository.practiceSlashEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticeSlashEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "题目快速编辑",
+                desc = "练习时可直接编辑当前题目。",
+                checked = QuizRepository.practiceQuickEditEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticeQuickEditEnabled(context, enabled) }
+            )
+        }
+
+        GlassCard {
+            Text(
+                text = "考试体验",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "记住上次考试设置",
+                desc = "恢复上次题量、时长和组题方式。",
+                checked = QuizRepository.rememberExamSettingsEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setRememberExamSettingsEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "考试打乱选项",
+                desc = "只打乱选项内容，字母、答案和记录不变。",
+                checked = QuizRepository.examOptionShuffleEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setExamOptionShuffleEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "考试自动切题",
+                desc = "单选、判断选后进入下一题；最后一题不会自动交卷。",
+                checked = QuizRepository.examAutoNextEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setExamAutoNextEnabled(context, enabled) }
             )
         }
 
