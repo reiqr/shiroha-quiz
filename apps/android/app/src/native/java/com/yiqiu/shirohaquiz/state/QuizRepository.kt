@@ -195,6 +195,7 @@ object QuizRepository {
     private const val KEY_PRACTICE_PREFERRED_CUSTOM_COUNT = "practice_preferred_custom_count"
     private const val KEY_PRACTICE_PREFERRED_ORDER_MODE = "practice_preferred_order_mode"
     private const val KEY_PRACTICE_SEQUENTIAL_PROGRESS = "practice_sequential_progress"
+    private const val KEY_PRACTICE_RECITE_SEQUENTIAL_PROGRESS = "practice_recite_sequential_progress"
     private const val KEY_PRACTICE_PREFERRED_TYPE_NAMES = "practice_preferred_type_names"
     private const val KEY_PRACTICE_PREFERRED_MODE = "practice_preferred_mode"
     private const val KEY_PRACTICE_PREFERRED_BATCH_SIZE_MODE = "practice_preferred_batch_size_mode"
@@ -363,6 +364,7 @@ object QuizRepository {
     val practiceSessionResults = mutableStateMapOf<String, Boolean>()
     val practiceAnswerResults = mutableStateMapOf<String, StudyQuestionResult>()
     val practiceSequentialProgress = mutableStateMapOf<String, Int>()
+    private val practiceReciteSequentialProgress = mutableStateMapOf<String, Int>()
     private val practiceQuestionBankIds = mutableStateMapOf<String, String>()
     private var practiceQuestionSessionKeys by mutableStateOf<List<String>>(emptyList())
     private var practiceStartedAt by mutableStateOf<Long?>(null)
@@ -370,6 +372,7 @@ object QuizRepository {
     private var practiceSessionScopeName: String? = null
     private var practiceSequentialBankId: String? = null
     private var practiceSequentialStartIndex: Int? = null
+    private var practiceSequentialUsesReciteProgress = false
     var practiceOptionShuffleSeed by mutableStateOf(0L)
         private set
     private var practiceSequentialNextIndexAfterComplete: Int? = null
@@ -426,6 +429,9 @@ object QuizRepository {
         val restoredSequentialProgress = runCatching {
             parseSequentialProgressJson(prefs.getString(KEY_PRACTICE_SEQUENTIAL_PROGRESS, null))
         }.getOrDefault(emptyMap())
+        val restoredReciteSequentialProgress = runCatching {
+            parseSequentialProgressJson(prefs.getString(KEY_PRACTICE_RECITE_SEQUENTIAL_PROGRESS, null))
+        }.getOrDefault(emptyMap())
 
         banks.clear()
         wrongBook.clear()
@@ -433,6 +439,7 @@ object QuizRepository {
         favoriteQuestions.clear()
         studyRecords.clear()
         practiceSequentialProgress.clear()
+        practiceReciteSequentialProgress.clear()
 
         val restoredBankRepairs = if (needsQuestionIdIntegrityMigration) {
             restoredBanks
@@ -558,6 +565,7 @@ object QuizRepository {
         slashedQuestions.addAll(sanitizeSlashedEntries(migratedSlashedQuestions, sanitizedRestoredBanks))
         favoriteQuestions.addAll(sanitizeFavoriteEntries(migratedFavoriteQuestions, sanitizedRestoredBanks))
         practiceSequentialProgress.putAll(sanitizeSequentialProgress(restoredSequentialProgress, sanitizedRestoredBanks))
+        practiceReciteSequentialProgress.putAll(sanitizeSequentialProgress(restoredReciteSequentialProgress, sanitizedRestoredBanks))
         studyRecords.addAll(migratedStudyRecords)
         val questionIdIntegrityChanged = needsQuestionIdIntegrityMigration && (
             restoredBankRepairs.any { it.idChanged } ||
@@ -669,6 +677,8 @@ object QuizRepository {
         favoriteQuestions.removeAll { it.bankId == bankId }
         practiceSequentialProgress.remove(bankId)
         practiceSequentialProgress.remove("BANK:$bankId")
+        practiceReciteSequentialProgress.remove(bankId)
+        practiceReciteSequentialProgress.remove("BANK:$bankId")
         studyRecords.removeAll { it.bankId == bankId }
 
         if (removingActive || banks.none { it.id == activeBankId }) {
@@ -802,13 +812,24 @@ object QuizRepository {
                 practiceSequentialProgress[bankProgressKey] = index.coerceIn(0, cleanQuestions.lastIndex)
             }
         }
+        practiceReciteSequentialProgress[bankProgressKey]?.let { index ->
+            if (cleanQuestions.isEmpty()) {
+                practiceReciteSequentialProgress.remove(bankProgressKey)
+            } else {
+                practiceReciteSequentialProgress[bankProgressKey] = index.coerceIn(0, cleanQuestions.lastIndex)
+            }
+        }
         val affectedGroupKey = "GROUP:${normalizeBankGroupName(banks[bankIndex].groupName)}"
+        val groupSize = banks
+            .filter { normalizeBankGroupName(it.groupName) == normalizeBankGroupName(banks[bankIndex].groupName) }
+            .sumOf { it.questions.count { question -> !isQuestionSlashed(it.id, question) } }
         practiceSequentialProgress[affectedGroupKey]?.let { index ->
-            val groupSize = banks
-                .filter { normalizeBankGroupName(it.groupName) == normalizeBankGroupName(banks[bankIndex].groupName) }
-                .sumOf { it.questions.count { question -> !isQuestionSlashed(it.id, question) } }
             if (groupSize <= 0) practiceSequentialProgress.remove(affectedGroupKey)
             else practiceSequentialProgress[affectedGroupKey] = index.coerceIn(0, groupSize - 1)
+        }
+        practiceReciteSequentialProgress[affectedGroupKey]?.let { index ->
+            if (groupSize <= 0) practiceReciteSequentialProgress.remove(affectedGroupKey)
+            else practiceReciteSequentialProgress[affectedGroupKey] = index.coerceIn(0, groupSize - 1)
         }
 
         if (activeBankId == bankId) {
@@ -921,11 +942,20 @@ object QuizRepository {
 
     fun practiceAvailableQuestionCount(bank: QuizBank? = null): Int = activePracticePoolSources(bank).size
 
-    fun sequentialPracticeProgressIndex(bank: QuizBank? = null, allowedTypes: Set<QuestionType> = QuestionType.values().toSet()): Int {
+    fun sequentialPracticeProgressValue(progressKey: String, reciteMode: Boolean = practiceReciteModeEnabled): Int {
+        val progress = if (reciteMode) practiceReciteSequentialProgress else practiceSequentialProgress
+        return (progress[progressKey] ?: 0).coerceAtLeast(0)
+    }
+
+    fun sequentialPracticeProgressIndex(
+        bank: QuizBank? = null,
+        allowedTypes: Set<QuestionType> = QuestionType.values().toSet(),
+        reciteMode: Boolean = practiceReciteModeEnabled
+    ): Int {
         val sourceSize = sequentialPracticeSource(bank, allowedTypes).size
         if (sourceSize <= 0) return 0
         val progressKey = sequentialProgressKey(bank)
-        return (practiceSequentialProgress[progressKey] ?: 0).coerceIn(0, sourceSize - 1)
+        return sequentialPracticeProgressValue(progressKey, reciteMode).coerceIn(0, sourceSize - 1)
     }
 
     fun sequentialPracticeRangePreview(
@@ -933,7 +963,8 @@ object QuizRepository {
         allowedTypes: Set<QuestionType>,
         startMode: String = SEQUENTIAL_START_LAST,
         customStartNumber: Int = 1,
-        bank: QuizBank? = null
+        bank: QuizBank? = null,
+        reciteMode: Boolean = practiceReciteModeEnabled
     ): Pair<Int, Int>? {
         val source = sequentialPracticeSource(bank, allowedTypes)
         if (source.isEmpty()) return null
@@ -941,7 +972,8 @@ object QuizRepository {
             progressKey = sequentialProgressKey(bank),
             sourceSize = source.size,
             startMode = startMode,
-            customStartNumber = customStartNumber
+            customStartNumber = customStartNumber,
+            reciteMode = reciteMode
         )
         val count = questionCount.coerceIn(1, source.size)
         val endIndex = (startIndex + count - 1).coerceAtMost(source.lastIndex)
@@ -959,11 +991,13 @@ object QuizRepository {
         val source = sequentialPracticeSource(null, allowedTypes)
         if (source.isEmpty()) return false
         val progressKey = sequentialProgressKey(null)
+        val useReciteProgress = practiceReciteModeEnabled
         val startIndex = resolveSequentialPracticeStartIndex(
             progressKey = progressKey,
             sourceSize = source.size,
             startMode = startMode,
-            customStartNumber = customStartNumber
+            customStartNumber = customStartNumber,
+            reciteMode = useReciteProgress
         )
         val count = questionCount.coerceIn(1, source.size)
         val selectedSources = source.drop(startIndex).take(count)
@@ -983,15 +1017,21 @@ object QuizRepository {
             val nextIndex = startIndex + selectedSources.size
             practiceSequentialBankId = progressKey
             practiceSequentialStartIndex = startIndex
+            practiceSequentialUsesReciteProgress = useReciteProgress
             practiceSequentialNextIndexAfterComplete = if (nextIndex >= source.size) 0 else nextIndex
         }
         return started
     }
 
-    fun resetSequentialPracticeProgress(context: Context, bankId: String = "") {
+    fun resetSequentialPracticeProgress(
+        context: Context,
+        bankId: String = "",
+        reciteMode: Boolean = practiceReciteModeEnabled
+    ) {
         appContext = context.applicationContext
         val key = if (bankId.isNotBlank()) "BANK:$bankId" else currentPracticeScopeKey()
-        practiceSequentialProgress[key] = 0
+        val progress = if (reciteMode) practiceReciteSequentialProgress else practiceSequentialProgress
+        progress[key] = 0
         persist()
     }
 
@@ -1008,13 +1048,14 @@ object QuizRepository {
         progressKey: String,
         sourceSize: Int,
         startMode: String,
-        customStartNumber: Int
+        customStartNumber: Int,
+        reciteMode: Boolean
     ): Int {
         if (sourceSize <= 0) return 0
         return when (startMode) {
             SEQUENTIAL_START_FIRST -> 0
             SEQUENTIAL_START_CUSTOM -> (customStartNumber - 1).coerceIn(0, sourceSize - 1)
-            else -> (practiceSequentialProgress[progressKey] ?: 0).coerceIn(0, sourceSize - 1)
+            else -> sequentialPracticeProgressValue(progressKey, reciteMode).coerceIn(0, sourceSize - 1)
         }
     }
 
@@ -1085,6 +1126,7 @@ object QuizRepository {
         practiceStartedAt = System.currentTimeMillis()
         practiceSequentialBankId = null
         practiceSequentialStartIndex = null
+        practiceSequentialUsesReciteProgress = false
         practiceSequentialNextIndexAfterComplete = null
         return true
     }
@@ -1265,8 +1307,7 @@ object QuizRepository {
     fun canSaveSequentialProgressOnPracticeExit(): Boolean {
         return practiceQuestions.isNotEmpty() &&
             practiceSequentialBankId != null &&
-            practiceSequentialStartIndex != null &&
-            !practiceReciteModeEnabled
+            practiceSequentialStartIndex != null
     }
 
     fun endPracticeSessionSavingSequentialProgress() {
@@ -3251,6 +3292,7 @@ object QuizRepository {
         slashedQuestions.clear()
         favoriteQuestions.clear()
         practiceSequentialProgress.clear()
+        practiceReciteSequentialProgress.clear()
         studyRecords.clear()
         activeBankId = null
         resetPracticeState()
@@ -3264,6 +3306,7 @@ object QuizRepository {
         slashedQuestions.clear()
         favoriteQuestions.clear()
         practiceSequentialProgress.clear()
+        practiceReciteSequentialProgress.clear()
         studyRecords.clear()
         activeBankId = null
         resetPracticeState()
@@ -3276,7 +3319,13 @@ object QuizRepository {
     private fun saveSequentialProgressForPracticeExit(): Boolean {
         val bankId = practiceSequentialBankId ?: return false
         val startIndex = practiceSequentialStartIndex ?: return false
-        if (practiceReciteModeEnabled || practiceQuestions.isEmpty()) return false
+        if (practiceQuestions.isEmpty()) return false
+
+        if (practiceSequentialUsesReciteProgress) {
+            val currentIndex = practiceIndex.coerceIn(0, practiceQuestions.lastIndex)
+            practiceReciteSequentialProgress[bankId] = (startIndex + currentIndex).coerceAtLeast(0)
+            return true
+        }
 
         val targetInCurrentSession = if (practiceMode == PRACTICE_MODE_BATCH) {
             val batchStart = practiceCurrentBatchStartIndex()
@@ -3352,7 +3401,8 @@ object QuizRepository {
     private fun advanceSequentialProgressAfterComplete() {
         val bankId = practiceSequentialBankId ?: return
         val nextIndex = practiceSequentialNextIndexAfterComplete ?: return
-        practiceSequentialProgress[bankId] = nextIndex.coerceAtLeast(0)
+        val progress = if (practiceSequentialUsesReciteProgress) practiceReciteSequentialProgress else practiceSequentialProgress
+        progress[bankId] = nextIndex.coerceAtLeast(0)
     }
 
     private fun resetPracticeState() {
@@ -3376,6 +3426,7 @@ object QuizRepository {
         practiceSessionScopeName = null
         practiceSequentialBankId = null
         practiceSequentialStartIndex = null
+        practiceSequentialUsesReciteProgress = false
         practiceSequentialNextIndexAfterComplete = null
     }
 
@@ -3967,8 +4018,14 @@ object QuizRepository {
             .sumOf { bank -> bank.questions.count { question -> !isQuestionSlashed(bank.id, question) } }
         if (total <= 0) {
             practiceSequentialProgress.remove(key)
-        } else if (practiceSequentialProgress.containsKey(key)) {
-            practiceSequentialProgress[key] = (practiceSequentialProgress[key] ?: 0).coerceIn(0, total - 1)
+            practiceReciteSequentialProgress.remove(key)
+        } else {
+            if (practiceSequentialProgress.containsKey(key)) {
+                practiceSequentialProgress[key] = (practiceSequentialProgress[key] ?: 0).coerceIn(0, total - 1)
+            }
+            if (practiceReciteSequentialProgress.containsKey(key)) {
+                practiceReciteSequentialProgress[key] = (practiceReciteSequentialProgress[key] ?: 0).coerceIn(0, total - 1)
+            }
         }
     }
 
@@ -4214,6 +4271,7 @@ object QuizRepository {
             .putString(KEY_FAVORITE_QUESTIONS, favoriteQuestionsToJson(favoriteQuestions))
             .putString(KEY_STUDY_RECORDS, studyRecordsToJson(studyRecords))
             .putString(KEY_PRACTICE_SEQUENTIAL_PROGRESS, sequentialProgressToJson(practiceSequentialProgress))
+            .putString(KEY_PRACTICE_RECITE_SEQUENTIAL_PROGRESS, sequentialProgressToJson(practiceReciteSequentialProgress))
             .putBoolean(KEY_PRACTICE_NEXT_REQUIRES_RESULT, practiceNextRequiresResult)
             .putBoolean(KEY_REMEMBER_PRACTICE_SETTINGS, rememberPracticeSettingsEnabled)
             .putBoolean(KEY_SWIPE_NAVIGATION_ENABLED, swipeNavigationEnabled)

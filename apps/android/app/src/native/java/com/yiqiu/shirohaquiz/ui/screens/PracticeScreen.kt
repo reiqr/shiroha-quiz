@@ -227,14 +227,23 @@ fun PracticeScreen(
     val selectedAvailable = remember(availableCounts, effectiveSelectedTypes) {
         availableCounts.entries.sumOf { (type, count) -> if (type in effectiveSelectedTypes) count else 0 }
     }
-    val sequentialProgressSnapshot = QuizRepository.practiceSequentialProgress[practiceScopeKey] ?: 0
+    val setupReciteMode = QuizRepository.practiceReciteModeEnabled
+    val sequentialProgressSnapshot = QuizRepository.sequentialPracticeProgressValue(
+        progressKey = practiceScopeKey,
+        reciteMode = setupReciteMode
+    )
     val sequentialProgressStartNumber = remember(
         practiceScopeKey,
         selectedTypes,
         selectedAvailable,
-        sequentialProgressSnapshot
+        sequentialProgressSnapshot,
+        setupReciteMode
     ) {
-        QuizRepository.sequentialPracticeProgressIndex(null, effectiveSelectedTypes) + 1
+        QuizRepository.sequentialPracticeProgressIndex(
+            bank = null,
+            allowedTypes = effectiveSelectedTypes,
+            reciteMode = setupReciteMode
+        ) + 1
     }
     val sequentialRangePreview = remember(
         practiceScopeKey,
@@ -243,18 +252,21 @@ fun PracticeScreen(
         sequentialStartMode,
         sequentialCustomStartNumber,
         selectedAvailable,
-        sequentialProgressSnapshot
+        sequentialProgressSnapshot,
+        setupReciteMode
     ) {
         QuizRepository.sequentialPracticeRangePreview(
             questionCount = selectedQuestionCount,
             allowedTypes = effectiveSelectedTypes,
             startMode = sequentialStartMode,
             customStartNumber = sequentialCustomStartNumber,
-            bank = null
+            bank = null,
+            reciteMode = setupReciteMode
         )
     }
     val sequentialRangeText = sequentialRangePreview?.let { (start, end) ->
-        if (start == end) "本次范围：第 ${start} 题" else "本次范围：第 ${start} - ${end} 题"
+        val range = if (start == end) "本次范围：第 ${start} 题" else "本次范围：第 ${start} - ${end} 题"
+        if (setupReciteMode) "背题进度：第 ${sequentialProgressStartNumber} 题 · $range" else range
     }
     val startPracticeWithSettings = {
         val safeTypes = selectedTypes.ifEmpty { QuizRepository.objectiveQuestionTypes() }
@@ -1204,6 +1216,7 @@ fun PracticeScreen(
             if (showExitPracticeConfirm) {
                 PracticeExitConfirmDialog(
                     canSaveProgress = !isPracticeComplete && QuizRepository.canSaveSequentialProgressOnPracticeExit(),
+                    reciteMode = isReciteMode,
                     onDismiss = { showExitPracticeConfirm = false },
                     onDirectExit = {
                         showExitPracticeConfirm = false
@@ -3026,6 +3039,7 @@ private fun UnsubmittedPracticeConfirmDialog(
 @Composable
 private fun PracticeExitConfirmDialog(
     canSaveProgress: Boolean,
+    reciteMode: Boolean,
     onDismiss: () -> Unit,
     onDirectExit: () -> Unit,
     onSaveAndExit: () -> Unit
@@ -3036,7 +3050,11 @@ private fun PracticeExitConfirmDialog(
         text = {
             Text(
                 text = if (canSaveProgress) {
-                    "保存退出后，下次可从当前位置继续。直接退出不会更新顺序进度。"
+                    if (reciteMode) {
+                        "保存退出后，下次背题可从当前位置继续。直接退出不会更新背题进度。"
+                    } else {
+                        "保存退出后，下次可从当前位置继续。直接退出不会更新顺序进度。"
+                    }
                 } else {
                     "退出后将结束当前练习。"
                 },
