@@ -15,7 +15,7 @@ const AI_ANALYSIS_DEFAULT_BATCH_V991=10;
 const AI_PROVIDER_PRESETS_V99={ollama:{label:'Ollama',endpoint:'http://127.0.0.1:11434/v1/chat/completions'},lmstudio:{label:'LM Studio',endpoint:'http://127.0.0.1:1234/v1/chat/completions'},custom:{label:'自定义接口',endpoint:''}};
 const TYPE_LABEL={single:'单选题',multiple:'多选题',multi:'多选题',judge:'判断题',blank:'填空题',short:'简答题',short_answer:'简答题'};
 const state=loadState();
-let importCache=[];let tableImportResultV49=null;let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let bankEditSessionV45=null;let practiceEditSessionV120=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let ocrImportState={file:null,text:'',pages:[],running:false};let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};let editBlankGroupsV58914=[];let editMultiBlankEnabledV58914=false;let importCommitBusyV5911=false;let aiImportRequestV99={running:false,controller:null};let aiImportSilentCancelV99=false;let aiConnectionStateV99='idle';let aiDiagnosticsVisibleV375=false;let aiLastDiagnosticV375=null;let aiPreviewRequestV991={running:false,mode:'',cancelled:false,controller:null};let aiPreviewPanelModeV991='review';let aiReviewSuggestionsV991=new Map();let aiAnalysisSuggestionsV991=new Map();let aiImportTextSelectionV992={start:0,end:0,text:''};
+let importCache=[];let tableImportResultV49=null;let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let importSourceMetaV376={name:'',size:0,type:''};let bankEditSessionV45=null;let practiceEditSessionV120=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let ocrImportState={file:null,text:'',pages:[],running:false};let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};let editBlankGroupsV58914=[];let editMultiBlankEnabledV58914=false;let importCommitBusyV5911=false;let aiImportRequestV99={running:false,controller:null};let aiImportSilentCancelV99=false;let aiConnectionStateV99='idle';let aiDiagnosticsVisibleV375=false;let aiLastDiagnosticV375=null;let aiPreviewRequestV991={running:false,mode:'',cancelled:false,controller:null};let aiPreviewPanelModeV991='review';let aiReviewSuggestionsV991=new Map();let aiAnalysisSuggestionsV991=new Map();let aiImportTextSelectionV992={start:0,end:0,text:''};
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 function ensureDefaultBank(){if(!state.banks.length&&!state.settings?.suppressDefaultBank) state.banks.push(defaultBank()); if(!state.activeBankId) state.activeBankId=state.banks[0]?.id||'';}
 function blankState(){return {schemaVersion:CURRENT_SCHEMA_VERSION,banks:[],activeBankId:'',wrongBook:{},favorites:{},records:[],settings:{},crossPlatformMeta:{favoriteQuestions:{}}}}
@@ -155,8 +155,8 @@ function bindNav(){ $$('.nav').forEach(btn=>btn.onclick=()=>{
 });}
 function bindEvents(){
 $('#active-bank-select').onchange=e=>{setPracticeBankScopeV8916(e.target.value,true);saveSilent();renderAll()};const importNameInput=$('#import-bank-name');if(importNameInput)importNameInput.addEventListener('input',()=>{importNameInput.dataset.autoName='0'});$('#save-all-btn').onclick=saveState;
-$('#load-sample-btn').onclick=loadSample;$('#import-file').onchange=readImportFile;$('#parse-import-btn').onclick=parseImport;$('#confirm-import-btn').onclick=confirmImport;const findReplaceBtnV51=$('#find-replace-import-btn');if(findReplaceBtnV51)findReplaceBtnV51.onclick=openImportFindReplaceV51;const dualConfirmBtn=$('#dual-confirm-import-btn');if(dualConfirmBtn)dualConfirmBtn.onclick=confirmImport;const importTextAreaV49=$('#import-text');if(importTextAreaV49)importTextAreaV49.addEventListener('input',()=>{if(importTextAreaV49.dataset.tableImportV49==='1'){tableImportResultV49=null;delete importTextAreaV49.dataset.tableImportV49;}syncAiImportActionV99();});const ocrStartBtn=$('#ocr-start-btn');if(ocrStartBtn)ocrStartBtn.onclick=startPdfOcrImport;const ocrUseBtn=$('#ocr-use-text-btn');if(ocrUseBtn)ocrUseBtn.onclick=applyOcrTextToImport;const ocrCopyBtn=$('#ocr-copy-btn');if(ocrCopyBtn)ocrCopyBtn.onclick=copyOcrText;const ocrDocxBtn=$('#ocr-download-docx-btn');if(ocrDocxBtn)ocrDocxBtn.onclick=downloadOcrDocx;$('#clear-import-btn').onclick=()=>{cancelAiImportRequestV99(true);cancelAiPreviewRequestV991(true);closeAiImportPanelV99();closeAiPreviewPanelV991();resetAiSuggestionsV991();$('#import-text').value='';if($('#import-text'))delete $('#import-text').dataset.tableImportV49;tableImportResultV49=null;importCache=[];importSelected.clear();importDiagnostics=null;resetOcrImportState();renderImportPreview([]);syncAiImportActionV99()};
-$('#dual-question-file').onchange=e=>readDualFile(e,'question');$('#dual-answer-file').onchange=e=>readDualFile(e,'answer');$('#parse-dual-import-btn').onclick=parseDualImport;$('#clear-dual-import-btn').onclick=()=>{cancelAiPreviewRequestV991(true);resetAiSuggestionsV991();$('#dual-question-text').value='';$('#dual-answer-text').value='';importCache=[];importSelected.clear();importDiagnostics=null;renderImportPreview([])};$('#dual-load-sample-btn').onclick=loadDualSample;$('#revalidate-import-btn').onclick=()=>renderImportPreview(importCache);
+$('#load-sample-btn').onclick=loadSample;$('#import-file').onchange=readImportFile;$('#parse-import-btn').onclick=parseImport;$('#confirm-import-btn').onclick=confirmImport;const findReplaceBtnV51=$('#find-replace-import-btn');if(findReplaceBtnV51)findReplaceBtnV51.onclick=openImportFindReplaceV51;const dualConfirmBtn=$('#dual-confirm-import-btn');if(dualConfirmBtn)dualConfirmBtn.onclick=confirmImport;const importTextAreaV49=$('#import-text');if(importTextAreaV49)importTextAreaV49.addEventListener('input',()=>{if(importTextAreaV49.dataset.tableImportV49==='1'){tableImportResultV49=null;delete importTextAreaV49.dataset.tableImportV49;}importSourceMetaV376={name:'手动文本',size:new Blob([importTextAreaV49.value||'']).size,type:'text'};syncAiImportActionV99();});const ocrStartBtn=$('#ocr-start-btn');if(ocrStartBtn)ocrStartBtn.onclick=startPdfOcrImport;const ocrUseBtn=$('#ocr-use-text-btn');if(ocrUseBtn)ocrUseBtn.onclick=applyOcrTextToImport;const ocrCopyBtn=$('#ocr-copy-btn');if(ocrCopyBtn)ocrCopyBtn.onclick=copyOcrText;const ocrDocxBtn=$('#ocr-download-docx-btn');if(ocrDocxBtn)ocrDocxBtn.onclick=downloadOcrDocx;$('#clear-import-btn').onclick=()=>{cancelAiImportRequestV99(true);cancelAiPreviewRequestV991(true);closeAiImportPanelV99();closeAiPreviewPanelV991();resetAiSuggestionsV991();$('#import-text').value='';if($('#import-text'))delete $('#import-text').dataset.tableImportV49;tableImportResultV49=null;importCache=[];importSelected.clear();importDiagnostics=null;importSourceMetaV376={name:'',size:0,type:''};resetOcrImportState();renderImportPreview([]);syncAiImportActionV99()};
+$('#dual-question-file').onchange=e=>readDualFile(e,'question');$('#dual-answer-file').onchange=e=>readDualFile(e,'answer');$('#parse-dual-import-btn').onclick=parseDualImport;$('#clear-dual-import-btn').onclick=()=>{cancelAiPreviewRequestV991(true);resetAiSuggestionsV991();$('#dual-question-text').value='';$('#dual-answer-text').value='';importCache=[];importSelected.clear();importDiagnostics=null;importSourceMetaV376={name:'',size:0,type:''};renderImportPreview([])};$('#dual-load-sample-btn').onclick=loadDualSample;$('#revalidate-import-btn').onclick=()=>renderImportPreview(importCache);
 $('#edit-close-btn').onclick=closeEditModal;$('#edit-save-btn').onclick=saveEditQuestion;$('#edit-delete-btn').onclick=deleteEditQuestion;const pf=$('#import-preview-filter');if(pf)pf.onchange=e=>{importPreviewFilter=e.target.value;renderImportPreview(importCache)};const bid=$('#batch-delete-import-btn');if(bid)bid.onclick=batchDeleteImportSelected;const cis=$('#clear-import-selection-btn');if(cis)cis.onclick=()=>{importSelected.clear();renderImportPreview(importCache)};
 $('#dedupe-btn').onclick=dedupeActiveBank;$('#rename-bank-btn').onclick=renameActiveBank;$('#duplicate-bank-btn').onclick=duplicateActiveBank;$('#new-empty-bank-btn').onclick=newEmptyBank;$('#merge-bank-btn').onclick=mergeBankIntoActive;$('#bank-sort-mode').onchange=renderBankList;$('#start-practice-btn').onclick=startPractice;$('#reset-practice-btn').onclick=()=>{exitPracticeFocus();$('#practice-card').innerHTML='<div class="empty">选择条件后点击“开始练习”。</div>';practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};$('#practice-progress').textContent='0 / 0';syncPracticeStartUiV58916(true)};
 $('#start-exam-btn').onclick=startExam;$('#submit-exam-btn').onclick=()=>submitExam(false);$('#clear-wrong-btn').onclick=()=>{if(confirm('确定清空当前题库错题本？')){state.wrongBook[activeBank().id]=[];saveSilent();renderAll()}};
@@ -764,7 +764,7 @@ async function startAiImportV99(){
     importCache=questions;importSelected.clear();resetAiSuggestionsV991();importWarnings=[`${modeLabel}结果必须人工核对。`,...parserWarnings,...payload.warnings].filter(Boolean).slice(0,40);
     importReport=`${modeLabel}：${aiProviderLabelV99(config.provider)} / ${config.model}，${range.label} ${text.length.toLocaleString('zh-CN')} 字。${beforeCount?`整理前预览 ${beforeCount} 题，整理后 ${importCache.length} 题。`:''}${parserReport?` ${parserReport}`:''}`;
     importDiagnostics={...(importDiagnostics||{}),strategy:modeLabel,mode:aiProviderLabelV99(config.provider),aiMode:payload.mode,expected:importDiagnostics?.expected||{},profile:importDiagnostics?.profile||{},candidates:importDiagnostics?.candidates||[]};importPreviewFilter='priority';
-    renderImportPreview(importCache);setAiImportStatusV99(`整理完成：${modeLabel}，得到 ${importCache.length} 道题。请核对题量、题干、选项、答案和解析后再确认导入。`,'ok');showNotice('AI 整理完成',`${modeLabel}得到 ${importCache.length} 道题，必须人工核对后再导入。`,'ok');
+    renderImportPreview(importCache);setAiImportStatusV99(`整理完成：${modeLabel}，得到 ${importCache.length} 道题。请核对题量、题干、选项、答案和解析后再确认导入。`,'ok');{const risk=largeImportRiskMessageV376(importCache);showNotice('AI 整理完成',`${modeLabel}得到 ${importCache.length} 道题，必须人工核对后再导入。${risk?` ${risk}`:''}`,risk?'warn':'ok');}
   }catch(error){
     importCache=previous.cache;importWarnings=previous.warnings;importReport=previous.report;importDiagnostics=previous.diagnostics;importPreviewFilter=previous.filter;importSelected=previous.selected;
     const silentAbort=error?.name==='AbortError'&&aiImportSilentCancelV99;const message=error?.name==='AbortError'?(timedOut?`AI 请求超过 ${config.timeoutSeconds} 秒，已自动停止。现有识别结果未被修改。`:'AI 整理已取消，现有识别结果未被修改。'):(error.message||'AI 整理失败，现有识别结果未被修改。');
@@ -1270,6 +1270,28 @@ function summarizeImportResult(arr,warnings=[]){
   const stats=countTypes(arr||[]);
   return `识别到 ${(arr||[]).length} 道题：单选${stats.single||0}、多选${(stats.multiple||0)+(stats.multi||0)}、判断${stats.judge||0}、填空${stats.blank||0}、简答${stats.short||0}。${warnings&&warnings.length?`发现 ${warnings.length} 条需要确认的问题。`:'未发现明显异常。'}`;
 }
+function formatBytesV376(bytes){
+  const n=Math.max(0,Number(bytes)||0);
+  if(n>=1024*1024)return `${(n/1024/1024).toFixed(n>=10*1024*1024?1:2)} MB`;
+  if(n>=1024)return `${(n/1024).toFixed(1)} KB`;
+  return `${n} B`;
+}
+function estimateImportPayloadSizeV376(arr){
+  try{return new Blob([JSON.stringify(arr||[])]).size}catch(_){return 0}
+}
+function largeImportRiskMessageV376(arr=importCache){
+  const count=(arr||[]).length;const sourceSize=Number(importSourceMetaV376?.size||0);const payloadSize=estimateImportPayloadSizeV376(arr);
+  const reasons=[];
+  if(sourceSize>=5*1024*1024)reasons.push(`源文件约 ${formatBytesV376(sourceSize)}`);
+  if(count>=3000)reasons.push(`识别题数 ${count.toLocaleString('zh-CN')} 道`);
+  if(payloadSize>=4*1024*1024)reasons.push(`预估题目数据约 ${formatBytesV376(payloadSize)}`);
+  if(!reasons.length)return '';
+  return `大文件提醒：${reasons.join('，')}。浏览器本地保存空间有限，确认导入时可能失败；建议先分批导入、清理旧题库/记录，或导入前先导出完整备份。`;
+}
+function summarizeImportResultV376(arr,warnings=[]){
+  const base=summarizeImportResult(arr,warnings);const risk=largeImportRiskMessageV376(arr);
+  return risk?`${base} ${risk}`:base;
+}
 
 function escapeRegExpV51(s){return String(s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
 function parseSlashRegexV51(raw){
@@ -1451,6 +1473,7 @@ D、高速通过积水路段`}
 async function readImportFile(e){
   const file=e.target.files[0];
   if(!file)return;
+  importSourceMetaV376={name:file.name||'',size:Number(file.size||0),type:file.type||''};
   setImportBankNameFromFile(file.name);
   setOcrImportSource(file);
   try{
@@ -1474,6 +1497,7 @@ async function readImportFile(e){
 async function readDualFile(e,kind){
   const file=e.target.files[0];
   if(!file)return;
+  importSourceMetaV376={name:file.name||'',size:(Number(importSourceMetaV376?.size||0)+Number(file.size||0)),type:'dual'};
   try{
     toast(`正在读取${kind==='question'?'题目':'答案'}文件，请稍候……`,'warn');
     const text=await readFileToText(file);
@@ -1543,7 +1567,7 @@ function applyTableImportResultV49(result,fileName){
   renderImportPreview(importCache);
   $('#confirm-import-btn').disabled=!importCache.length;
   const warnings=collectSoftRiskWarnings(importCache, importDiagnostics.profile||{});
-  if(importCache.length)showNotice('表格识别完成',summarizeImportResult(importCache,warnings),warnings.length?'warn':'ok');
+  if(importCache.length){const risk=largeImportRiskMessageV376(importCache);showNotice('表格识别完成',summarizeImportResultV376(importCache,warnings),(warnings.length||risk)?'warn':'ok')}
   else showNotice('表格识别失败','没有从表格中识别到有效题目，请检查表头是否包含题干、答案、选项等字段。','danger');
 }
 function tableImportPreviewTextV49(result,fileName){
@@ -2726,7 +2750,7 @@ function parseImport(){
     renderImportPreview(importCache);
     $('#confirm-import-btn').disabled=!importCache.length;
     const warnings=collectSoftRiskWarnings(importCache, importDiagnostics?.profile||{});
-    if(importCache.length)showNotice('识别完成',summarizeImportResult(importCache,warnings),warnings.length?'warn':'ok');
+    if(importCache.length){const risk=largeImportRiskMessageV376(importCache);showNotice('识别完成',summarizeImportResultV376(importCache,warnings),(warnings.length||risk)?'warn':'ok')}
     else showNotice('识别失败','没有识别到有效题目。请检查题号、选项或答案格式，也可以先粘贴纯文本后再试。','danger');
   }catch(e){toast('识别失败：'+e.message,'danger','识别失败')}
 }
@@ -2788,7 +2812,7 @@ function parseDualImport(){
     renderImportPreview(importCache);
     $('#confirm-import-btn').disabled=!importCache.length;
     const warnings=[...new Set(collectSoftRiskWarnings(importCache, importDiagnostics?.profile||{}).concat(importWarnings||[]))];
-    if(importCache.length)showNotice('双文件合并完成',`题目文件识别 ${questions.length} 道，答案文件识别 ${answerEntries.length} 条；答案策略：${resolved.answerSourceName||'答案表提取'}；合并后 ${importCache.length} 道。${warnings.length?`存在 ${warnings.length} 条提示，请在预览中确认。`:'未发现明显异常。'}`,warnings.length?'warn':'ok');
+    if(importCache.length){const risk=largeImportRiskMessageV376(importCache);showNotice('双文件合并完成',`题目文件识别 ${questions.length} 道，答案文件识别 ${answerEntries.length} 条；答案策略：${resolved.answerSourceName||'答案表提取'}；合并后 ${importCache.length} 道。${warnings.length?`存在 ${warnings.length} 条提示，请在预览中确认。`:'未发现明显异常。'}${risk?` ${risk}`:''}`,(warnings.length||risk)?'warn':'ok')}
     else showNotice('双文件合并失败','没有得到可导入题目，请检查题目文件和答案文件的对应方式。','danger');
   }catch(e){toast('双文件识别失败：'+e.message,'danger','双文件识别失败')}
 }
@@ -6623,10 +6647,16 @@ function isStorageQuotaErrorV5911(error){
   const name=String(error?.name||'');const code=Number(error?.code||0);
   return name==='QuotaExceededError'||name==='NS_ERROR_DOM_QUOTA_REACHED'||code===22||code===1014;
 }
-function importSaveFailureTextV5911(error){
-  if(isStorageQuotaErrorV5911(error))return '浏览器本地存储空间不足，追加内容没有写入，题库已恢复到追加前状态。可先导出完整备份并清理不需要的图片题库或学习记录后重试。';
+function isStringTooLargeErrorV376(error){
+  const name=String(error?.name||'');const msg=String(error?.message||'');
+  return name==='RangeError'||/Invalid string length|string length|too large/i.test(msg);
+}
+function importSaveFailureTextV5911(error,action='保存'){
+  const suffix='识别结果仍保留在预览区，可以删除部分题目、拆分文件或清理旧题库后再试。';
+  if(isStringTooLargeErrorV376(error))return `题目已经识别完成，但浏览器在生成本地保存数据时失败，通常是当前题库/记录数据过大。${action}内容没有写入，已恢复到保存前状态。${suffix}`;
+  if(isStorageQuotaErrorV5911(error))return `浏览器本地存储空间不足，${action}内容没有写入，已恢复到保存前状态。可先导出完整备份并清理不需要的图片题库、旧记录或旧题库后重试。${suffix}`;
   const detail=String(error?.message||'').trim();
-  return `浏览器未能保存追加结果，题库已恢复到追加前状态。${detail?`错误信息：${detail}`:'请稍后重试。'}`;
+  return `浏览器未能保存${action}结果，已恢复到保存前状态。${detail?`错误信息：${detail}`:'请稍后重试。'} ${suffix}`;
 }
 async function appendImportToBankV5911(target,warnings){
   const previousQuestions=Array.isArray(target.questions)?target.questions:[];
@@ -6655,7 +6685,7 @@ async function appendImportToBankV5911(target,warnings){
       else delete previousSettings.practiceScope;
     }
     warnDev('追加题库保存失败，已恢复追加前状态',error);
-    showNotice('追加失败',importSaveFailureTextV5911(error),'danger');
+    showNotice('追加失败',importSaveFailureTextV5911(error,'追加'),'danger');
     toast('追加失败，原题库未被修改。','warn','追加失败');
     return;
   }finally{
@@ -6665,7 +6695,7 @@ async function appendImportToBankV5911(target,warnings){
   showNotice('追加成功',`已追加到“${bankPathLabelV58(target)}”：新增 ${incoming.length} 道题，当前共 ${target.questions.length} 道题。${warnings.length?`追加前有 ${warnings.length} 条提示，建议在题库管理中抽查。`:''}`,'ok');
   toast(`已追加 ${incoming.length} 题到：${target.name}`,'ok','追加成功');
 }
-function confirmImport(){
+async function confirmImport(){
   if(bankEditSessionV45){saveBankEditSessionV45();return}
   if(importCommitBusyV5911)return;
   if(!importCache.length){showNotice('导入失败','当前没有可导入的题目。','danger');return}
@@ -6680,8 +6710,30 @@ function confirmImport(){
   }
   const name=$('#import-bank-name').value.trim()||'导入题库';
   const groupName=readImportBankGroupV58();
-  const bank={id:makeId('bank'),name,groupName,createdAt:now(),updatedAt:now(),questions:importCache.map((q,i)=>cleanImportedQuestion({...q,id:makeId('q',i),number:i+1}))};
-  state.banks.push(bank);setPracticeBankScopeV8916(bank.id,true);saveSilent();renderAll();
+  const previousBanks=state.banks;const previousActiveBankId=state.activeBankId;const previousSettings=state.settings;
+  const hadPracticeScope=!!previousSettings&&typeof previousSettings==='object'&&Object.prototype.hasOwnProperty.call(previousSettings,'practiceScope');
+  const previousPracticeScope=hadPracticeScope&&previousSettings.practiceScope&&typeof previousSettings.practiceScope==='object'?{...previousSettings.practiceScope}:previousSettings?.practiceScope;
+  let bank=null;
+  importCommitBusyV5911=true;setImportCommitBusyV5911(true,'正在保存…');
+  showNotice('正在导入',`正在保存“${name}”的 ${importCache.length} 道题，请勿重复点击或关闭页面。`,'warn');
+  await waitForImportCommitPaintV5911();
+  try{
+    bank={id:makeId('bank'),name,groupName,createdAt:now(),updatedAt:now(),questions:importCache.map((q,i)=>cleanImportedQuestion({...q,id:makeId('q',i),number:i+1}))};
+    state.banks=[...previousBanks,bank];setPracticeBankScopeV8916(bank.id,true);saveSilent();
+  }catch(error){
+    state.banks=previousBanks;state.activeBankId=previousActiveBankId;state.settings=previousSettings;
+    if(previousSettings&&typeof previousSettings==='object'){
+      if(hadPracticeScope)previousSettings.practiceScope=previousPracticeScope;
+      else delete previousSettings.practiceScope;
+    }
+    warnDev('新建题库保存失败，已恢复导入前状态',error);
+    showNotice('导入未保存',importSaveFailureTextV5911(error,'导入'),'danger');
+    toast('导入保存失败，识别预览仍保留。','warn','导入未保存');
+    return;
+  }finally{
+    importCommitBusyV5911=false;setImportCommitBusyV5911(false);
+  }
+  renderAll();
   showNotice('导入成功',`已创建题库“${name}”，共 ${bank.questions.length} 道题。${warnings.length?`导入前有 ${warnings.length} 条提示，建议在题库管理中抽查。`:''}`,'ok');
   toast(`已导入题库：${name}，共 ${bank.questions.length} 题。`,'ok','导入成功');
 }
