@@ -2304,7 +2304,9 @@ private fun AiImportRangeSheet(
                     icon = Icons.Rounded.PlayArrow,
                     text = if (mode == AiImportTaskMode.REVIEW) "开始核对" else "开始补解析",
                     primary = true,
-                    modifier = Modifier.weight(0.65f),
+                    modifier = Modifier
+                        .weight(0.65f)
+                        .height(ShirohaDimens.ActionButtonMinHeight),
                     fillWidthContent = true,
                     enabled = plannedCount > 0,
                     onClick = onStart
