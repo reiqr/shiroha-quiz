@@ -997,6 +997,17 @@ button:disabled{
   width:min(22vw,240px);
   max-width:240px
 }
+.hero-mascot-badge{
+  position:absolute;
+  left:16px;
+  top:16px;
+  width:84px;
+  height:84px;
+  border-radius:24px;
+  border:1px solid rgba(37,99,235,.14);
+  background:#fff;
+  box-shadow:0 10px 24px rgba(37,99,235,.12)
+}
 .import-stage-panel{
   display:grid;
   grid-template-columns:1.15fr .85fr;
@@ -1067,6 +1078,13 @@ button:disabled{
   width:min(20vw,176px);
   max-width:176px
 }
+.import-art-float{
+  position:absolute;
+  left:6px;
+  top:8px;
+  width:72px;
+  transform:rotate(-10deg)
+}
 .import-help-details>summary{
   list-style:none;
   cursor:pointer;
@@ -1111,6 +1129,9 @@ html,body{
 }
 .main,.view,.card,.hero-card,.form-grid,.split-grid,.section-head{
   min-width:0
+}
+.hero-mascot-badge,.import-art-float{
+  display:none!important
 }
 .hero-visual-card{
   display:flex;
@@ -5214,17 +5235,25 @@ body.exam-focus #exam-card{
   color:#5f7290;
   font-weight:700;
 }
+.practice-stat-grid-v30{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.practice-stat-grid-v30 div,
 .exam-answer-mini-stats-v30{
   padding:10px;
   border:1px solid rgba(148,163,184,.18);
   border-radius:14px;
   background:#fff;
 }
+.practice-stat-grid-v30 span,
 .exam-answer-mini-stats-v30 span{
   display:block;
   font-size:12px;
   color:#64748b;
 }
+.practice-stat-grid-v30 b,
 .exam-answer-mini-stats-v30 b{
   display:block;
   margin-top:4px;
@@ -5279,6 +5308,10 @@ body.exam-focus .exam-q{
   .exam-answer-card-head-v30{
     align-items:flex-start;
   }
+  .practice-stat-grid-v30{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .practice-stat-grid-v30 div,
   .exam-answer-mini-stats-v30{
     padding:9px;
   }
@@ -7646,6 +7679,24 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
 .ai-status-pill-v99.is-ready{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
 .ai-status-pill-v99.is-ok{background:var(--green2);border-color:#86efac;color:#166534}
 .ai-status-pill-v99.is-error{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.ai-diagnostics-v375{
+  margin-top:14px;
+  padding:16px;
+  border:1px solid rgba(37,99,235,.14);
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(248,250,252,.98),rgba(239,246,255,.9));
+}
+.ai-diagnostics-head-v375{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.ai-diagnostics-head-v375 b{display:block;color:#16335d;font-size:16px;margin-bottom:4px}
+.ai-diagnostics-head-v375 span{display:block;color:var(--muted);font-size:13px;line-height:1.5}
+.ai-diagnostics-actions-v375{margin:0;justify-content:flex-end;gap:8px}
+.ai-diagnostics-grid-v375{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.ai-diagnostics-grid-v375>div{min-width:0;padding:12px 13px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.9)}
+.ai-diagnostics-grid-v375 span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+.ai-diagnostics-grid-v375 b{display:block;color:#1e3a5f;font-size:13px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-diagnostics-advice-v375{margin:0}
+.ai-diagnostics-advice-v375>b{display:block;margin-bottom:7px;color:#1e3a5f}
+.ai-diagnostics-advice-v375 ol{margin:0;padding-left:20px;color:#475569;line-height:1.72}
 .ai-guide-grid-v99{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .ai-guide-grid-v99>div{
   min-height:132px;
@@ -7720,3 +7771,9 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
 .ai-preview-range-fields-v992 p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.55}
 .ai-preview-meta-grid-v991{grid-template-columns:repeat(5,minmax(0,1fr))}
 /* SHIROHA_WEB_ISSUE_99_STAGE1_RANGE_CONTROL_V992_END */
+
+@media(max-width:720px){
+  .ai-diagnostics-head-v375{display:block}
+  .ai-diagnostics-actions-v375{justify-content:flex-start;margin-top:10px}
+  .ai-diagnostics-grid-v375{grid-template-columns:1fr}
+}

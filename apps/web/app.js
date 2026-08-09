@@ -15,7 +15,7 @@ const AI_ANALYSIS_DEFAULT_BATCH_V991=10;
 const AI_PROVIDER_PRESETS_V99={ollama:{label:'Ollama',endpoint:'http://127.0.0.1:11434/v1/chat/completions'},lmstudio:{label:'LM Studio',endpoint:'http://127.0.0.1:1234/v1/chat/completions'},custom:{label:'自定义接口',endpoint:''}};
 const TYPE_LABEL={single:'单选题',multiple:'多选题',multi:'多选题',judge:'判断题',blank:'填空题',short:'简答题',short_answer:'简答题'};
 const state=loadState();
-let importCache=[];let tableImportResultV49=null;let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let bankEditSessionV45=null;let practiceEditSessionV120=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let ocrImportState={file:null,text:'',pages:[],running:false};let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};let editBlankGroupsV58914=[];let editMultiBlankEnabledV58914=false;let importCommitBusyV5911=false;let aiImportRequestV99={running:false,controller:null};let aiImportSilentCancelV99=false;let aiConnectionStateV99='idle';let aiPreviewRequestV991={running:false,mode:'',cancelled:false,controller:null};let aiPreviewPanelModeV991='review';let aiReviewSuggestionsV991=new Map();let aiAnalysisSuggestionsV991=new Map();let aiImportTextSelectionV992={start:0,end:0,text:''};
+let importCache=[];let tableImportResultV49=null;let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let bankEditSessionV45=null;let practiceEditSessionV120=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let ocrImportState={file:null,text:'',pages:[],running:false};let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};let editBlankGroupsV58914=[];let editMultiBlankEnabledV58914=false;let importCommitBusyV5911=false;let aiImportRequestV99={running:false,controller:null};let aiImportSilentCancelV99=false;let aiConnectionStateV99='idle';let aiDiagnosticsVisibleV375=false;let aiLastDiagnosticV375=null;let aiPreviewRequestV991={running:false,mode:'',cancelled:false,controller:null};let aiPreviewPanelModeV991='review';let aiReviewSuggestionsV991=new Map();let aiAnalysisSuggestionsV991=new Map();let aiImportTextSelectionV992={start:0,end:0,text:''};
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 function ensureDefaultBank(){if(!state.banks.length&&!state.settings?.suppressDefaultBank) state.banks.push(defaultBank()); if(!state.activeBankId) state.activeBankId=state.banks[0]?.id||'';}
 function blankState(){return {schemaVersion:CURRENT_SCHEMA_VERSION,banks:[],activeBankId:'',wrongBook:{},favorites:{},records:[],settings:{},crossPlatformMeta:{favoriteQuestions:{}}}}
@@ -241,6 +241,82 @@ function setAiSettingsStatusV99(message,type=''){
   const el=$('#ai-settings-status-v99');if(!el)return;
   el.textContent=message;el.className='notice'+(type?' '+type:'');
 }
+function aiCurrentOriginV375(){try{return location.origin&&location.origin!=='null'?location.origin:location.href.split('#')[0]}catch(_){return'当前页面'}}
+function aiEndpointHostV375(endpoint){try{return new URL(endpoint).host}catch(_){return''}}
+function sanitizeAiDiagnosticDetailV375(text,config){
+  let detail=String(text||'').replace(/\s+/g,' ').trim();
+  const key=config?readStoredAiKeyV99(config):'';
+  if(key)detail=detail.split(key).join('[API_KEY]');
+  return detail.slice(0,520);
+}
+function aiOllamaCorsCommandV375(diag){
+  if(!diag||diag.provider!=='ollama')return'';
+  const origin=/^https?:\/\//i.test(diag.origin||'')?diag.origin:'';
+  const origins=[origin,'http://localhost','http://127.0.0.1','http://localhost:*','http://127.0.0.1:*'].filter(Boolean).join(',');
+  return `setx OLLAMA_ORIGINS "${origins}"\n\n然后完全退出并重新启动 Ollama，再回到 Shiroha Quiz 点击“测试连接”。`;
+}
+function buildAiDiagnosticV375(error,config,mode='error'){
+  const cfg=config||{};const endpoint=String(cfg.endpoint||'').trim();const provider=String(cfg.provider||'custom');const local=endpoint?isLocalAiEndpointV99(endpoint):false;
+  const status=Number(error?.status||0);const origin=aiCurrentOriginV375();const providerLabel=aiProviderLabelV99(provider);
+  const rawDetail=sanitizeAiDiagnosticDetailV375(error?.detail||error?.cause?.message||error?.message||'',cfg);
+  const network=!!error?.network||/Failed to fetch|Load failed|NetworkError|ERR_FAILED/i.test(rawDetail||error?.message||'');
+  let summary='连接状态待确认';let statusMessage='尚未测试连接。';let level='';let steps=[];
+  if(mode==='ok'){
+    summary='连接测试成功';level='ok';statusMessage='连接测试成功。请点击“保存设置”，导入页才会使用当前配置。';
+    steps=['当前接口已能返回有效响应。','如更换模型、地址或跨域配置后，请重新测试。'];
+  }else if(network){
+    summary=local?'疑似 CORS 拦截、本地服务未启动或地址不可达':'浏览器无法访问该接口';level='warn';
+    statusMessage=local?'无法访问本地 AI 接口。请检查服务是否启动、地址是否正确，以及是否允许当前网页跨域访问。':'无法访问 AI 接口。请检查网络、地址、HTTPS/HTTP 混用和接口跨域设置。';
+    steps=local?['确认 Ollama / LM Studio 正在运行。','确认接口地址和端口正确。','如果当前页面来自 GitHub Pages，需要在本地 AI 服务里允许该页面 Origin 跨域访问。','设置跨域后要完全重启本地 AI 服务，再重新测试。']:['确认接口地址能从当前浏览器访问。','确认服务端允许当前网页跨域请求。','如果是远程服务，优先使用自己的后端代理转发请求，避免在纯前端暴露密钥。'];
+  }else if(status===401){
+    summary='鉴权失败';level='warn';statusMessage='鉴权失败，请检查 API Key 或服务权限。';steps=['确认 API Key 是否填写正确。','本地 Ollama 通常不需要 API Key，可以留空。','如果是远程 OpenAI-compatible 服务，请确认 Key 仍有效且有模型调用权限。'];
+  }else if(status===403){
+    summary=local?'本地服务拒绝当前网页访问，优先检查 CORS / Origin':'服务拒绝访问';level='warn';statusMessage=local?'本地 AI 服务拒绝当前网页访问，优先检查 OLLAMA_ORIGINS 或服务端跨域设置。':'AI 服务拒绝访问，请检查权限、来源限制或跨域设置。';steps=local?['如果使用 Ollama，请把当前页面 Origin 加入 OLLAMA_ORIGINS。','如果使用 LM Studio，请检查本地服务器是否开启跨域访问。','修改后完全重启本地 AI 服务。']:['确认账号、Key、IP 白名单和 Origin 白名单。','确认当前模型是否允许被调用。'];
+  }else if(status===404){
+    summary='接口路径不存在';level='warn';statusMessage='接口不存在或路径不正确，请检查 Chat Completions 地址。';steps=['Ollama / LM Studio 的 OpenAI-compatible 地址通常应以 /v1/chat/completions 结尾。','如果只填到 /v1，本页面会自动补全为 /v1/chat/completions。','确认服务端版本是否支持 Chat Completions。'];
+  }else if(status===405){
+    summary='接口不支持当前请求方法';level='warn';statusMessage='接口不支持 Chat Completions POST 请求，请检查地址或服务类型。';steps=['不要填写浏览器管理页面地址，应填写 API 地址。','确认目标接口支持 POST /v1/chat/completions。'];
+  }else if(status===400||status===422){
+    summary='请求格式或模型名称可能不匹配';level='warn';statusMessage='接口已响应，但请求格式或模型名称可能不匹配。';steps=['确认模型名称与本地服务中显示的模型名称完全一致。','如果服务不支持 response_format，本页面已自动重试普通 JSON 请求；仍失败时请查看错误详情。'];
+  }else if(status===429){
+    summary='请求频率或额度受限';level='warn';statusMessage='请求过于频繁或账户额度不足。';steps=['稍后重试。','如果是远程服务，请检查账户额度、速率限制和模型权限。'];
+  }else if(status>=500){
+    summary='AI 服务内部错误';level='warn';statusMessage='AI 服务内部错误，请稍后重试或查看本地服务日志。';steps=['检查模型是否已成功加载。','查看本地 AI 服务控制台日志。','降低模型或上下文规模后重试。'];
+  }else if(/超过\s*\d+\s*秒/.test(error?.message||'')){
+    summary='请求超时';level='warn';statusMessage=error.message;steps=['确认模型已经加载完成。','适当增加请求超时时间。','本地小显存模型首次响应可能较慢。'];
+  }else if(error){
+    summary='连接测试失败';level='warn';statusMessage=error.message||'连接测试失败。';steps=['检查服务是否启动、地址是否正确、模型名称是否存在。','如果浏览器控制台出现 CORS、Origin 或 Failed to fetch，按跨域问题处理。'];
+  }else{
+    steps=['填写接口地址和模型名称后点击“测试连接”。','如果使用 GitHub Pages 访问本地服务，通常还需要本地服务允许跨域访问。'];
+  }
+  return {time:new Date().toLocaleString('zh-CN',{hour12:false}),mode,provider,providerLabel,endpoint,host:aiEndpointHostV375(endpoint),origin,local,status:status||'',statusLabel:status?`HTTP ${status}`:'无 HTTP 状态',summary,statusMessage,level,detail:rawDetail||'无额外错误详情',steps};
+}
+function renderAiDiagnosticV375(){
+  const panel=$('#ai-diagnostics-v375');if(!panel)return;
+  const diag=aiLastDiagnosticV375||buildAiDiagnosticV375(null,ensureAiImportStateV99(),'idle');
+  panel.classList.toggle('ai-hidden-v99',!aiDiagnosticsVisibleV375);
+  const title=$('#ai-diagnostics-title-v375');if(title)title.textContent=diag.summary;
+  const sub=$('#ai-diagnostics-subtitle-v375');if(sub)sub.textContent=`${diag.providerLabel} · ${diag.statusLabel} · ${diag.time}`;
+  const body=$('#ai-diagnostics-body-v375');
+  if(body){
+    const rows=[['接口地址',diag.endpoint||'未填写'],['当前页面',diag.origin],['服务类型',diag.providerLabel],['主机',diag.host||'未识别'],['HTTP 状态',diag.statusLabel],['判断结果',diag.summary],['错误摘要',diag.detail]];
+    body.innerHTML=`<div class="ai-diagnostics-grid-v375">${rows.map(([k,v])=>`<div><span>${esc(k)}</span><b title="${esc(v)}">${esc(v)}</b></div>`).join('')}</div><div class="notice ${diag.level==='ok'?'ok':'warn'} ai-diagnostics-advice-v375"><b>${esc(diag.statusMessage)}</b><ol>${(diag.steps||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ol></div>`;
+  }
+  const toggle=$('#ai-toggle-diagnostics-v375');if(toggle)toggle.textContent=aiDiagnosticsVisibleV375?'隐藏诊断':'显示诊断';
+  const copyCors=$('#ai-copy-ollama-cors-v375');if(copyCors)copyCors.classList.toggle('ai-hidden-v99',!aiOllamaCorsCommandV375(diag));
+}
+function setAiDiagnosticV375(diag,show){aiLastDiagnosticV375=diag;if(show!=null)aiDiagnosticsVisibleV375=!!show;renderAiDiagnosticV375()}
+function toggleAiDiagnosticV375(){aiDiagnosticsVisibleV375=!aiDiagnosticsVisibleV375;renderAiDiagnosticV375()}
+function copyAiDiagnosticV375(){
+  const diag=aiLastDiagnosticV375||buildAiDiagnosticV375(null,ensureAiImportStateV99(),'idle');
+  const text=[`Shiroha Quiz AI 连接诊断`, `时间：${diag.time}`, `服务类型：${diag.providerLabel}`, `接口地址：${diag.endpoint||'未填写'}`, `当前页面：${diag.origin}`, `HTTP 状态：${diag.statusLabel}`, `判断结果：${diag.summary}`, `错误摘要：${diag.detail}`, '建议：', ...(diag.steps||[]).map((x,i)=>`${i+1}. ${x}`)].join('\n');
+  copyTextV23(text,'已复制 AI 连接诊断。');
+}
+function copyAiOllamaCorsCommandV375(){
+  const diag=aiLastDiagnosticV375||buildAiDiagnosticV375(null,ensureAiImportStateV99(),'idle');
+  const command=aiOllamaCorsCommandV375(diag);if(!command){toast('当前诊断不需要 Ollama 跨域命令。','warn');return}
+  copyTextV23(command,'已复制 Ollama 跨域命令。');
+}
 function updateAiConnectionPillV99(stateValue,configuredOverride){
   if(stateValue)aiConnectionStateV99=stateValue;
   const pill=$('#ai-connection-pill-v99');if(!pill)return;
@@ -263,6 +339,7 @@ function renderAiSettingsV99(){
   if(remember)remember.checked=config.rememberKey;
   if(key)key.value=readStoredAiKeyV99(config);
   updateAiConnectionPillV99();
+  renderAiDiagnosticV375();
 }
 function saveAiSettingsV99(){
   const previousConfig={...ensureAiImportStateV99()};
@@ -274,9 +351,10 @@ function saveAiSettingsV99(){
     if(!writeStoredAiKeyV99(config.apiKey,config.rememberKey))throw new Error('浏览器拒绝保存 API Key，请检查隐私或存储设置。');
     try{saveSilent()}catch(error){state.settings.aiImportV99=previousConfig;safeStorageSetV99(localStorage,AI_KEY_LOCAL_V99,previousLocalKey);safeStorageSetV99(sessionStorage,AI_KEY_SESSION_V99,previousSessionKey);throw error}
     aiConnectionStateV99='idle';
+    aiLastDiagnosticV375=buildAiDiagnosticV375(null,config,'idle');
     const endpoint=$('#ai-endpoint-v99');if(endpoint)endpoint.value=config.endpoint;
     setAiSettingsStatusV99('设置已保存。API Key 与题库状态分离存储，不会写入 Web 完整备份。','ok');
-    updateAiConnectionPillV99();syncAiImportActionV99();showNotice('AI 设置','设置已保存。','ok');
+    updateAiConnectionPillV99();renderAiDiagnosticV375();syncAiImportActionV99();showNotice('AI 设置','设置已保存。','ok');
   }catch(error){setAiSettingsStatusV99(error.message||'保存失败。','warn');updateAiConnectionPillV99('error');showNotice('AI 设置',error.message||'保存失败。','danger')}
 }
 function clearAiSettingsV99(){
@@ -284,7 +362,7 @@ function clearAiSettingsV99(){
   state.settings.aiImportV99=defaultAiConfigV99();
   safeStorageSetV99(localStorage,AI_KEY_LOCAL_V99,'');safeStorageSetV99(sessionStorage,AI_KEY_SESSION_V99,'');
   try{saveSilent()}catch(error){setAiSettingsStatusV99('配置已在当前页面清空，但本地状态保存失败：'+(error.message||error),'warn');return}
-  aiConnectionStateV99='idle';renderAiSettingsV99();setAiSettingsStatusV99('AI 配置已清除。');syncAiImportActionV99();showNotice('AI 设置','配置已清除。','ok');
+  aiConnectionStateV99='idle';aiLastDiagnosticV375=null;aiDiagnosticsVisibleV375=false;renderAiSettingsV99();setAiSettingsStatusV99('AI 配置已清除。');syncAiImportActionV99();showNotice('AI 设置','配置已清除。','ok');
 }
 function bindAiImportEventsV99(){
   const provider=$('#ai-provider-v99');if(provider)provider.onchange=()=>{
@@ -295,6 +373,9 @@ function bindAiImportEventsV99(){
   };
   const save=$('#ai-save-settings-v99');if(save)save.onclick=saveAiSettingsV99;
   const test=$('#ai-test-connection-v99');if(test)test.onclick=testAiConnectionV99;
+  const toggleDiag=$('#ai-toggle-diagnostics-v375');if(toggleDiag)toggleDiag.onclick=toggleAiDiagnosticV375;
+  const copyDiag=$('#ai-copy-diagnostics-v375');if(copyDiag)copyDiag.onclick=copyAiDiagnosticV375;
+  const copyCors=$('#ai-copy-ollama-cors-v375');if(copyCors)copyCors.onclick=copyAiOllamaCorsCommandV375;
   const clear=$('#ai-clear-settings-v99');if(clear)clear.onclick=clearAiSettingsV99;
   const open=$('#ai-organize-import-btn-v99');if(open)open.onclick=openAiImportPanelV99;
   const start=$('#ai-import-start-btn-v99');if(start)start.onclick=startAiImportV99;
@@ -394,15 +475,15 @@ async function requestAiChatV99(config,messages,{controller,maxTokens,testMode}=
   for(let i=0;i<attempts.length;i++){
     let response;
     try{response=await fetch(config.endpoint,{method:'POST',headers,body:JSON.stringify(attempts[i]),signal:controller?.signal,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'})}
-    catch(error){if(error?.name==='AbortError')throw error;const e=new Error('无法访问 AI 接口。请检查服务是否启动、地址是否正确，以及接口是否允许浏览器跨域访问。');e.cause=error;throw e}
+    catch(error){if(error?.name==='AbortError')throw error;const e=new Error('无法访问 AI 接口。请检查服务是否启动、地址是否正确，以及接口是否允许浏览器跨域访问。');e.cause=error;e.network=true;e.aiStage='fetch';e.endpoint=config.endpoint;e.provider=config.provider;throw e}
     const raw=await response.text();
     if(response.ok){
-      let payload;try{payload=raw?JSON.parse(raw):{}}catch(_){throw new Error('接口已响应，但返回内容不是有效 JSON。')}
-      const content=aiResponseContentV99(payload);if(!content&&!testMode)throw new Error('接口返回成功，但没有找到模型输出内容。');return {payload,content};
+      let payload;try{payload=raw?JSON.parse(raw):{}}catch(_){const e=new Error('接口已响应，但返回内容不是有效 JSON。');e.aiStage='json';e.endpoint=config.endpoint;e.provider=config.provider;e.detail=raw.replace(/\s+/g,' ').slice(0,400);throw e}
+      const content=aiResponseContentV99(payload);if(!content&&!testMode){const e=new Error('接口返回成功，但没有找到模型输出内容。');e.aiStage='empty';e.endpoint=config.endpoint;e.provider=config.provider;throw e}return {payload,content};
     }
     const detail=raw.replace(/\s+/g,' ').slice(0,400);
     const error=new Error(response.status===401||response.status===403?'鉴权失败，请检查 API Key。':response.status===404?'接口不存在或路径不正确，请检查 Chat Completions 地址。':response.status===429?'请求过于频繁或账户额度不足。':response.status>=500?'AI 服务内部错误，请稍后重试。':`AI 接口返回 HTTP ${response.status}${detail?'：'+detail:''}`);
-    error.status=response.status;lastError=error;
+    error.status=response.status;error.detail=detail;error.endpoint=config.endpoint;error.provider=config.provider;error.aiStage='http';lastError=error;
     if(i===0&&(response.status===400||response.status===422))continue;
     throw error;
   }
@@ -414,14 +495,21 @@ async function withAiTimeoutV99(timeoutSeconds,runner){
   try{return await runner(controller)}catch(error){if(error?.name==='AbortError'&&timedOut)throw new Error(`AI 请求超过 ${timeoutSeconds} 秒，已自动停止。`);throw error}finally{clearTimeout(timer)}
 }
 async function testAiConnectionV99(){
-  const btn=$('#ai-test-connection-v99');
+  const btn=$('#ai-test-connection-v99');let config=null;
   try{
-    const config=readAiFormV99();if(btn){btn.disabled=true;btn.textContent='测试中……'}setAiSettingsStatusV99('正在连接接口并调用所选模型……');
+    config=readAiFormV99();if(btn){btn.disabled=true;btn.textContent='测试中……'}setAiSettingsStatusV99('正在连接接口并调用所选模型……');
+    setAiDiagnosticV375(buildAiDiagnosticV375(null,config,'idle'),aiDiagnosticsVisibleV375);
     const messages=[{role:'system',content:'只回复一个 JSON 对象。'},{role:'user',content:'回复 {"ok":true}'}];
     const result=await withAiTimeoutV99(config.timeoutSeconds,controller=>requestAiChatV99(config,messages,{controller,maxTokens:32,testMode:true}));
     if(!result.payload)throw new Error('接口没有返回有效结果。');
-    aiConnectionStateV99='ok';updateAiConnectionPillV99('ok',true);setAiSettingsStatusV99('连接测试成功。请点击“保存设置”，导入页才会使用当前配置。','ok');showNotice('AI 连接','连接测试成功。','ok');
-  }catch(error){aiConnectionStateV99='error';updateAiConnectionPillV99('error',true);setAiSettingsStatusV99(error.message||'连接测试失败。','warn');showNotice('AI 连接',error.message||'连接测试失败。','danger')}
+    const diag=buildAiDiagnosticV375(null,config,'ok');
+    aiConnectionStateV99='ok';updateAiConnectionPillV99('ok',true);setAiDiagnosticV375(diag,aiDiagnosticsVisibleV375);setAiSettingsStatusV99(diag.statusMessage,'ok');showNotice('AI 连接','连接测试成功。','ok');
+  }catch(error){
+    const diag=config?buildAiDiagnosticV375(error,config,'error'):null;
+    aiConnectionStateV99='error';updateAiConnectionPillV99('error',!!config);
+    if(diag)setAiDiagnosticV375(diag,true);
+    setAiSettingsStatusV99(diag?.statusMessage||error.message||'连接测试失败。','warn');showNotice('AI 连接',diag?.summary||error.message||'连接测试失败。','danger')
+  }
   finally{if(btn){btn.disabled=false;btn.textContent='测试连接'}}
 }
 function extractBalancedJsonV99(text){

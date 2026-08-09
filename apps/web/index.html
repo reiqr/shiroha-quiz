@@ -394,9 +394,20 @@ C. 判断题
           <div class="actions ai-settings-actions-v99">
             <button id="ai-save-settings-v99" class="primary" type="button">保存设置</button>
             <button id="ai-test-connection-v99" class="ghost" type="button">测试连接</button>
+            <button id="ai-toggle-diagnostics-v375" class="ghost" type="button">显示诊断</button>
             <button id="ai-clear-settings-v99" class="ghost danger" type="button">清除配置</button>
           </div>
           <div id="ai-settings-status-v99" class="notice">尚未测试连接。API Key 默认只保留在当前标签页；勾选“在本机浏览器中记住”后也不会进入 Web 完整备份。</div>
+          <div id="ai-diagnostics-v375" class="ai-diagnostics-v375 ai-hidden-v99" aria-live="polite">
+            <div class="ai-diagnostics-head-v375">
+              <div><b id="ai-diagnostics-title-v375">连接状态待确认</b><span id="ai-diagnostics-subtitle-v375">尚未测试</span></div>
+              <div class="actions ai-diagnostics-actions-v375">
+                <button id="ai-copy-diagnostics-v375" class="ghost" type="button">复制诊断</button>
+                <button id="ai-copy-ollama-cors-v375" class="ghost ai-hidden-v99" type="button">复制 Ollama 跨域命令</button>
+              </div>
+            </div>
+            <div id="ai-diagnostics-body-v375" class="ai-diagnostics-body-v375"></div>
+          </div>
         </div>
         <div class="card ai-guide-card-v99">
           <div class="section-head"><div><p class="kicker">Usage</p><h3>使用边界</h3></div></div>
