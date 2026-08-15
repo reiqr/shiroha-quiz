@@ -4436,9 +4436,144 @@ function standardMainlineSeverelyFailedV599(candidate,ev,profile){
   if(!ev?.typeOk&&expected&&qs.length<Math.max(3,Math.floor(expected*0.6)))return true;
   return false;
 }
+/* SHIROHA_WEB_V37_7_SHARED_STEM_MATERIAL_FALLBACK */
+// 与原生版保持同一兼容思路：不新增父子题结构，只在导入阶段把高置信度共用材料补到各小题题干。
+function sharedStemIntroV377(line){
+  const raw=String(line||'').trim();
+  if(!raw||hasStrongQuestionNo(raw)||isOptionLine(raw)||isAnswerLine(raw)||isAnalysisLine(raw))return null;
+  let m=raw.match(/^(?:请\s*)?(?:阅读|根据)\s*(?:以下|下列|上述|给定)?\s*(?:统计资料|资料|材料|图表|病例|案例|病历)[\s，,：:]*(?:并\s*)?(?:回答|完成|解答|作答)\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[-~～—–至到]\s*(?:第\s*)?(\d{1,4})\s*题\s*[：:]?\s*(.*)$/i);
+  if(m){
+    const start=Number(m[1])||0,end=Number(m[2])||0;
+    if(start>0&&end>=start&&end-start<200)return {kind:'range',label:'共用材料',rangeStart:start,rangeEnd:end,lead:String(m[3]||'').trim()};
+  }
+  m=raw.match(/^(?:[【\[]\s*)?(共用题干题|共用题干|共用材料题|共用材料|共用资料题|共用资料|共用案例题|共用案例|共用病例题|共用病例)(?:\s*[】\]])?\s*(?:[：:]\s*(.*))?$/);
+  if(m)return {kind:'explicit',label:m[1],rangeStart:0,rangeEnd:0,lead:String(m[2]||'').trim()};
+  m=raw.match(/^(?:[【\[]\s*)?((?:材料|资料|案例|病例)\s*[一二三四五六七八九十百千万0-9]+)(?:\s*[】\]])?\s*[：:]\s*(.*)$/);
+  if(m)return {kind:'numbered_material',label:m[1],rangeStart:0,rangeEnd:0,lead:String(m[2]||'').trim()};
+  return null;
+}
+function sharedStemChildLineV377(line){
+  const raw=String(line||'').trim();
+  if(!raw||isOptionLine(raw)||isAnswerLine(raw)||isAnalysisLine(raw)||getHeadingType(raw)||isImportNoiseLine(raw))return null;
+  const number=questionNumberFromLineV58917(raw);if(!number)return null;
+  const stem=raw
+    .replace(/^\s*(?:单选题|单选|单项选择题|多选题|多选|多项选择题|判断题|判断|填空题|填空|简答题|简答|问答题)\s*(?:第\s*)?\d{1,4}\s*(?:题)?\s*[：:]?\s*/,'')
+    .replace(/^\s*(?:第\s*)?\d{1,4}\s*(?:题)?\s*[、.．:：]?\s*/,'')
+    .replace(/^\s*[（(【\[]\s*\d{1,4}\s*[）)】\]]\s*/,'').trim();
+  return {number,stem};
+}
+function sharedStemBoundaryV377(line,nextLines=[]){
+  const raw=String(line||'').trim();if(!raw)return false;
+  return !!sharedStemIntroV377(raw)||isVolumeHeading(raw)||!!getHeadingType(raw)||isChapterHeadingV58911(raw,nextLines)||isAnswerSectionHeading(raw,nextLines);
+}
+function sharedStemChildEvidenceV377(lines,start,end){
+  const segment=(lines||[]).slice(start,Math.max(start+1,end));
+  const first=sharedStemChildLineV377(segment[0]||'');
+  const text=segment.join('\n');
+  const optionCount=segment.slice(1).filter(isOptionLine).length;
+  if(optionCount>=2||segment.some(hasInlineAnswerTag)||segment.some(isAnswerLine)||segment.some(isAnalysisLine))return true;
+  const stem=String(first?.stem||'').trim();
+  if(/[？?]\s*$/.test(stem)||/[（(]\s*[）)]|_{3,}/.test(stem))return true;
+  return /^(?:请|试|简述|说明|分析|计算|判断|指出|概括|解释|论述|回答)|(?:什么|哪些|为何|为什么|如何|是否|正确的是|错误的是|不正确|最恰当|主要|下列|可以推出|表明|说明)[^\n]{0,12}$/i.test(stem)
+    || /(?:A\s*[、.．:：].+B\s*[、.．:：])/.test(text);
+}
+function sharedStemMaterialUsefulV377(value){
+  const raw=String(value||'').trim();if(!raw)return false;
+  if(/!\[[^\]]*\]\(data:image\/|\[\[DOCX_IMAGE_\d+\]\]|【DOCX表格开始】|【DOCX公式OMML：/.test(raw))return true;
+  return raw.replace(/[\s\p{P}\p{S}]/gu,'').length>=4;
+}
+function detectSharedStemGroupsV377(text){
+  const pack=protectDocxImageMarkdownForParser(text);const restore=pack.restore||((x)=>x);
+  const lines=normalizeImportText(pack.text).split('\n').map(x=>x.trim()).filter(Boolean);
+  const groups=[];
+  for(let introIndex=0;introIndex<lines.length;introIndex++){
+    const intro=sharedStemIntroV377(lines[introIndex]);if(!intro)continue;
+    let limit=lines.length;
+    for(let j=introIndex+1;j<lines.length;j++){
+      if(sharedStemBoundaryV377(lines[j],lines.slice(j+1,j+7))){limit=j;break;}
+    }
+    const anchors=[];
+    for(let j=introIndex+1;j<limit;j++){
+      const child=sharedStemChildLineV377(lines[j]);if(!child)continue;
+      if(intro.rangeStart&&child.number<intro.rangeStart)continue;
+      if(intro.rangeEnd&&child.number>intro.rangeEnd)break;
+      anchors.push({lineIndex:j,...child});
+    }
+    let run=[];
+    if(intro.rangeStart){
+      const startAt=anchors.findIndex(x=>x.number===intro.rangeStart);
+      if(startAt>=0){
+        let expected=intro.rangeStart;
+        for(let j=startAt;j<anchors.length&&expected<=intro.rangeEnd;j++){
+          const item=anchors[j];if(item.number!==expected)break;
+          run.push(item);expected++;
+        }
+      }
+      const evidenceCount=run.filter((item,idx)=>sharedStemChildEvidenceV377(lines,item.lineIndex,run[idx+1]?.lineIndex||limit)).length;
+      if(evidenceCount<Math.min(2,run.length))run=[];
+    }else{
+      for(let start=0;start<anchors.length&&!run.length;start++){
+        const candidate=[anchors[start]];
+        for(let j=start+1;j<anchors.length;j++){
+          if(anchors[j].number!==candidate[candidate.length-1].number+1)break;
+          candidate.push(anchors[j]);
+        }
+        if(candidate.length<2)continue;
+        const evidenceCount=candidate.filter((item,idx)=>sharedStemChildEvidenceV377(lines,item.lineIndex,candidate[idx+1]?.lineIndex||limit)).length;
+        const required=Math.min(2,candidate.length);
+        if(evidenceCount>=required)run=candidate;
+      }
+    }
+    if(run.length<2)continue;
+    const firstChildLine=run[0].lineIndex;
+    const materialLines=[intro.lead,...lines.slice(introIndex+1,firstChildLine)].map(x=>String(x||'').trim()).filter(Boolean);
+    const material=restore(materialLines.join('\n').trim());
+    if(!sharedStemMaterialUsefulV377(material))continue;
+    groups.push({kind:intro.kind,label:intro.label,rangeStart:intro.rangeStart,rangeEnd:intro.rangeEnd,material,children:run.map(item=>({number:item.number,stem:restore(item.stem)}))});
+    introIndex=Math.max(introIndex,run[run.length-1].lineIndex-1);
+  }
+  return groups;
+}
+function sharedStemComparableTextV377(value){
+  return normalizeText(visibleQuestionTextForRisk(stripInlineImageTokensV589(String(value||''))));
+}
+function sharedStemQuestionMatchesV377(question,child){
+  if(String(question?.number||'')!==String(child?.number||''))return false;
+  const childText=sharedStemComparableTextV377(child?.stem||'');
+  if(childText.length<4)return true;
+  const questionText=sharedStemComparableTextV377(question?.question||'');
+  const head=childText.slice(0,Math.min(24,childText.length));
+  return questionText.includes(head)||childText.includes(questionText.slice(-Math.min(24,questionText.length)));
+}
+function expandSharedStemQuestionsV377(questions,groups){
+  const out=(questions||[]).map((q,i)=>normalizeQuestion(q,i));let cursor=0,appliedGroups=0,appliedChildren=0,changedQuestions=0;const segments=[];
+  for(const group of groups||[]){
+    const indexes=[];let searchFrom=cursor;
+    for(const child of group.children||[]){
+      let found=-1;
+      for(let i=searchFrom;i<out.length;i++){if(sharedStemQuestionMatchesV377(out[i],child)){found=i;break;}}
+      if(found<0){indexes.length=0;break;}
+      indexes.push(found);searchFrom=found+1;
+    }
+    if(indexes.length<2)continue;
+    const material=String(group.material||'').trim();const materialKey=sharedStemComparableTextV377(material);let groupChanged=0;
+    indexes.forEach(index=>{
+      const q=out[index],question=String(q.question||'').trim(),questionKey=sharedStemComparableTextV377(question);
+      const head=materialKey.slice(0,Math.min(36,materialKey.length));
+      if(head.length>=4&&questionKey.includes(head))return;
+      out[index]=normalizeQuestion({...q,question:[material,question].filter(Boolean).join('\n\n')},index);groupChanged++;changedQuestions++;
+    });
+    appliedGroups++;appliedChildren+=indexes.length;cursor=indexes[indexes.length-1]+1;
+    segments.push(`${group.label||'共用材料'}：已展开到 ${indexes.length} 道小题${groupChanged<indexes.length?`（${indexes.length-groupChanged} 道原已包含材料）`:''}`);
+  }
+  return {questions:out,appliedGroups,appliedChildren,changedQuestions,segments};
+}
+/* SHIROHA_WEB_V37_7_SHARED_STEM_MATERIAL_FALLBACK_END */
 function parseTextQuestions(text,strategy='auto'){
   const original=String(text||'');
   const profile=analyzeQuestionTextProfile(original);
+  let sharedStemGroupsV377=[];
+  try{sharedStemGroupsV377=detectSharedStemGroupsV377(original)}catch(e){warnDev('共用题干/材料识别失败，继续使用标准解析。',e)}
   let standardSourceDetailedV58910=null;
   try{standardSourceDetailedV58910=parseTextQuestionsBaseDetailed(original)}catch(e){warnDev('标准原文定位初始化失败。',e)}
   const candidates=[];
@@ -4620,6 +4755,20 @@ function parseTextQuestions(text,strategy='auto'){
   }
 
   let best=autoBest||candidates.filter(c=>c.questions&&c.questions.length).map(c=>({...c,eval:evaluateCandidate(c)})).sort(strategy==='auto'?standardComparator:fallbackComparator)[0]||{name:'标准逐行解析',questions:[],score:0,warnings:[]};
+  let sharedStemExpansionV377={questions:best.questions||[],appliedGroups:0,appliedChildren:0,changedQuestions:0,segments:[]};
+  if(sharedStemGroupsV377.length&&(best.questions||[]).length){
+    try{
+      sharedStemExpansionV377=expandSharedStemQuestionsV377(best.questions,sharedStemGroupsV377);
+      if(sharedStemExpansionV377.changedQuestions>0){
+        const qs=sharedStemExpansionV377.questions;
+        const candidate={name:'标准主线 + 共用材料展开',questions:qs,score:scoreParsedQuestions(qs,profile)+Math.min(120,sharedStemExpansionV377.changedQuestions*12),warnings:importWarningsForStrategy(qs,profile),segments:sharedStemExpansionV377.segments};
+        candidates.push(candidate);best=candidate;
+      }
+    }catch(e){warnDev('共用题干/材料展开失败，保留原解析结果。',e)}
+  }
+  profile.sharedStemDetectedGroups=sharedStemGroupsV377.length;
+  profile.sharedStemAppliedGroups=sharedStemExpansionV377.appliedGroups||0;
+  profile.sharedStemAppliedChildren=sharedStemExpansionV377.appliedChildren||0;
   const finalQuestions=repairDocxTablePromptSplitQuestions(best.questions||[]).map(sanitizeQuestionOptionsForDocxBoundariesV583).map((q,i)=>normalizeQuestion(q,i)).filter(q=>q.question);
   const stats=countTypes(finalQuestions||[]);
   const profileBits=[];
@@ -4629,10 +4778,11 @@ function parseTextQuestions(text,strategy='auto'){
   if(profile.inlineOptionLikely)profileBits.push('存在同一行选项');
   if(profile.inlineAnswerLikely)profileBits.push('存在题尾答案标记');
   if(profile.hasAnswerAnalysisSection)profileBits.push('检测到答案解析区');
+  if(profile.sharedStemAppliedGroups)profileBits.push(`共用材料展开${profile.sharedStemAppliedGroups}组/${profile.sharedStemAppliedChildren}题`);
   const candidateLine=candidates.map(c=>`${c.name}${c.questions.length}题/质量${c.score}${c.segments?.length?'（局部修复'+c.segments.length+'处）':''}`).join('；');
   const expected=profile.expectedByHeadings?`；标题预期约${profile.expectedByHeadings}题，实际${finalQuestions.length}题，差值${finalQuestions.length-profile.expectedByHeadings}`:'';
   importReport=`解析模式：${strategyLabel}；采用策略：${best.name}。${profileBits.length?'格式画像：'+profileBits.join('、')+'。':''}候选结果：${candidateLine}。最终识别：${finalQuestions.length}题（单选${stats.single||0}、多选${(stats.multiple||0)+(stats.multi||0)}、判断${stats.judge||0}、填空${stats.blank||0}、简答${stats.short||0}）${expected}。`;
-  importDiagnostics={mode:strategyLabel,strategy:best.name,profile,candidates:candidates.map(c=>({name:c.name,questions:c.questions.length,score:c.score,warnings:c.warnings||[],segments:c.segments||[]})),expected:{total:profile.expectedByHeadings||0,types:profile.expectedByType||{}},stats,warnings:collectImportWarnings(finalQuestions)};
+  importDiagnostics={mode:strategyLabel,strategy:best.name,profile,candidates:candidates.map(c=>({name:c.name,questions:c.questions.length,score:c.score,warnings:c.warnings||[],segments:c.segments||[]})),expected:{total:profile.expectedByHeadings||0,types:profile.expectedByType||{}},stats,warnings:collectImportWarnings(finalQuestions),sharedStem:{detectedGroups:sharedStemGroupsV377.length,appliedGroups:sharedStemExpansionV377.appliedGroups||0,appliedChildren:sharedStemExpansionV377.appliedChildren||0,changedQuestions:sharedStemExpansionV377.changedQuestions||0}};
   return finalQuestions;
 }
 function analyzeQuestionTextProfile(text){
@@ -6393,6 +6543,7 @@ function renderImportReportPanel(arr, rows=[], warnings=[]){
   if(profile.repeatedQuestionNumbers)profileBits.push('重复题号');
   if(profile.inlineOptionLikely)profileBits.push('同一行选项');
   if(profile.inlineAnswerLikely)profileBits.push('题尾答案');
+  if(profile.sharedStemAppliedGroups)profileBits.push(`共用材料${profile.sharedStemAppliedGroups}组/${profile.sharedStemAppliedChildren||0}题`);
   const typeExpected=expected.types||{};
   const expLine=Object.entries({single:'单选',multiple:'多选',judge:'判断',blank:'填空',short:'简答'}).map(([k,n])=>typeExpected[k]?`${n}${typeExpected[k]}题`:null).filter(Boolean).join('、');
   el.classList.remove('hidden');
