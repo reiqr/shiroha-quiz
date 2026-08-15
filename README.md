@@ -385,7 +385,7 @@ Web ZIP 不含离线扩展库（PDF.js 完整包、MathJax、Tesseract OCR，合
 ## 开发计划
 
 > [!NOTE]
-> 最近空闲时间沉迷「黑夜君临」，更新不会很勤快（）祝大家刷题顺利~
+> 最近本职工作忙到炸，可能一个月左右不会太更新（）祝大家刷题顺利~
 
 历史开发计划已归档至 `docs/archive/`，当前功能状态以本 README、[CHANGELOG](./CHANGELOG.md)、[GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 和 [原生 Android 开发进度](docs/native/原生开发进度.md) 为准。
 
