@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -100,18 +101,72 @@ fun WrongBookScreen(
     onBack: () -> Unit,
     onGoPractice: () -> Unit
 ) {
+    val context = LocalContext.current
     val banks = QuizRepository.banks.toList()
     val allWrongBook = QuizRepository.wrongBook.toList()
-    var selectedScopeKey by rememberSaveable { mutableStateOf(WRONG_BOOK_PAGE_SCOPE_ALL) }
+    val rememberWrongBookState = QuizRepository.rememberWrongBookStateEnabled
+    val initialScopeKey = if (rememberWrongBookState) {
+        QuizRepository.rememberedWrongBookScopeKey
+    } else {
+        WRONG_BOOK_PAGE_SCOPE_ALL
+    }
+    var selectedScopeKey by rememberSaveable { mutableStateOf(initialScopeKey) }
     var showScopeDialog by remember { mutableStateOf(false) }
-    var filter by remember { mutableStateOf(WrongBookFilter.NOT_MASTERED) }
-    var sort by remember { mutableStateOf(WrongBookSort.RECENT_WRONG) }
-    var selectedTypes by remember { mutableStateOf(QuestionType.entries.toSet()) }
-    var reviewCountMode by remember { mutableStateOf(WrongBookReviewCountMode.ALL) }
-    var customReviewCount by remember { mutableStateOf(10) }
-    var customReviewCountText by remember { mutableStateOf("10") }
+    var filter by remember {
+        mutableStateOf(
+            if (rememberWrongBookState) {
+                WrongBookFilter.entries.firstOrNull { it.name == QuizRepository.rememberedWrongBookFilter }
+                    ?: WrongBookFilter.NOT_MASTERED
+            } else {
+                WrongBookFilter.NOT_MASTERED
+            }
+        )
+    }
+    var sort by remember {
+        mutableStateOf(
+            if (rememberWrongBookState) {
+                WrongBookSort.entries.firstOrNull { it.name == QuizRepository.rememberedWrongBookSort }
+                    ?: WrongBookSort.RECENT_WRONG
+            } else {
+                WrongBookSort.RECENT_WRONG
+            }
+        )
+    }
+    var selectedTypes by remember {
+        mutableStateOf(
+            if (rememberWrongBookState) QuizRepository.rememberedWrongBookTypes()
+            else QuestionType.entries.toSet()
+        )
+    }
+    var reviewCountMode by remember {
+        mutableStateOf(
+            if (rememberWrongBookState) {
+                WrongBookReviewCountMode.entries
+                    .firstOrNull { it.name == QuizRepository.rememberedWrongBookReviewCountMode }
+                    ?: WrongBookReviewCountMode.ALL
+            } else {
+                WrongBookReviewCountMode.ALL
+            }
+        )
+    }
+    var customReviewCount by remember {
+        mutableStateOf(if (rememberWrongBookState) QuizRepository.rememberedWrongBookCustomCount else 10)
+    }
+    var customReviewCountText by remember(customReviewCount) { mutableStateOf(customReviewCount.toString()) }
     var showCustomReviewCountDialog by remember { mutableStateOf(false) }
     var showClearWrongBookConfirm by remember { mutableStateOf(false) }
+
+    val rememberCurrentWrongBookState = {
+        QuizRepository.rememberWrongBookState(
+            context = context,
+            scopeKey = selectedScopeKey,
+            filter = filter.name,
+            sort = sort.name,
+            types = selectedTypes,
+            reviewCountMode = reviewCountMode.name,
+            customCount = customReviewCount
+        )
+    }
 
     val selectedBankId = selectedScopeKey
         .takeIf { it.startsWith(WRONG_BOOK_PAGE_SCOPE_BANK_PREFIX) }
@@ -205,6 +260,7 @@ fun WrongBookScreen(
             onConfirm = { count ->
                 customReviewCount = count
                 reviewCountMode = WrongBookReviewCountMode.CUSTOM
+                rememberCurrentWrongBookState()
                 showCustomReviewCountDialog = false
             }
         )
@@ -218,6 +274,7 @@ fun WrongBookScreen(
             onSelect = { key ->
                 selectedScopeKey = key
                 selectedTypes = QuestionType.entries.toSet()
+                rememberCurrentWrongBookState()
                 showScopeDialog = false
             },
             onDismiss = { showScopeDialog = false }
@@ -391,7 +448,10 @@ fun WrongBookScreen(
                                 .weight(1f)
                                 .height(44.dp),
                             fillWidthContent = true,
-                            onClick = { filter = item }
+                            onClick = {
+                                filter = item
+                                rememberCurrentWrongBookState()
+                            }
                         )
                     }
                 }
@@ -418,7 +478,10 @@ fun WrongBookScreen(
                                 text = "全部题型",
                                 primary = allAvailableSelected,
                                 modifier = Modifier.height(42.dp),
-                                onClick = { selectedTypes = QuestionType.entries.toSet() }
+                                onClick = {
+                                    selectedTypes = QuestionType.entries.toSet()
+                                    rememberCurrentWrongBookState()
+                                }
                             )
                             availableTypes.forEach { type ->
                                 val count = masteryFilteredEntries.count { it.question.type == type }
@@ -433,6 +496,7 @@ fun WrongBookScreen(
                                         } else {
                                             selectedTypes + type
                                         }
+                                        rememberCurrentWrongBookState()
                                     }
                                 )
                             }
@@ -479,6 +543,7 @@ fun WrongBookScreen(
                                         showCustomReviewCountDialog = true
                                     } else {
                                         reviewCountMode = item
+                                        rememberCurrentWrongBookState()
                                     }
                                 }
                             )
@@ -508,7 +573,10 @@ fun WrongBookScreen(
                                 .heightIn(min = 44.dp),
                             fillWidthContent = true,
                             textMaxLines = 2,
-                            onClick = { sort = item }
+                            onClick = {
+                                sort = item
+                                rememberCurrentWrongBookState()
+                            }
                         )
                     }
                 }

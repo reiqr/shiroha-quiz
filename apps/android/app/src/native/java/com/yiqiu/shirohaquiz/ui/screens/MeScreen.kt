@@ -683,6 +683,15 @@ fun WrongBookPreferenceScreen(
                     QuizRepository.setWrongBookAdvancedReviewSettingsEnabled(context, enabled)
                 }
             )
+            Spacer(Modifier.height(10.dp))
+            PreferenceSwitchRow(
+                title = "记住错题本状态",
+                desc = "下次进入时恢复上次选择的范围、掌握筛选、题型、题量和排序。",
+                checked = QuizRepository.rememberWrongBookStateEnabled,
+                onCheckedChange = { enabled ->
+                    QuizRepository.setRememberWrongBookStateEnabled(context, enabled)
+                }
+            )
         }
 
         WrongBookExplanationCard(

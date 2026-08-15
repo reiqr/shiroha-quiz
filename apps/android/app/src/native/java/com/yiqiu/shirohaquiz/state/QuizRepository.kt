@@ -191,6 +191,13 @@ object QuizRepository {
     private const val KEY_WRONG_BOOK_SMART_REVIEW_ENABLED = "wrong_book_smart_review_enabled"
     private const val KEY_WRONG_BOOK_SCOPE_MODE = "wrong_book_scope_mode"
     private const val KEY_WRONG_BOOK_ADVANCED_REVIEW_SETTINGS_ENABLED = "wrong_book_advanced_review_settings_enabled"
+    private const val KEY_REMEMBER_WRONG_BOOK_STATE = "remember_wrong_book_state"
+    private const val KEY_WRONG_BOOK_REMEMBERED_SCOPE_KEY = "wrong_book_remembered_scope_key"
+    private const val KEY_WRONG_BOOK_REMEMBERED_FILTER = "wrong_book_remembered_filter"
+    private const val KEY_WRONG_BOOK_REMEMBERED_SORT = "wrong_book_remembered_sort"
+    private const val KEY_WRONG_BOOK_REMEMBERED_TYPE_NAMES = "wrong_book_remembered_type_names"
+    private const val KEY_WRONG_BOOK_REMEMBERED_REVIEW_COUNT_MODE = "wrong_book_remembered_review_count_mode"
+    private const val KEY_WRONG_BOOK_REMEMBERED_CUSTOM_COUNT = "wrong_book_remembered_custom_count"
     private const val KEY_PRACTICE_PREFERRED_COUNT_MODE = "practice_preferred_count_mode"
     private const val KEY_PRACTICE_PREFERRED_CUSTOM_COUNT = "practice_preferred_custom_count"
     private const val KEY_PRACTICE_PREFERRED_ORDER_MODE = "practice_preferred_order_mode"
@@ -293,6 +300,19 @@ object QuizRepository {
     var wrongBookScopeMode by mutableStateOf(WRONG_BOOK_SCOPE_ALL_BANKS)
         private set
     var wrongBookAdvancedReviewSettingsEnabled by mutableStateOf(true)
+        private set
+    var rememberWrongBookStateEnabled by mutableStateOf(false)
+        private set
+    var rememberedWrongBookScopeKey by mutableStateOf("all")
+        private set
+    var rememberedWrongBookFilter by mutableStateOf("NOT_MASTERED")
+        private set
+    var rememberedWrongBookSort by mutableStateOf("RECENT_WRONG")
+        private set
+    private var rememberedWrongBookTypeNames by mutableStateOf(defaultWrongBookTypeNames())
+    var rememberedWrongBookReviewCountMode by mutableStateOf("ALL")
+        private set
+    var rememberedWrongBookCustomCount by mutableStateOf(10)
         private set
     var preferredPracticeQuestionCountMode by mutableStateOf("custom")
         private set
@@ -513,6 +533,26 @@ object QuizRepository {
             KEY_WRONG_BOOK_ADVANCED_REVIEW_SETTINGS_ENABLED,
             true
         )
+        rememberWrongBookStateEnabled = prefs.getBoolean(KEY_REMEMBER_WRONG_BOOK_STATE, false)
+        rememberedWrongBookScopeKey = normalizeRememberedWrongBookScopeKey(
+            value = prefs.getString(KEY_WRONG_BOOK_REMEMBERED_SCOPE_KEY, "all"),
+            availableBanks = sanitizedRestoredBanks
+        )
+        rememberedWrongBookFilter = normalizeRememberedWrongBookFilter(
+            prefs.getString(KEY_WRONG_BOOK_REMEMBERED_FILTER, "NOT_MASTERED")
+        )
+        rememberedWrongBookSort = normalizeRememberedWrongBookSort(
+            prefs.getString(KEY_WRONG_BOOK_REMEMBERED_SORT, "RECENT_WRONG")
+        )
+        rememberedWrongBookTypeNames = normalizeRememberedWrongBookTypeNames(
+            prefs.getString(KEY_WRONG_BOOK_REMEMBERED_TYPE_NAMES, defaultWrongBookTypeNames())
+        )
+        rememberedWrongBookReviewCountMode = normalizeRememberedWrongBookReviewCountMode(
+            prefs.getString(KEY_WRONG_BOOK_REMEMBERED_REVIEW_COUNT_MODE, "ALL")
+        )
+        rememberedWrongBookCustomCount = prefs
+            .getInt(KEY_WRONG_BOOK_REMEMBERED_CUSTOM_COUNT, 10)
+            .coerceAtLeast(1)
         preferredPracticeQuestionCountMode = normalizePracticeCountMode(
             prefs.getString(KEY_PRACTICE_PREFERRED_COUNT_MODE, "custom") ?: "custom"
         )
@@ -680,6 +720,9 @@ object QuizRepository {
         practiceReciteSequentialProgress.remove(bankId)
         practiceReciteSequentialProgress.remove("BANK:$bankId")
         studyRecords.removeAll { it.bankId == bankId }
+        if (rememberedWrongBookScopeKey == "bank:$bankId") {
+            rememberedWrongBookScopeKey = "all"
+        }
 
         if (removingActive || banks.none { it.id == activeBankId }) {
             activeBankId = banks.firstOrNull()?.id
@@ -1713,6 +1756,43 @@ object QuizRepository {
         appContext = context.applicationContext
         wrongBookAdvancedReviewSettingsEnabled = enabled
         persist()
+    }
+
+    fun setRememberWrongBookStateEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        rememberWrongBookStateEnabled = enabled
+        if (!enabled) resetRememberedWrongBookState()
+        persistWrongBookRememberedStatePreferences()
+    }
+
+    fun rememberedWrongBookTypes(): Set<QuestionType> {
+        return rememberedWrongBookTypeNames
+            .split(',')
+            .mapNotNull { raw -> runCatching { QuestionType.valueOf(raw.trim()) }.getOrNull() }
+            .toSet()
+    }
+
+    fun rememberWrongBookState(
+        context: Context,
+        scopeKey: String,
+        filter: String,
+        sort: String,
+        types: Set<QuestionType>,
+        reviewCountMode: String,
+        customCount: Int
+    ) {
+        if (!rememberWrongBookStateEnabled) return
+        appContext = context.applicationContext
+        rememberedWrongBookScopeKey = normalizeRememberedWrongBookScopeKey(scopeKey, banks)
+        rememberedWrongBookFilter = normalizeRememberedWrongBookFilter(filter)
+        rememberedWrongBookSort = normalizeRememberedWrongBookSort(sort)
+        rememberedWrongBookTypeNames = types
+            .map { it.name }
+            .sorted()
+            .joinToString(",")
+        rememberedWrongBookReviewCountMode = normalizeRememberedWrongBookReviewCountMode(reviewCountMode)
+        rememberedWrongBookCustomCount = customCount.coerceAtLeast(1)
+        persistWrongBookRememberedStatePreferences()
     }
 
     fun setPreferredPracticeMode(context: Context, mode: String) {
@@ -3294,6 +3374,7 @@ object QuizRepository {
         practiceSequentialProgress.clear()
         practiceReciteSequentialProgress.clear()
         studyRecords.clear()
+        resetRememberedWrongBookState()
         activeBankId = null
         resetPracticeState()
         resetExam()
@@ -3308,6 +3389,7 @@ object QuizRepository {
         practiceSequentialProgress.clear()
         practiceReciteSequentialProgress.clear()
         studyRecords.clear()
+        resetRememberedWrongBookState()
         activeBankId = null
         resetPracticeState()
         initialized = false
@@ -4060,6 +4142,72 @@ object QuizRepository {
         }
     }
 
+    private fun defaultWrongBookTypeNames(): String = QuestionType.entries
+        .map { it.name }
+        .sorted()
+        .joinToString(",")
+
+    private fun normalizeRememberedWrongBookScopeKey(value: String?, availableBanks: List<QuizBank>): String {
+        val normalized = value?.trim().orEmpty()
+        if (normalized == "all") return "all"
+        if (!normalized.startsWith("bank:")) return "all"
+        val bankId = normalized.removePrefix("bank:")
+        return normalized.takeIf { bankId.isNotBlank() && availableBanks.any { it.id == bankId } } ?: "all"
+    }
+
+    private fun normalizeRememberedWrongBookFilter(value: String?): String = when (value) {
+        "MASTERED" -> "MASTERED"
+        "ALL" -> "ALL"
+        else -> "NOT_MASTERED"
+    }
+
+    private fun normalizeRememberedWrongBookSort(value: String?): String = when (value) {
+        "WRONG_COUNT" -> "WRONG_COUNT"
+        "MASTERY" -> "MASTERY"
+        else -> "RECENT_WRONG"
+    }
+
+    private fun normalizeRememberedWrongBookTypeNames(value: String?): String {
+        val raw = value ?: return defaultWrongBookTypeNames()
+        return raw
+            .split(',')
+            .mapNotNull { name -> runCatching { QuestionType.valueOf(name.trim()) }.getOrNull() }
+            .map { it.name }
+            .distinct()
+            .sorted()
+            .joinToString(",")
+    }
+
+    private fun normalizeRememberedWrongBookReviewCountMode(value: String?): String = when (value) {
+        "TEN" -> "TEN"
+        "TWENTY" -> "TWENTY"
+        "CUSTOM" -> "CUSTOM"
+        else -> "ALL"
+    }
+
+    private fun resetRememberedWrongBookState() {
+        rememberedWrongBookScopeKey = "all"
+        rememberedWrongBookFilter = "NOT_MASTERED"
+        rememberedWrongBookSort = "RECENT_WRONG"
+        rememberedWrongBookTypeNames = defaultWrongBookTypeNames()
+        rememberedWrongBookReviewCountMode = "ALL"
+        rememberedWrongBookCustomCount = 10
+    }
+
+    private fun persistWrongBookRememberedStatePreferences() {
+        val context = appContext ?: return
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_REMEMBER_WRONG_BOOK_STATE, rememberWrongBookStateEnabled)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_SCOPE_KEY, rememberedWrongBookScopeKey)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_FILTER, rememberedWrongBookFilter)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_SORT, rememberedWrongBookSort)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_TYPE_NAMES, rememberedWrongBookTypeNames)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_REVIEW_COUNT_MODE, rememberedWrongBookReviewCountMode)
+            .putInt(KEY_WRONG_BOOK_REMEMBERED_CUSTOM_COUNT, rememberedWrongBookCustomCount)
+            .apply()
+    }
+
     private fun currentPracticeWrongSource(): String {
         return when (practiceSourceLabel) {
             "错题本" -> "错题练习"
@@ -4289,6 +4437,13 @@ object QuizRepository {
             .putBoolean(KEY_WRONG_BOOK_SMART_REVIEW_ENABLED, wrongBookSmartReviewEnabled)
             .putString(KEY_WRONG_BOOK_SCOPE_MODE, wrongBookScopeMode)
             .putBoolean(KEY_WRONG_BOOK_ADVANCED_REVIEW_SETTINGS_ENABLED, wrongBookAdvancedReviewSettingsEnabled)
+            .putBoolean(KEY_REMEMBER_WRONG_BOOK_STATE, rememberWrongBookStateEnabled)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_SCOPE_KEY, rememberedWrongBookScopeKey)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_FILTER, rememberedWrongBookFilter)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_SORT, rememberedWrongBookSort)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_TYPE_NAMES, rememberedWrongBookTypeNames)
+            .putString(KEY_WRONG_BOOK_REMEMBERED_REVIEW_COUNT_MODE, rememberedWrongBookReviewCountMode)
+            .putInt(KEY_WRONG_BOOK_REMEMBERED_CUSTOM_COUNT, rememberedWrongBookCustomCount)
             .putString(KEY_PRACTICE_PREFERRED_COUNT_MODE, preferredPracticeQuestionCountMode)
             .putInt(KEY_PRACTICE_PREFERRED_CUSTOM_COUNT, preferredPracticeCustomQuestionCount)
             .putString(KEY_PRACTICE_PREFERRED_ORDER_MODE, preferredPracticeOrderMode)
