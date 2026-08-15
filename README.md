@@ -1,8 +1,5 @@
 <div align="center">
 
-> [!NOTE]
-> 最近空闲时间沉迷「黑夜君临」，更新不会很勤快（）祝大家刷题顺利~
-
 <img src="assets/promo4.jpg" width="800" alt="Shiroha Quiz">
 </div>
 
@@ -12,7 +9,7 @@
 
 <img src="assets/shiroha_quiz_ui_assets_v2_cutout/illus_me_settings.webp" width="160" align="right" alt="看板娘" />
 
-Shiroha Quiz 一个轻量、开源的刷题工具，支持自导入题库、练习、考试、与多端使用。
+Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、练习、考试、与多端使用。
 
 Shiroha Quiz 解决一个很实际的问题：
 
@@ -20,25 +17,34 @@ Shiroha Quiz 解决一个很实际的问题：
 
 当前项目主要包含两条公开使用线：
 
-- **Web 版**：在线即可使用，支持题库导入、刷题考试、错题复习、分组练习、数据备份与跨端互通；当前 V37 增加 AI 辅助导入、AI 核对、AI 补解析和选中文本/题号范围处理，V36 起提供扫描 PDF OCR 测试，可将扫描 PDF 识别为文本或 DOCX，适合桌面端整理题库和快速体验。
-- **Android 原生 Compose 版**：当前主推安装包，使用 Kotlin + Compose 原生实现，支持多空填空、平板侧边导航、暗夜模式、AI 导入核对/补解析/单题追问、图片题、背题模式、斩题、智能复习、收藏、快速编辑和错题复盘。
+- **Web 版**：在线即可使用，支持题库导入、刷题考试、错题复习、分组练习、数据备份与跨端互通；V37 起含 AI 辅助导入与扫描 PDF OCR 测试入口，适合桌面端整理题库和快速体验。
+- **Android 原生 Compose 版**：当前主推安装包，使用 Kotlin + Compose 原生实现，AI 全功能、多空填空、背题/斩题、图片题等原生体验。
 
 <br style="clear:both">
 
 ---
 
-### 快速入口
+## 快速开始
+
+| 你的情况 | 推荐版本 | 入口 |
+| --- | --- | --- |
+| 用手机（Android） | 原生 Compose 版 `v0.9.8.4-native`（主推） | [下载 APK](https://github.com/reiqr/shiroha-quiz/releases) |
+| 电脑上 / 想先快速体验 | Web 版 `v0.8.4.3-alpha` | [在线版](https://reiqr.github.io/shiroha-quiz) |
+| 想要最新功能、双端都用 | 统一发布版 `v2.8.6-beta`（一次发布含 APK + Web ZIP） | [Releases](https://github.com/reiqr/shiroha-quiz/releases) |
+
+> **当前为 beta 测试阶段，功能尚在完善中，不建议用于高风险正式考试场景。** 使用前请阅读[数据备份建议](#数据备份建议)。
+
+更多入口：
 
 | 想做什么 | 入口 |
 | --- | --- |
-| 直接体验 Web 版 | [下载与使用](#下载与使用) |
-| 下载 Android 安装包 | [下载与使用](#下载与使用) |
-| 了解原生版和 Web 版区别 | [Android 版本说明](#android-版本说明) |
 | 查看主要功能 | [当前能力](#当前能力) |
 | 导入自己的题库 | [导入格式与策略](#导入格式与策略) |
-| 本地运行项目 | [本地运行](#本地运行) |
-| 跑解析器回归测试 | [测试与回归](#测试与回归) |
+| 原生版和 Web 版区别 | [Android 版本说明](#android-版本说明) |
+| 使用说明 | [Web 端快速上手](#web-端快速上手) / [原生版快速上手](#原生-compose-版快速上手) |
 | 提交问题或建议 | [参与贡献 / 提交反馈](#参与贡献--提交反馈) |
+
+> 开发者入口（本地运行、回归测试、文档索引）见文末 [本地运行](#本地运行)、[测试与回归](#测试与回归)、[开发计划](#开发计划)。
 
 ---
 
@@ -134,6 +140,7 @@ Shiroha Quiz 解决一个很实际的问题：
 - **原生版 AI 单题追问（练习页）**：练习中可围绕当前题继续追问，生成的解析可保存回题库，并同步当前练习、错题本和收藏夹中的题目副本。
 - 支持 DeepSeek、OpenAI 兼容接口和自定义接口，可配置 API 地址、API Key 与模型名称；Web 版也可配置 Ollama / LM Studio 等本机 OpenAI 兼容服务。
 - AI 结果仅作辅助参考。涉及答案、题型和解析的写入都应经过用户确认，不建议把不确定答案交给 AI 编造。
+- **隐私提示**：使用 AI 功能时，当前题目文本会发送到你配置的 AI 服务提供商（DeepSeek / OpenAI / Ollama 等）。API Key 不会写入源码、备份或打包文件，但请勿将敏感内容用于 AI 处理；本地 Ollama / LM Studio 可完全离线运行。
 
 ### 视觉与体验（原生版）
 
@@ -148,9 +155,7 @@ Shiroha Quiz 解决一个很实际的问题：
 
 ## Android 版本说明
 
-<!-- ![原生 Compose 版截图](assets/screenshot-native.png) -->
-
-Releases 页面推荐下载原生 Compose 版 APK：
+Releases 页面推荐下载原生 Compose 版 APK（支持 Android 8.0+，即 API 26+）：
 
 - Kotlin + Compose 纯原生实现，当前主要开发线
 - 更美观、更易用、刷题体验更好：Material3 原生界面、流畅动画与手势、平板自适应侧边导航、暗夜模式、系统返回键、Design Token 视觉规范
@@ -171,7 +176,7 @@ Android 工程通过 `productFlavors` 保留历史 WebView 壳与当前原生版
 
 ### Web 端快速上手
 
-1. 打开 `apps/web/index.html`，或访问 [在线版](https://reiqr.github.io/shiroha-quiz)。如果要使用 OCR，建议双击 `apps/web/打开Shiroha Quiz.cmd` 启动本地服务后访问网页。
+1. 打开 [在线版](https://reiqr.github.io/shiroha-quiz) 即可使用（无需安装）。如果要使用 OCR 扫描 PDF，建议[本地运行](#本地运行)后访问。
 2. 进入 **导入题库**，粘贴文本或上传文件。
 3. 系统自动识别题型、选项、答案和解析；扫描 PDF 可先在 OCR 测试区转成文本或 DOCX。
 4. 在识别预览中确认题目无误。
@@ -206,7 +211,9 @@ Shiroha Quiz 的题库和记录保存在本地存储中（Web 端使用浏览器
 
 ## 导入格式与策略
 
-支持 `docx`（推荐）、`xlsx`/`xls` 表格、`txt`、`json`、粘贴纯文本、题目+答案双文件导入，也可辅助解析文字层 `pdf`。Web 版 V36 起提供扫描 PDF OCR 测试，可生成可编辑文本或 DOCX 后再人工核对导入；V37 增加 AI 辅助导入、核对和补解析。系统自动识别题号、题干、选项、答案、解析、题型、分区/分卷；原生版额外加强了共用题干、材料题、集中答案解析区、答案区后续正文恢复和分析分步防误切。导入后会进入识别预览，供逐题确认。
+支持格式：`docx`（推荐）、`xlsx`/`xls` 表格、`txt`、`json`、粘贴纯文本、题目+答案双文件导入，也可辅助解析文字层 `pdf`；Web 版提供扫描 PDF OCR 测试，原生版额外加强共用题干、材料题、集中答案解析区等边界识别。
+
+导入流程：上传/粘贴 → 自动识别题号、题干、选项、答案、解析、题型、分区/分卷 → 进入识别预览逐题确认 → 导入题库。V37 起可先用 AI 辅助整理、核对或补全解析。
 
 详细说明：
 
@@ -292,11 +299,7 @@ apps/web/index.html
 npx serve apps/web
 ```
 
-在线版：
-
-```text
-https://reiqr.github.io/shiroha-quiz
-```
+在线版：[https://reiqr.github.io/shiroha-quiz](https://reiqr.github.io/shiroha-quiz)
 
 ### Android 端
 
@@ -365,23 +368,24 @@ cd test\native-parser-regression
 
 最新版本请以 [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 为准。当前仓库文档记录的主要版本线为：
 
-- 统一发布版：**v2.8.6-beta**
+- 统一发布版：**v2.8.6-beta**（双端一次发布，含 APK + Web ZIP）
 - Web 版：**v0.8.4.3-alpha**
 - 原生 Compose 版：**v0.9.8.4-native**
 
-`v0.9.7-native` 近期原生版重点：**AI 导入核对与补解析**（批次任务、范围选择、进度面板）、**AI 单题追问**（会话式交互、解析保存到题库）、**答案区恢复与防截断修复**（答案区后续正文恢复、解析分步编号不误切、全文预截断修复）。此前 `v0.9.x-native` 已完成多空填空题全链路、CodeLikeTextGuard 代码表达式守卫、分组练习范围、平板侧边导航、系统返回键、图片选项识别、DOCX 紧凑选项修复、判分归一化、跨端互通和解析器外部回归增强。
+`v0.9.x-native` 系列近期重点：**AI 导入核对与补解析**（批次任务、范围选择、进度面板）、**AI 单题追问**（会话式交互、解析保存到题库）、**答案区恢复与防截断修复**（答案区后续正文恢复、解析分步编号不误切、全文预截断修复）、**图片题支持**（纯图片题干与图片选项识别）、**练习答题卡升级**与**错题本状态记忆**。此外已完成多空填空题全链路、CodeLikeTextGuard 代码表达式守卫、分组练习范围、平板侧边导航、判分归一化、跨端互通和解析器外部回归增强。
 
-`v0.8.3-alpha` Web 版重点：**AI 辅助导入**（整理/核对/补解析三维度）、**选中文本与题号范围处理**、**导入追加异步化和失败回滚**、**原生兼容 ZIP 导出**。`v0.8.0-alpha` 起提供 OCR 扫描件兜底、MathJax 3.2.2 本地化、PDF.js 完整版和 LaTeX 公式防选项误判。
+`v0.8.x-alpha` Web 版重点：**AI 辅助导入**（整理/核对/补解析三维度）、**AI 连接诊断面板**（错误分类/跨域排查）、**共用材料题干回填**、**选中文本与题号范围处理**、**导入大文件预警**、**原生兼容 ZIP 导出**。`v0.8.0-alpha` 起提供 OCR 扫描件兜底、MathJax 3.2.2 本地化、PDF.js 完整版和 LaTeX 公式防选项误判。
 
 每次发布包含 Android APK 与 Web ZIP。
 
 Web ZIP 不含离线扩展库（PDF.js 完整包、MathJax、Tesseract OCR，合计约 88 MB）。解压后运行 `libs/download-*.ps1` 按需下载，也可直接联网使用 CDN 兜底。详见 `额外附加功能说明.txt`。
 
-> **当前为 beta 测试阶段，功能尚在完善中，不建议用于高风险正式考试场景。**
-
 ---
 
 ## 开发计划
+
+> [!NOTE]
+> 最近空闲时间沉迷「黑夜君临」，更新不会很勤快（）祝大家刷题顺利~
 
 历史开发计划已归档至 `docs/archive/`，当前功能状态以本 README、[CHANGELOG](./CHANGELOG.md)、[GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 和 [原生 Android 开发进度](docs/native/原生开发进度.md) 为准。
 
