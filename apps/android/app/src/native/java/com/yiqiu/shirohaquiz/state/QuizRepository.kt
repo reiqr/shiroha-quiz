@@ -2,6 +2,8 @@ package com.yiqiu.shirohaquiz.state
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import android.util.Base64
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -166,6 +168,7 @@ object QuizRepository {
     const val PRACTICE_SCOPE_GROUP = "GROUP"
 
     private const val PREFS_NAME = "shiroha_quiz_native"
+    private const val ENCRYPTED_PREFS_NAME = "shiroha_quiz_native_secure"
     private const val KEY_BANKS = "banks"
     private const val KEY_ACTIVE_BANK_ID = "active_bank_id"
     private const val KEY_PRACTICE_SCOPE_TYPE = "practice_scope_type"
@@ -589,7 +592,17 @@ object QuizRepository {
         compactOptionsEnabled = prefs.getBoolean(KEY_COMPACT_OPTIONS_ENABLED, false)
         aiProvider = prefs.getString(KEY_AI_PROVIDER, "DeepSeek") ?: "DeepSeek"
         aiApiBaseUrl = prefs.getString(KEY_AI_API_BASE_URL, "") ?: ""
-        aiApiKey = prefs.getString(KEY_AI_API_KEY, "") ?: ""
+        val masterKey = MasterKey.Builder(context.applicationContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        val encryptedPrefs = EncryptedSharedPreferences.create(
+            context.applicationContext,
+            ENCRYPTED_PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+        aiApiKey = encryptedPrefs.getString(KEY_AI_API_KEY, "") ?: ""
         aiModelName = prefs.getString(KEY_AI_MODEL_NAME, "") ?: ""
         aiRefactorEnabled = prefs.getBoolean(KEY_AI_REFACTOR_ENABLED, false)
         aiReviewEnabled = prefs.getBoolean(KEY_AI_REVIEW_ENABLED, false)
@@ -4468,7 +4481,20 @@ object QuizRepository {
             .putBoolean(KEY_COMPACT_OPTIONS_ENABLED, compactOptionsEnabled)
             .putString(KEY_AI_PROVIDER, aiProvider)
             .putString(KEY_AI_API_BASE_URL, aiApiBaseUrl)
-            .putString(KEY_AI_API_KEY, aiApiKey)
+            .also {
+                appContext?.let { ctx ->
+                    val masterKey = MasterKey.Builder(ctx)
+                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                        .build()
+                    EncryptedSharedPreferences.create(
+                        ctx,
+                        ENCRYPTED_PREFS_NAME,
+                        masterKey,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                    ).edit().putString(KEY_AI_API_KEY, aiApiKey).apply()
+                }
+            }
             .putString(KEY_AI_MODEL_NAME, aiModelName)
             .putBoolean(KEY_AI_REFACTOR_ENABLED, aiRefactorEnabled)
             .putBoolean(KEY_AI_REVIEW_ENABLED, aiReviewEnabled)
