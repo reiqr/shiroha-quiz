@@ -414,18 +414,15 @@ fun PracticeScreen(
                                 onClick = { isPracticeProgressExpanded = true }
                             )
                         }
-                        if (isPracticeRunning && !isReciteMode) {
-                            PracticeAnswerSheetShortcut(
-                                onClick = { showPracticeAnswerSheet = true }
+                        if (!isPracticeRunning) {
+                            ActionPillButton(
+                                icon = Icons.Rounded.Timer,
+                                text = "切换考试",
+                                primary = false,
+                                modifier = Modifier.height(44.dp),
+                                onClick = onGoExam
                             )
                         }
-                        ActionPillButton(
-                            icon = Icons.Rounded.Timer,
-                            text = "切换考试",
-                            primary = false,
-                            modifier = Modifier.height(44.dp),
-                            onClick = onGoExam
-                        )
                     }
                 }
             }
@@ -1444,8 +1441,14 @@ fun PracticeScreen(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = if (isReciteMode) Arrangement.End else Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            if (!isReciteMode) {
+                PracticeAnswerSheetShortcut(
+                    onClick = { showPracticeAnswerSheet = true }
+                )
+            }
             QuizSessionExitIconButton(
                 contentDescription = "退出练习",
                 onClick = { showExitPracticeConfirm = true }
@@ -2705,28 +2708,23 @@ private fun PracticeProgressCapsule(
 private fun PracticeAnswerSheetShortcut(
     onClick: () -> Unit
 ) {
-    Box(
+    Surface(
         modifier = Modifier
-            .size(44.dp)
+            .size(46.dp)
             .semantics { contentDescription = "打开答题卡" }
             .practiceNoRipplePillClick(onClick = onClick),
-        contentAlignment = Alignment.Center
+        shape = CircleShape,
+        color = ShirohaColors.CardWhite86,
+        border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineStrong)
     ) {
-        Surface(
-            modifier = Modifier.size(34.dp),
-            shape = CircleShape,
-            color = ShirohaColors.CardWhite86,
-            border = BorderStroke(ShirohaDimens.Hairline, ShirohaColors.LineSelected)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = "答",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1
-                )
-            }
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = "答",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1
+            )
         }
     }
 }
