@@ -28,9 +28,9 @@ Shiroha Quiz 解决一个很实际的问题：
 
 | 你的情况 | 推荐版本 | 入口 |
 | --- | --- | --- |
-| 用手机（Android） | 原生 Compose 版 `v0.9.8.4-native`（**主推**） | [下载 APK](https://github.com/reiqr/shiroha-quiz/releases) |
-| 电脑上 / 想先快速体验 | Web 版 `v0.8.4.3-alpha` | [在线版](https://reiqr.github.io/shiroha-quiz) |
-| 想要最新功能、双端都用 | 统一发布版 `v2.8.6-beta`（一次发布含 APK + Web ZIP） | [Releases](https://github.com/reiqr/shiroha-quiz/releases) |
+| 用手机（Android） | 原生 Compose 版 `v0.9.9-native`（**主推**） | [下载 APK](https://github.com/reiqr/shiroha-quiz/releases) |
+| 电脑上 / 想先快速体验 | Web 版 `v0.8.5-alpha` | [在线版](https://reiqr.github.io/shiroha-quiz) |
+| 想要最新功能、双端都用 | 统一发布版 `v2.8.7-beta`（一次发布含 APK + Web ZIP） | [Releases](https://github.com/reiqr/shiroha-quiz/releases) |
 
 > **当前为 beta 测试阶段，功能尚在完善中，不建议用于高风险正式考试场景。** 使用前请阅读[数据备份建议](#数据备份建议)。
 
@@ -368,12 +368,14 @@ cd test\native-parser-regression
 
 最新版本请以 [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 为准。当前仓库文档记录的主要版本线为：
 
-- 统一发布版：`v2.8.6-beta`（双端一次发布，含 APK + Web ZIP）
-- Web 版：`v0.8.4.3-alpha`
-- 原生 Compose 版：`v0.9.8.4-native`
+- 统一发布版：`v2.8.7-beta`（双端一次发布，含 APK + Web ZIP）
+- Web 版：`v0.8.5-alpha`
+- 原生 Compose 版：`v0.9.9-native`
 
 `v0.9.x-native` 系列近期重点：
 
+- **文档识别**：MinerU 在线 OCR 解析扫描版 PDF，免费/精准双模式，图片提取与人工绑定
+- **WebDAV 云备份**：备份到自己的云盘，支持自动备份与覆盖恢复
 - **AI 导入核对与补解析**：批次任务、范围选择、进度面板
 - **AI 单题追问**：会话式交互、解析保存到题库
 - **答案区恢复与防截断修复**：答案区后续正文恢复、解析分步编号不误切
@@ -384,6 +386,7 @@ cd test\native-parser-regression
 
 `v0.8.x-alpha` Web 版重点：
 
+- **WebDAV 云备份**：备份到自己的云盘，含 SHA-256 校验与合并/覆盖恢复
 - **AI 辅助导入**：整理/核对/补解析三维度
 - **AI 连接诊断面板**：错误分类/跨域排查
 - **共用材料题干回填** 与 **选中文本与题号范围处理**
