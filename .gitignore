@@ -105,4 +105,6 @@ test/native-parser-regression/CLAUDE.md
 !.env.example
 !.env.sample
 !.env.template
-.vercel/
+
+# Web AI regression runtime reports
+test/web-ai-practice/reports/
