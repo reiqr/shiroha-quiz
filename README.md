@@ -20,6 +20,9 @@ Shiroha Quiz 解决一个很实际的问题：
 - **Web 版**：在线即可使用，支持题库导入、刷题考试、错题复习、分组练习、数据备份与跨端互通；含 AI 辅助导入、扫描 PDF OCR 测试入口与练习页单题 AI 解析追问，适合桌面端整理题库和快速体验。
 - **Android 原生 Compose 版**：当前主推安装包，使用 Kotlin + Compose 原生实现，**AI 全功能**、**多空填空**、**背题/斩题**、**图片题**等原生体验。
 
+> [!IMPORTANT]
+> **更新节奏**：最近工作稍微闲了一些，应该会开始恢复更新。问题反馈仍欢迎提交。
+
 <br style="clear:both">
 
 ---
@@ -403,9 +406,6 @@ Web ZIP **不含离线扩展库**（PDF.js 完整包、MathJax、Tesseract OCR�
 ---
 
 ## 开发计划
-
-> [!NOTE]
-> 最近本职工作忙到炸，可能一个月左右不会太更新（）祝大家刷题顺利~
 
 历史开发计划已归档至 `docs/archive/`，当前功能状态以本 README、[CHANGELOG](./CHANGELOG.md)、[GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 和 [原生 Android 开发进度](docs/native/原生开发进度.md) 为准。
 
