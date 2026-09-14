@@ -17,7 +17,7 @@ Shiroha Quiz 解决一个很实际的问题：
 
 当前项目主要包含两条公开使用线：
 
-- **Web 版**：在线即可使用，支持题库导入、刷题考试、错题复习、分组练习、数据备份与跨端互通；含 AI 辅助导入与扫描 PDF OCR 测试入口，仓库源码新增单题 AI 解析与追问，适合桌面端整理题库和快速体验。
+- **Web 版**：在线即可使用，支持题库导入、刷题考试、错题复习、分组练习、数据备份与跨端互通；含 AI 辅助导入、扫描 PDF OCR 测试入口与练习页单题 AI 解析追问，适合桌面端整理题库和快速体验。
 - **Android 原生 Compose 版**：当前主推安装包，使用 Kotlin + Compose 原生实现，**AI 全功能**、**多空填空**、**背题/斩题**、**图片题**等原生体验。
 
 <br style="clear:both">
@@ -28,9 +28,9 @@ Shiroha Quiz 解决一个很实际的问题：
 
 | 你的情况 | 推荐版本 | 入口 |
 | --- | --- | --- |
-| 用手机（Android） | 原生 Compose 版 `v0.9.9-native`（**主推**） | [下载 APK](https://github.com/reiqr/shiroha-quiz/releases) |
-| 电脑上 / 想先快速体验 | Web 版 `v0.8.5-alpha` | [在线版](https://reiqr.github.io/shiroha-quiz) |
-| 想要最新功能、双端都用 | 统一发布版 `v2.8.7-beta`（一次发布含 APK + Web ZIP） | [Releases](https://github.com/reiqr/shiroha-quiz/releases) |
+| 用手机（Android） | 原生 Compose 版 `v0.9.9.1-native`（**主推**） | [下载 APK](https://github.com/reiqr/shiroha-quiz/releases) |
+| 电脑上 / 想先快速体验 | Web 版 `v0.8.6-alpha` | [在线版](https://reiqr.github.io/shiroha-quiz) |
+| 想要最新功能、双端都用 | 统一发布版 `v2.8.8-beta`（一次发布含 APK + Web ZIP） | [Releases](https://github.com/reiqr/shiroha-quiz/releases) |
 
 > **当前为 beta 测试阶段，功能尚在完善中，不建议用于高风险正式考试场景。** 使用前请阅读[数据备份建议](#数据备份建议)。
 
@@ -135,7 +135,7 @@ Shiroha Quiz 解决一个很实际的问题：
 ### AI 智能功能
 
 - **Web 版 AI 辅助导入**：支持整理原文、核对导入结果、补全解析三类辅助；可按选中文本、题号范围或条件筛选处理，适合在桌面端做题库清洗。
-- **Web 版 AI 单题解析与追问（仓库源码，待发布）**：练习作答后或查看答案后按需开启，追问记录按题目和本轮练习隔离；确认后只保存解析，不改变题干、选项、答案和作答进度，存储失败保留草稿并回滚。当前只发送文字，图片题须人工核对。
+- **Web 版 AI 单题解析与追问**：练习作答后或查看答案后按需开启，追问记录按题目和本轮练习隔离；确认后只保存解析，不改变题干、选项、答案和作答进度，存储失败保留草稿并回滚。当前只发送文字，图片题须人工核对。
 - **原生版 AI 核对 / 补解析（导入页）**：导入预览中可按异常题、缺解析题、题号范围或当前筛选结果批量处理，并显示批次进度。
 - **原生版 AI 补解析（编辑器）**：题库编辑、审阅、导入预览、快速编辑等入口统一集成，一键生成解析建议。
 - **原生版 AI 单题追问（练习页）**：练习中可围绕当前题继续追问，生成的解析可保存回题库，并同步当前练习、错题本和收藏夹中的题目副本。
@@ -369,9 +369,9 @@ cd test\native-parser-regression
 
 最新版本请以 [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 为准。当前仓库文档记录的主要版本线为：
 
-- 统一发布版：`v2.8.7-beta`（双端一次发布，含 APK + Web ZIP）
-- Web 版：`v0.8.5-alpha`
-- 原生 Compose 版：`v0.9.9-native`
+- 统一发布版：`v2.8.8-beta`（双端一次发布，含 APK + Web ZIP）
+- Web 版：`v0.8.6-alpha`
+- 原生 Compose 版：`v0.9.9.1-native`
 
 `v0.9.x-native` 系列近期重点：
 
@@ -389,7 +389,7 @@ cd test\native-parser-regression
 
 - **WebDAV 云备份**：备份到自己的云盘，含 SHA-256 校验与合并/覆盖恢复
 - **AI 辅助导入**：整理/核对/补解析三维度
-- **单题 AI 解析与追问（源码待发布）**：按需开启，解析确认保存，练习轮次之间不串会话
+- **单题 AI 解析与追问**：按需开启，解析确认保存，练习轮次之间不串会话
 - **AI 连接诊断面板**：错误分类/跨域排查
 - **共用材料题干回填** 与 **选中文本与题号范围处理**
 - **导入大文件预警** 与 **原生兼容 ZIP 导出**
@@ -442,8 +442,8 @@ Web ZIP **不含离线扩展库**（PDF.js 完整包、MathJax、Tesseract OCR�
 
 感谢以下贡献者对项目的帮助：
 
-- [@jiesou](https://github.com/jiesou) —— 提供了 Web 练习页单题 AI 解析与追问的初始实现，已部分采纳并保留作者署名
-- [@anupamme](https://github.com/anupamme) —— 报告了 AI API Key 明文存储的安全问题
+- [@jiesou](https://github.com/jiesou) —— 独立实现了 Web 练习页单题 AI 解析与追问（已采纳并加固）与 WebDAV 同步，保留作者署名
+- [@anupamme](https://github.com/anupamme) —— 指出 AI API Key 明文存储问题，其最小修复改动已采纳，保留作者署名
 
 ---
 

@@ -2,7 +2,7 @@
 
 这里整理当前仍建议阅读的文档入口。每个主要文档按主题放在独立文件夹中，Markdown 用于 GitHub 阅读，Word 用于本地查看或分发；有 PDF 的文档会在同一文件夹内同时提供。历史计划和旧方案统一放在 `archive/`，避免和当前主线混在一起。
 
-当前主线：Web 版与原生 Android Compose 版均已加入 WebDAV 云备份，原生版已更新到 `v0.9.9-native`，重点能力包括文档识别（MinerU 在线 OCR）、WebDAV 云备份、AI 导入核对 / 补解析、AI 单题追问和答案区恢复。原生解析器外部回归当前维护 63 个有效 parser 用例，编号已扩展到 64。具体功能状态以根目录 [README](../README.md) 和 [CHANGELOG](../CHANGELOG.md) 为准。
+当前主线：Web 版与原生 Android Compose 版均已加入 WebDAV 云备份与单题 AI 解析追问，原生版已更新到 `v0.9.9.1-native`，重点能力包括文档识别（MinerU 在线 OCR）、WebDAV 云备份、AI 导入核对 / 补解析、单题 AI 追问和答案区恢复。原生解析器外部回归当前维护 63 个有效 parser 用例，编号已扩展到 64。具体功能状态以根目录 [README](../README.md) 和 [CHANGELOG](../CHANGELOG.md) 为准。
 
 ## 目录
 
