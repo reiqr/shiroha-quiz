@@ -98,3 +98,4 @@ CLAUDE.md
 apps/web/CLAUDE.md
 apps/android/CLAUDE.md
 test/native-parser-regression/CLAUDE.md
+.env*
