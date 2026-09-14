@@ -5360,7 +5360,6 @@ object QuizRepository {
             .putBoolean(KEY_COMPACT_OPTIONS_ENABLED, compactOptionsEnabled)
             .putString(KEY_AI_PROVIDER, aiProvider)
             .putString(KEY_AI_API_BASE_URL, aiApiBaseUrl)
-            .putString(KEY_AI_API_KEY, aiApiKey)
             .putString(KEY_AI_MODEL_NAME, aiModelName)
             .putBoolean(KEY_AI_REFACTOR_ENABLED, aiRefactorEnabled)
             .putBoolean(KEY_AI_REVIEW_ENABLED, aiReviewEnabled)
