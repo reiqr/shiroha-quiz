@@ -92,6 +92,9 @@ apps/server/
 docs/CODEMAPS/
 .reports/
 
+# Vercel CLI link config (local only)
+.vercel
+
 # AI-generated context docs (local only, not for commit)
 .claude/
 CLAUDE.md

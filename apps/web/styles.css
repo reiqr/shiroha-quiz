@@ -7772,6 +7772,41 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
 .ai-preview-meta-grid-v991{grid-template-columns:repeat(5,minmax(0,1fr))}
 /* SHIROHA_WEB_ISSUE_99_STAGE1_RANGE_CONTROL_V992_END */
 
+/* SHIROHA_WEB_PRACTICE_AI_SINGLE_QUESTION_V613_START */
+.practice-ai-panel-v613{margin-top:14px;padding:15px 16px;border:1px solid rgba(14,116,144,.18);border-radius:18px;background:linear-gradient(135deg,#f8fdff,#fff);box-shadow:0 8px 20px rgba(15,23,42,.04)}
+.practice-ai-head-v613{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.practice-ai-head-v613 b{display:block;color:#173a69}
+.practice-ai-head-v613 span:not(.pill){display:block;color:var(--muted);font-size:12px;margin-top:4px;overflow-wrap:anywhere}
+.practice-ai-status-v613{flex:0 0 auto;font-size:12px}
+.practice-ai-status-v613.is-busy{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.practice-ai-hint-v613{margin:0;color:var(--muted);font-size:13px;line-height:1.65}
+.practice-ai-meta-v613{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 10px}
+.practice-ai-meta-v613 span:not(.pill){color:#334155;font-size:13px;line-height:1.6}
+.practice-ai-confidence-v613{font-size:12px}
+.practice-ai-confidence-v613.is-high{background:#effdf5;border-color:#bbf7d0;color:#166534}
+.practice-ai-confidence-v613.is-medium{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.practice-ai-confidence-v613.is-low{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+.practice-ai-text-v613{padding:12px 13px;border:1px solid #d9edf3;border-radius:13px;background:#fff;color:#263f50;line-height:1.75;overflow-wrap:anywhere}
+.practice-ai-warn-v613{margin:10px 0 0;padding:9px 11px;border:1px solid #fecaca;border-radius:12px;background:#fef2f2;color:#b91c1c;font-size:13px;line-height:1.6}
+.practice-ai-note-v613{margin:8px 0 0;color:#64748b;font-size:13px;line-height:1.65}
+.practice-ai-message-v613{margin:10px 0 0}
+.practice-ai-actions-v613{margin-top:12px;flex-wrap:wrap}
+.practice-ai-chat-v613{margin-top:12px;display:grid;gap:9px}
+.practice-ai-chat-v613>b{color:#173a69;font-size:13px}
+.practice-ai-msg-v613{display:grid;gap:5px;padding:10px 11px;border:1px solid #e5edf8;border-radius:13px;background:#fff}
+.practice-ai-msg-v613.is-user{background:#f5f9ff;border-color:rgba(37,99,235,.2)}
+.practice-ai-msg-v613>span{color:#64748b;font-size:12px;font-weight:600}
+.practice-ai-msg-v613>div{color:#263f50;font-size:14px;line-height:1.7;overflow-wrap:anywhere}
+.practice-ai-follow-v613{margin-top:12px;display:grid;gap:9px}
+.practice-ai-follow-v613 textarea{width:100%;min-height:58px;padding:10px 12px;border:1px solid var(--line);border-radius:13px;font:inherit;font-size:14px;line-height:1.6;resize:vertical}
+.practice-ai-follow-v613 textarea:focus{outline:none;border-color:rgba(37,99,235,.36);box-shadow:0 0 0 2px rgba(37,99,235,.06)}
+.practice-ai-follow-v613 .mini-btn{justify-self:start}
+@media(max-width:720px){
+  .practice-ai-panel-v613{padding:13px 13px}
+  .practice-ai-actions-v613 .mini-btn{flex:1 1 auto}
+}
+/* SHIROHA_WEB_PRACTICE_AI_SINGLE_QUESTION_V613_END */
+
 @media(max-width:720px){
   .ai-diagnostics-head-v375{display:block}
   .ai-diagnostics-actions-v375{justify-content:flex-start;margin-top:10px}
