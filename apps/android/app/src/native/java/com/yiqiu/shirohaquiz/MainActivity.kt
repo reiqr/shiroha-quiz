@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         QuizRepository.init(applicationContext)
         DocumentRecognitionManager.init(applicationContext)
+        com.yiqiu.shirohaquiz.sync.webdav.WebDavAutoBackup.schedule(applicationContext)
         LauncherIconSwitcher.applyShirohaMode(applicationContext, QuizRepository.shirohaModeEnabled)
         applyStatusBarTheme(QuizRepository.darkThemeEnabled)
         setContent {

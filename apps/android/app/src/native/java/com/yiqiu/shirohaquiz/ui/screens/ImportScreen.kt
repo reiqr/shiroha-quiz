@@ -109,6 +109,8 @@ import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.importer.assets.QuestionImageBinder
 import com.yiqiu.shirohaquiz.importer.assets.QuestionImportAssetExtractor
+import com.yiqiu.shirohaquiz.document.DocumentImageBinding
+import com.yiqiu.shirohaquiz.document.DocumentRecognitionManager
 import com.yiqiu.shirohaquiz.importer.model.WarningLevel
 import com.yiqiu.shirohaquiz.importer.parser.QuizImportParser
 import com.yiqiu.shirohaquiz.importer.parser.TextImportDecoder
@@ -156,6 +158,8 @@ fun ImportScreen(
     var rawText by remember { mutableStateOf("") }
     var answerText by remember { mutableStateOf("") }
     var importedImages by remember { mutableStateOf<List<QuestionImportAssetExtractor.ExtractedImportImage>>(emptyList()) }
+    var importedImageAssignments by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var ocrImportActive by remember { mutableStateOf(false) }
     var selectedFileName by rememberSaveable { mutableStateOf("未选择文件") }
     var selectedAnswerFileName by rememberSaveable { mutableStateOf("未选择答案文件") }
     var importResult by remember { mutableStateOf<ImportResult?>(null) }
@@ -237,7 +241,7 @@ fun ImportScreen(
         aiTaskSheetModeName = null
         aiBatchState = null
         aiStopRequested = false
-        if (clearImages) importedImages = emptyList()
+        if (clearImages) { importedImages = emptyList(); importedImageAssignments = emptyMap(); ocrImportActive = false }
     }
 
     LaunchedEffect(ocrImportDraft?.id) {
@@ -250,8 +254,11 @@ fun ImportScreen(
         rawTextEditorExpanded = draft.text.length <= LARGE_TEXT_PREVIEW_THRESHOLD
         answerTextEditorExpanded = true
         clearParsedResult(clearImages = true)
+        importedImages = draft.images
+        importedImageAssignments = draft.imageAssignments
+        ocrImportActive = true
         statusText = if (draft.hasImageReferences) {
-            "已接收在线 OCR 文本。原 PDF 含图片引用，本阶段仅带入图片位置提示，请在解析前核对。"
+            "已接收在线 OCR 文本和 ${draft.images.size} 张图片，请核对后解析，并在沉浸核对中检查图片归属。"
         } else {
             "已接收在线 OCR 文本，请核对后开始解析。"
         }
@@ -260,8 +267,9 @@ fun ImportScreen(
     }
 
     fun applyParsedResult(result: ImportResult) {
-        val resultWithExtraWarnings = result.copy(
-            warnings = refreshImportWarningsForQuestions(result.warnings, result.questions)
+        val assigned = DocumentImageBinding.applyAssignments(result, importedImages, importedImageAssignments)
+        val resultWithExtraWarnings = assigned.copy(
+            warnings = refreshImportWarningsForQuestions(assigned.warnings, assigned.questions)
         )
         importResult = resultWithExtraWarnings
         editableQuestions = resultWithExtraWarnings.questions
@@ -1715,6 +1723,7 @@ fun ImportScreen(
                                     QuizRepository.importBank(context, bankName, editableQuestions, cleanGroupName)
                                     statusText = "已新建题库：$cleanGroupName / $bankName，共 ${editableQuestions.size} 题。"
                                     isStatusWarn = false
+                                    if (ocrImportActive) DocumentRecognitionManager.onQuestionBankImportSaved()
                                     onImportSaved()
                                 }
                             )
@@ -1762,7 +1771,10 @@ fun ImportScreen(
                                             "追加失败：没有找到目标题库。"
                                         }
                                         isStatusWarn = !success
-                                        if (success) onImportSaved()
+                                        if (success) {
+                                            if (ocrImportActive) DocumentRecognitionManager.onQuestionBankImportSaved()
+                                            onImportSaved()
+                                        }
                                     }
                                 )
                             }

@@ -190,7 +190,7 @@ object QuestionImportAssetExtractor {
         return TextImportDecoder.extractTextFromWordParagraphXml(xml)
     }
 
-    private fun saveQuestionImage(
+    fun saveQuestionImage(
         dir: File,
         sourceName: String,
         order: Int,

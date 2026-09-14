@@ -3,6 +3,8 @@ package com.yiqiu.shirohaquiz.document
 import android.content.Context
 import com.yiqiu.shirohaquiz.security.SecureSecretStore
 import org.json.JSONObject
+import org.json.JSONArray
+import com.yiqiu.shirohaquiz.importer.model.QuestionImage
 
 class DocumentRecognitionStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -19,6 +21,9 @@ class DocumentRecognitionStore(context: Context) {
                 enableTable = json.optBoolean("enableTable", true),
                 enableFormula = json.optBoolean("enableFormula", true),
                 modelVersion = json.optEnum("modelVersion", MinerUModelVersion.VLM),
+                extraFormats = json.optJSONArray("extraFormats")?.let { rows ->
+                    (0 until rows.length()).map { rows.optString(it) }.filter { it in listOf("docx", "html", "latex") }
+                }.orEmpty(),
                 pageRange = json.optString("pageRange", "")
             )
         }.getOrDefault(MinerUSettings())
@@ -32,6 +37,7 @@ class DocumentRecognitionStore(context: Context) {
             .put("enableTable", settings.enableTable)
             .put("enableFormula", settings.enableFormula)
             .put("modelVersion", settings.modelVersion.name)
+            .put("extraFormats", JSONArray(settings.extraFormats))
             .put("pageRange", settings.pageRange)
         preferences.edit().putString(KEY_SETTINGS, json.toString()).apply()
     }
@@ -79,6 +85,7 @@ class DocumentRecognitionStore(context: Context) {
                 stage = json.optEnum("stage", DocumentTaskStage.FAILED),
                 serviceState = json.optString("serviceState", ""),
                 extractedPages = json.optInt("extractedPages", 0),
+                uploadedBytes = json.optLong("uploadedBytes", 0),
                 totalPages = json.optInt("totalPages", 0),
                 rawResultPath = json.optNullableString("rawResultPath"),
                 resultPath = json.optNullableString("resultPath"),
@@ -109,6 +116,7 @@ class DocumentRecognitionStore(context: Context) {
             .put("stage", task.stage.name)
             .put("serviceState", task.serviceState)
             .put("extractedPages", task.extractedPages)
+            .put("uploadedBytes", task.uploadedBytes)
             .put("totalPages", task.totalPages)
             .put("rawResultPath", task.rawResultPath)
             .put("resultPath", task.resultPath)
@@ -117,10 +125,42 @@ class DocumentRecognitionStore(context: Context) {
             .put("message", task.message)
             .put("errorMessage", task.errorMessage)
             .put("updatedAt", task.updatedAt)
-        preferences.edit().putString(KEY_TASK, json.toString()).apply()
+        check(preferences.edit().putString(KEY_TASK, json.toString()).commit()) { "识别任务暂存失败。" }
     }
 
     fun hasPreciseToken(): Boolean = !secureSecrets.get(SECRET_PRECISE_TOKEN).isNullOrBlank()
+
+    fun loadImages(taskId: String): List<DocumentImageAsset> {
+        val raw = preferences.getString("images_$taskId", null) ?: return emptyList()
+        return runCatching {
+            val rows = JSONArray(raw)
+            buildList {
+                for (i in 0 until rows.length()) {
+                    val row = rows.getJSONObject(i)
+                    add(DocumentImageAsset(
+                        marker = row.getString("marker"),
+                        image = QuestionImage(id = row.getString("id"), localPath = row.getString("path"),
+                            sourceName = row.optString("name"), order = row.optInt("order"),
+                            width = row.optInt("width").takeIf { it > 0 }, height = row.optInt("height").takeIf { it > 0 },
+                            sizeBytes = row.optLong("size")),
+                        excluded = row.optBoolean("excluded"),
+                        targetQuestionIndex = row.optInt("target", -1).takeIf { it >= 0 }
+                    ))
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    fun saveImages(taskId: String, images: List<DocumentImageAsset>) {
+        val rows = JSONArray()
+        images.forEach { asset -> rows.put(JSONObject().put("marker", asset.marker)
+            .put("id", asset.image.id).put("path", asset.image.localPath).put("name", asset.image.sourceName)
+            .put("order", asset.image.order).put("width", asset.image.width).put("height", asset.image.height)
+            .put("size", asset.image.sizeBytes).put("excluded", asset.excluded).put("target", asset.targetQuestionIndex ?: -1)) }
+        preferences.edit().putString("images_$taskId", rows.toString()).commit()
+    }
+
+    fun clearImages(taskId: String) { preferences.edit().remove("images_$taskId").commit() }
 
     fun loadPreciseToken(): String = secureSecrets.get(SECRET_PRECISE_TOKEN).orEmpty()
 

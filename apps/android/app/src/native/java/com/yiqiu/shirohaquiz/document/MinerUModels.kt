@@ -1,5 +1,8 @@
 package com.yiqiu.shirohaquiz.document
 
+import com.yiqiu.shirohaquiz.importer.model.QuestionImage
+import com.yiqiu.shirohaquiz.importer.assets.QuestionImportAssetExtractor
+
 enum class MinerUMode {
     FREE,
     PRECISE
@@ -17,6 +20,7 @@ data class MinerUSettings(
     val enableTable: Boolean = true,
     val enableFormula: Boolean = true,
     val modelVersion: MinerUModelVersion = MinerUModelVersion.VLM,
+    val extraFormats: List<String> = emptyList(),
     val pageRange: String = ""
 )
 
@@ -51,6 +55,7 @@ data class DocumentRecognitionTask(
     val stage: DocumentTaskStage = DocumentTaskStage.REQUESTING_UPLOAD,
     val serviceState: String = "",
     val extractedPages: Int = 0,
+    val uploadedBytes: Long = 0,
     val totalPages: Int = 0,
     val rawResultPath: String? = null,
     val resultPath: String? = null,
@@ -65,7 +70,16 @@ data class DocumentImportDraft(
     val id: String,
     val sourceFileName: String,
     val text: String,
-    val hasImageReferences: Boolean
+    val hasImageReferences: Boolean,
+    val images: List<QuestionImportAssetExtractor.ExtractedImportImage> = emptyList(),
+    val imageAssignments: Map<String, Int> = emptyMap()
+)
+
+data class DocumentImageAsset(
+    val marker: String,
+    val image: QuestionImage,
+    val excluded: Boolean = false,
+    val targetQuestionIndex: Int? = null
 )
 
 data class MinerUUploadTicket(

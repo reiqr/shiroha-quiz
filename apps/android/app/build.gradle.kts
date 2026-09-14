@@ -26,9 +26,10 @@ android {
         }
         create("native") {
             dimension = "variant"
+            testInstrumentationRunner = "com.yiqiu.shirohaquiz.state.QuizRepositoryCloudRestoreSafetyInstrumentation"
             applicationId = "com.reqir.shirohaquiz"
-            versionCode = 205
-            versionName = "0.9.8.4"
+            versionCode = 206
+            versionName = "0.9.8.5"
         }
     }
 
@@ -77,6 +78,9 @@ android {
         compose = true
     }
 
+    sourceSets.getByName("testNative").java.srcDir("src/androidTestNative/java")
+    testOptions.unitTests.isIncludeAndroidResources = true
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -119,7 +123,11 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("com.google.android.material:material:1.12.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    add("nativeImplementation", "androidx.work:work-runtime-ktx:2.9.1")
     testImplementation("junit:junit:4.13.2")
+    add("testNativeImplementation", "net.sf.kxml:kxml2:2.3.0")
+    add("testNativeImplementation", "org.robolectric:robolectric:4.12.2")
+    add("testNativeImplementation", "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

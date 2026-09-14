@@ -3,6 +3,8 @@ package com.yiqiu.shirohaquiz.document
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
+import okio.BufferedSink
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
@@ -65,6 +67,7 @@ class MinerUClient(
         val payload = JSONObject()
             .put("files", JSONArray().put(file))
             .put("model_version", settings.modelVersion.apiValue)
+            .put("extra_formats", JSONArray(settings.extraFormats.filter { it in listOf("docx", "html", "latex") }))
             .put("language", settings.language)
             .put("enable_table", settings.enableTable)
             .put("enable_formula", settings.enableFormula)
@@ -88,12 +91,33 @@ class MinerUClient(
     }
 
     /** The signed MinerU upload explicitly requires no Content-Type header. */
-    fun uploadSignedFile(uploadUrl: String, source: File) {
+    fun uploadSignedFile(uploadUrl: String, source: File, onProgress: (Long) -> Unit = {}) {
         require(source.isFile && source.length() > 0L) { "待上传 PDF 不存在或为空。" }
         requirePublicHttpsUrl(uploadUrl, "MinerU 返回的上传地址")
         val request = Request.Builder()
             .url(uploadUrl)
-            .put(source.asRequestBody(contentType = null))
+            .put(object : RequestBody() {
+                override fun contentType() = null
+                override fun contentLength() = source.length()
+                override fun writeTo(sink: BufferedSink) {
+                    source.inputStream().use { input ->
+                        val buffer = ByteArray(64 * 1024)
+                        var uploaded = 0L
+                        var lastReportedAt = 0L
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            sink.write(buffer, 0, read)
+                            uploaded += read
+                            val now = System.nanoTime()
+                            if (now - lastReportedAt >= 200_000_000 || uploaded == source.length()) {
+                                onProgress(uploaded)
+                                lastReportedAt = now
+                            }
+                        }
+                    }
+                }
+            })
             .build()
         execute(request).use { response ->
             if (response.code !in setOf(200, 201, 204)) {
@@ -210,6 +234,8 @@ class MinerUClient(
     } catch (error: IOException) {
         throw MinerUException("无法连接 MinerU：${error.message ?: "请检查网络"}")
     }
+
+    fun cancelActiveRequests() { client.dispatcher.cancelAll() }
 
     private fun requireSuccess(root: JSONObject): JSONObject {
         val code = root.opt("code")?.toString().orEmpty()

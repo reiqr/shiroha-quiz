@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Article
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.DocumentScanner
+import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.FactCheck
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.LightMode
@@ -219,7 +220,8 @@ fun MeScreen(
 
 @Composable
 fun DataManagementScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenCloudBackup: () -> Unit
 ) {
     val context = LocalContext.current
     var statusText by remember { mutableStateOf<String?>(null) }
@@ -326,6 +328,9 @@ fun DataManagementScreen(
                 Spacer(Modifier.height(10.dp))
                 NoticeCard(text = message, warning = message.contains("失败") || message.contains("清除"))
             }
+        }
+        GlassCard {
+            FeaturePlanStrip(icon = Icons.Rounded.CloudUpload, title = "云端备份", desc = "WebDAV 备份与恢复。", onClick = onOpenCloudBackup)
         }
         BackToSettingsButton(onBack = onBack)
     }

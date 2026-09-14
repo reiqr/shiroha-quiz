@@ -20,6 +20,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
+import com.yiqiu.shirohaquiz.importer.assets.QuestionImageMarker
+import com.yiqiu.shirohaquiz.importer.assets.QuestionImportAssetExtractor
 
 object DocumentRecognitionManager {
     var settings by mutableStateOf(MinerUSettings())
@@ -33,6 +35,10 @@ object DocumentRecognitionManager {
     var pendingImportDraft by mutableStateOf<DocumentImportDraft?>(null)
         private set
     var isPreparingDocument by mutableStateOf(false)
+        private set
+    var resultImages by mutableStateOf<List<DocumentImageAsset>>(emptyList())
+        private set
+    var isPreparingImport by mutableStateOf(false)
         private set
     var uiMessage by mutableStateOf<String?>(null)
         private set
@@ -74,6 +80,7 @@ object DocumentRecognitionManager {
         if (selectedDocument == null) store.saveSelectedDocument(null)
 
         task = store.loadTask()
+        resultImages = task?.let { store.loadImages(it.id) }.orEmpty()
         resultText = ""
         initialized = true
         val restored = task
@@ -257,7 +264,14 @@ object DocumentRecognitionManager {
                     )
                 )
                 withContext(Dispatchers.IO) {
-                    client.uploadSignedFile(ticket.uploadUrl, File(document.localPath))
+                    client.uploadSignedFile(ticket.uploadUrl, File(document.localPath)) { bytes ->
+                        managerScope.launch {
+                            task?.takeIf { it.id == taskId && it.stage == DocumentTaskStage.UPLOADING }?.let {
+                                updateTask(it.copy(uploadedBytes = bytes,
+                                    message = "正在上传 PDF：${(bytes * 100 / document.sizeBytes.coerceAtLeast(1)).coerceIn(0, 100)}%"))
+                            }
+                        }
+                    }
                 }
                 updateTask(
                     requireTask(taskId).copy(
@@ -291,6 +305,7 @@ object DocumentRecognitionManager {
         val current = task ?: return
         if (current.stage !in setOf(DocumentTaskStage.QUEUED, DocumentTaskStage.RUNNING)) return
         workflowJob?.cancel()
+        client.cancelActiveRequests()
         workflowJob = null
         updateTask(
             current.copy(
@@ -375,22 +390,102 @@ object DocumentRecognitionManager {
         }
     }
 
-    fun prepareImportDraft(text: String = resultText): Boolean {
+    suspend fun prepareImportDraft(text: String = resultText): Boolean {
         val current = task?.takeIf { it.stage == DocumentTaskStage.READY } ?: return false
+        if (isPreparingImport) return false
         val clean = text.trim()
         if (clean.isBlank()) {
             uiMessage = "识别文本为空，无法进入导入。"
             return false
         }
-        updateResultText(clean)
-        pendingImportDraft = DocumentImportDraft(
-            id = current.id,
-            sourceFileName = current.fileName,
-            text = clean,
-            hasImageReferences = current.hasImageReferences
-        )
-        cleanupAfterImportTaskId = current.id
-        return true
+        isPreparingImport = true
+        val assets = resultImages.filterNot { it.excluded }
+        val destination = File(appContext.filesDir, "question_assets/ocr_${UUID.randomUUID()}")
+        try {
+            val copied = withContext(Dispatchers.IO) {
+                destination.mkdirs()
+                assets.mapIndexed { index, asset ->
+                    val source = File(asset.image.localPath)
+                    require(source.isFile) { "图片文件丢失，请重新识别或删除该图片。" }
+                    require(source.canonicalPath.startsWith(recognitionDir().canonicalPath + File.separator)) { "临时图片来源无效。" }
+                    val target = File(destination, "img_${index + 1}.${source.extension}")
+                    source.copyTo(target)
+                    QuestionImportAssetExtractor.ExtractedImportImage(asset.marker,
+                        asset.image.copy(localPath = target.absolutePath, order = index + 1))
+                }
+            }
+            require(task?.id == current.id) { "识别任务已切换，请重新进入导入。" }
+            resultSaveJob?.cancel()
+            withContext(Dispatchers.IO) { current.resultPath?.let(::File)?.writeText(clean, Charsets.UTF_8) }
+            pendingImportDraft = DocumentImportDraft(
+                id = UUID.randomUUID().toString(),
+                sourceFileName = current.fileName,
+                text = resultImages.filter { it.excluded }.fold(clean) { value, asset -> value.replace(asset.marker, "") },
+                hasImageReferences = current.hasImageReferences,
+                images = copied,
+                imageAssignments = assets.mapNotNull { asset -> asset.targetQuestionIndex?.let { asset.image.id to it } }.toMap()
+            )
+            cleanupAfterImportTaskId = current.id
+            return true
+        } catch (cancelled: CancellationException) {
+            destination.deleteRecursively()
+            throw cancelled
+        } catch (error: Exception) {
+            destination.deleteRecursively()
+            uiMessage = "导入准备失败：${error.message}"
+            return false
+        } finally { isPreparingImport = false }
+    }
+
+    fun excludeImage(marker: String, excluded: Boolean) {
+        if (isPreparingImport) return
+        saveResultImages(resultImages.map { if (it.marker == marker) it.copy(excluded = excluded) else it })
+    }
+
+    fun assignImage(marker: String, ordinal: Int?) {
+        if (isPreparingImport) return
+        require(ordinal == null || ordinal > 0) { "题目序号应大于零。" }
+        saveResultImages(resultImages.map { if (it.marker == marker) it.copy(targetQuestionIndex = ordinal?.minus(1)) else it })
+    }
+
+    fun moveImage(marker: String, delta: Int) {
+        if (isPreparingImport) return
+        val list = resultImages.toMutableList()
+        val index = list.indexOfFirst { it.marker == marker }
+        val target = index + delta
+        if (index < 0 || target !in list.indices) return
+        val asset = list.removeAt(index)
+        list.add(target, asset)
+        saveResultImages(list.mapIndexed { i, row -> row.copy(image = row.image.copy(order = i + 1)) })
+    }
+
+    fun mergeImageWithNext(marker: String) {
+        if (isPreparingImport) return
+        val snapshot = resultImages
+        val index = snapshot.indexOfFirst { it.marker == marker }
+        if (index < 0 || index + 1 !in snapshot.indices) return
+        val first = snapshot[index]
+        val second = snapshot[index + 1]
+        if (first.excluded || second.excluded) { uiMessage = "请先恢复要合并的图片。"; return }
+        isPreparingImport = true
+        managerScope.launch {
+            try {
+                val merged = withContext(Dispatchers.IO) { DocumentImageEditor.merge(first, second, File(first.image.localPath).parentFile!!) }
+                val list = snapshot.toMutableList().apply { set(index, merged); removeAt(index + 1) }
+                saveResultImages(list)
+                updateResultText(resultText.replace(second.marker, first.marker))
+                uiMessage = "已手动合并相邻图片，请检查预览和题目归属。"
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                uiMessage = "图片合并失败：${error.message}"
+            } finally { isPreparingImport = false }
+        }
+    }
+
+    private fun saveResultImages(images: List<DocumentImageAsset>) {
+        val current = task ?: return
+        resultImages = images
+        store.saveImages(current.id, images)
     }
 
     fun consumePendingImportDraft(id: String) {
@@ -406,12 +501,14 @@ object DocumentRecognitionManager {
     fun clearTask(keepSelectedDocument: Boolean = true) {
         ensureInitialized()
         workflowJob?.cancel()
+        client.cancelActiveRequests()
         workflowJob = null
         resultSaveJob?.cancel()
         resultSaveJob = null
         deleteResultFiles(task)
         task = null
         resultText = ""
+        resultImages = emptyList()
         pendingImportDraft = null
         cleanupAfterImportTaskId = null
         store.saveTask(null)
@@ -562,6 +659,7 @@ object DocumentRecognitionManager {
         val resultFile = File(resultDir, "${current.id}_import.txt")
         withContext(Dispatchers.IO) { resultFile.writeText(decoded.importText, Charsets.UTF_8) }
         resultText = decoded.importText
+        saveResultImages(decoded.images)
         updateTask(
             requireTask(localTaskId).copy(
                 stage = DocumentTaskStage.READY,
@@ -569,7 +667,7 @@ object DocumentRecognitionManager {
                 resultPath = resultFile.absolutePath,
                 resultSourceUrl = resultUrl,
                 hasImageReferences = decoded.hasImageReferences,
-                message = "文本已就绪，请核对后进入题库导入。",
+                message = "识别结果已就绪：${decoded.images.size} 张图片。请核对后进入题库导入。" + decoded.notes.joinToString("；"),
                 errorMessage = null
             )
         )
@@ -696,6 +794,12 @@ object DocumentRecognitionManager {
     }
 
     private fun deleteResultFiles(value: DocumentRecognitionTask?) {
+        value?.rawResultPath?.let { path ->
+            val file = File(path)
+            val directory = File(file.parentFile, "${file.nameWithoutExtension}_images")
+            if (directory.canonicalPath.startsWith(recognitionDir().canonicalPath + File.separator)) directory.deleteRecursively()
+        }
+        value?.id?.let(store::clearImages)
         value?.rawResultPath?.let(::File)?.delete()
         value?.resultPath?.let(::File)?.delete()
     }

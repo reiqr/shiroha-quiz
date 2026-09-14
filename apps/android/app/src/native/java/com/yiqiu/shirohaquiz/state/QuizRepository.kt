@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
@@ -17,8 +18,12 @@ import com.yiqiu.shirohaquiz.util.LauncherIconSwitcher
 import com.yiqiu.shirohaquiz.util.SafeZipReader
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 import java.text.Normalizer
 import java.util.Calendar
 import java.util.Locale
@@ -426,6 +431,7 @@ object QuizRepository {
 
     fun init(context: Context) {
         if (initialized) return
+        recoverPendingCloudRestore(context)
         initialized = true
         appContext = context.applicationContext
 
@@ -603,7 +609,7 @@ object QuizRepository {
 
         wrongBook.addAll(migratedWrongBook.map(::sanitizeWrongEntry))
         slashedQuestions.addAll(sanitizeSlashedEntries(migratedSlashedQuestions, sanitizedRestoredBanks))
-        favoriteQuestions.addAll(sanitizeFavoriteEntries(migratedFavoriteQuestions, sanitizedRestoredBanks))
+        favoriteQuestions.addAll(sanitizeFavoriteEntries(migratedFavoriteQuestions))
         practiceSequentialProgress.putAll(sanitizeSequentialProgress(restoredSequentialProgress, sanitizedRestoredBanks))
         practiceReciteSequentialProgress.putAll(sanitizeSequentialProgress(restoredReciteSequentialProgress, sanitizedRestoredBanks))
         studyRecords.addAll(migratedStudyRecords)
@@ -2571,6 +2577,892 @@ object QuizRepository {
         )
     }
 
+    /** Throws IllegalArgumentException for unsafe, unsupported or lossy input; has no side effects. */
+    fun previewBackupBytes(bytes: ByteArray): BackupContentPreview = readValidatedBackup(bytes).preview
+
+    /** Call on the repository's owning (UI) thread, with no concurrent content edits. */
+    fun replaceContentFromBackupBytes(bytes: ByteArray): String {
+        val context = appContext ?: return "恢复失败：原生仓库尚未初始化。"
+        val incoming = runCatching { readValidatedBackup(bytes) }
+            .getOrElse { return "恢复失败：${it.message ?: "备份不安全或数据损坏"}。" }
+        val previous = currentBackupContent()
+        val restorePracticeMetadata = capturePracticeRestoreMetadata()
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val previousPreferences = contentPreferenceKeys.associateWith { key -> prefs.getString(key, null) }
+        val safetyDir = File(context.noBackupFilesDir, "cloud_restore_safety")
+        val pending = File(safetyDir, "pending.json")
+        val assetDir = File(context.filesDir, "question_assets/cloud_restore_${UUID.randomUUID()}")
+        var journalWritten = false
+        var persistenceAttempted = false
+        try {
+            check(!pending.exists()) { "存在未完成恢复，请重启应用完成本地回滚" }
+            check(safetyDir.isDirectory || safetyDir.mkdirs()) { "无法创建安全备份目录" }
+            // Unlike the append importer, verify that the safety ZIP itself loses nothing.
+            val localFiles = contentQuestions(previous).flatMap { it.images }.map { File(it.localPath) }
+                .filter { it.isFile }.distinctBy { it.absolutePath }
+            check(localFiles.all { it.length() in 1..BACKUP_ENTRY_LIMIT.toLong() } &&
+                localFiles.sumOf { it.length() } <= BACKUP_TOTAL_LIMIT) { "本地资产超过安全备份限制" }
+            val safetyBytes = exportFullBackupZip()
+            val safety = readValidatedBackup(safetyBytes)
+            check(safety.preview.bankCount == previous.banks.size &&
+                safety.preview.questionCount == previous.banks.sumOf { it.questions.size } &&
+                safety.preview.wrongCount == previous.wrong.size &&
+                safety.preview.favoriteCount == previous.favorites.size &&
+                safety.preview.recordCount == previous.records.size &&
+                safety.preview.slashedCount == previous.slashed.size) { "本地安全备份不完整" }
+            val originalQuestions = contentQuestions(previous)
+            val safetyQuestions = contentQuestions(safety.content)
+            check(originalQuestions.size == safetyQuestions.size) { "安全备份记录明细不完整" }
+            originalQuestions.zip(safetyQuestions).forEach { (original, saved) ->
+                check(original.images.size == saved.images.size) { "安全备份图片不完整" }
+                original.images.zip(saved.images).forEach { (image, savedImage) ->
+                    val file = File(image.localPath)
+                    if (file.isFile) check(safety.assets[savedImage.localPath]?.contentEquals(file.readBytes()) == true) {
+                        "安全备份资产内容不一致"
+                    }
+                }
+            }
+            pruneCloudRestoreSafety(safetyDir, keep = 2)
+            val token = "${System.currentTimeMillis()}_${UUID.randomUUID()}"
+            val safetyFile = File(safetyDir, "$token.zip")
+            writeSyncedFile(safetyFile, safetyBytes)
+            readValidatedBackup(safetyFile.readBytes())
+            val rollbackJson = JSONObject()
+            previousPreferences.forEach { (key, value) -> rollbackJson.put(key, value ?: JSONObject.NULL) }
+            rollbackJson.put("restoreAssetDirectory", assetDir.name)
+            val journalBytes = rollbackJson.toString().toByteArray(Charsets.UTF_8)
+            strictBackupJson(journalBytes, BACKUP_TOTAL_LIMIT)
+            writeSyncedFile(File(safetyDir, "$token.preferences.json"), journalBytes)
+
+            // New assets get a private, unique directory; old assets are never moved or deleted.
+            val replacement = materializeBackupContent(incoming, assetDir)
+            val replacementPreferences = contentPreferences(replacement)
+            writeSyncedFile(pending, journalBytes)
+            journalWritten = true
+            persistenceAttempted = true
+            check(writeContentPreferences(context, replacementPreferences)) { "内容持久化失败" }
+            // All observable content/session changes abort together if publishing fails.
+            Snapshot.withMutableSnapshot {
+                publishBackupContent(replacement)
+                resetPracticeState()
+                resetExam()
+                check(pending.delete()) { "无法完成恢复事务日志" }
+            }
+            return "已覆盖恢复 ${replacement.banks.size} 个题库、${replacement.wrong.size} 条错题、" +
+                "${replacement.favorites.size} 条收藏、${replacement.records.size} 条记录；本机设置与密钥保持不变。"
+        } catch (failure: Exception) {
+            restorePracticeMetadata()
+            val rolledBack = !persistenceAttempted || runCatching {
+                writeContentPreferences(context, previousPreferences)
+            }.getOrDefault(false)
+            if (journalWritten) {
+                if (rolledBack) pending.delete()
+                else if (!pending.exists()) runCatching {
+                    val journal = JSONObject()
+                    previousPreferences.forEach { (key, value) -> journal.put(key, value ?: JSONObject.NULL) }
+                    journal.put("restoreAssetDirectory", assetDir.name)
+                    writeSyncedFile(pending, journal.toString().toByteArray(Charsets.UTF_8))
+                }
+            }
+            // A failed mutable snapshot never exposes replacement objects or resets sessions.
+            assetDir.deleteRecursively()
+            return "恢复失败：${failure.message ?: "恢复事务失败"}；原内容和原资产未替换。" +
+                if (!rolledBack) "磁盘回滚未完成，已保留恢复日志，请重启应用重试。" else ""
+        }
+    }
+
+    private val contentPreferenceKeys = listOf(
+        KEY_BANKS, KEY_ACTIVE_BANK_ID, KEY_WRONG_BOOK, KEY_SLASHED_QUESTIONS,
+        KEY_FAVORITE_QUESTIONS, KEY_STUDY_RECORDS
+    )
+
+    private data class BackupContent(
+        val banks: List<QuizBank>,
+        val wrong: List<WrongQuestionEntry>,
+        val favorites: List<FavoriteQuestionEntry>,
+        val records: List<StudyRecord>,
+        val slashed: List<SlashedQuestionEntry>,
+        val activeBankId: String?
+    )
+
+    private data class ValidatedBackup(
+        val content: BackupContent,
+        val assets: Map<String, ByteArray>,
+        val preview: BackupContentPreview
+    )
+
+    private fun currentBackupContent() = BackupContent(
+        banks.toList(), wrongBook.toList(), favoriteQuestions.toList(), studyRecords.toList(),
+        slashedQuestions.toList(), activeBankId
+    )
+
+    // These session metadata fields are not Compose state, so snapshot abort cannot restore them.
+    private fun capturePracticeRestoreMetadata(): () -> Unit {
+        val scopeType = practiceSessionScopeType
+        val scopeName = practiceSessionScopeName
+        val bankId = practiceSequentialBankId
+        val startIndex = practiceSequentialStartIndex
+        val recite = practiceSequentialUsesReciteProgress
+        val nextIndex = practiceSequentialNextIndexAfterComplete
+        return {
+            practiceSessionScopeType = scopeType
+            practiceSessionScopeName = scopeName
+            practiceSequentialBankId = bankId
+            practiceSequentialStartIndex = startIndex
+            practiceSequentialUsesReciteProgress = recite
+            practiceSequentialNextIndexAfterComplete = nextIndex
+        }
+    }
+
+    private fun contentPreferences(content: BackupContent): Map<String, String?> = linkedMapOf(
+        KEY_BANKS to banksToJson(content.banks), KEY_ACTIVE_BANK_ID to content.activeBankId,
+        KEY_WRONG_BOOK to wrongBookToJson(content.wrong),
+        KEY_SLASHED_QUESTIONS to slashedQuestionsToJson(content.slashed),
+        KEY_FAVORITE_QUESTIONS to favoriteQuestionsToJson(content.favorites),
+        KEY_STUDY_RECORDS to studyRecordsToJson(content.records)
+    )
+
+    private fun writeContentPreferences(context: Context, values: Map<String, String?>): Boolean {
+        val editor = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+        contentPreferenceKeys.forEach { key ->
+            val value = values[key]
+            if (value == null) editor.remove(key) else editor.putString(key, value)
+        }
+        return editor.commit()
+    }
+
+    private fun publishBackupContent(content: BackupContent) {
+        banks.clear()
+        banks.addAll(content.banks)
+        wrongBook.clear()
+        wrongBook.addAll(content.wrong)
+        favoriteQuestions.clear()
+        favoriteQuestions.addAll(content.favorites)
+        studyRecords.clear()
+        studyRecords.addAll(content.records)
+        slashedQuestions.clear()
+        slashedQuestions.addAll(content.slashed)
+        activeBankId = content.activeBankId
+    }
+
+    private fun recoverPendingCloudRestore(context: Context) {
+        val pending = File(context.noBackupFilesDir, "cloud_restore_safety/pending.json")
+        if (!pending.exists()) return
+        val root = strictBackupJson(pending.readBytes(), BACKUP_TOTAL_LIMIT) as? JSONObject
+            ?: error("Invalid cloud restore rollback journal")
+        check(root.length() == contentPreferenceKeys.size + 1 && contentPreferenceKeys.all(root::has)) {
+            "Incomplete cloud restore rollback journal"
+        }
+        val assetName = root.getString("restoreAssetDirectory")
+        check(assetName.matches(Regex("cloud_restore_[0-9a-fA-F-]{36}"))) { "Invalid rollback asset directory" }
+        val values = contentPreferenceKeys.associateWith { key ->
+            check(root.isNull(key) || root.get(key) is String) { "Invalid rollback preference" }
+            if (root.isNull(key)) null else root.getString(key)
+        }
+        check(writeContentPreferences(context, values)) { "Cloud restore rollback could not be persisted" }
+        val assets = File(context.filesDir, "question_assets/$assetName")
+        check(!assets.exists() || assets.deleteRecursively()) { "Cloud restore assets could not be rolled back" }
+        check(pending.delete()) { "Cloud restore rollback journal could not be removed" }
+    }
+
+    private fun writeSyncedFile(target: File, bytes: ByteArray) {
+        check(!target.exists()) { "Safety file already exists" }
+        val temp = File(target.parentFile, "${target.name}.${UUID.randomUUID()}.tmp")
+        try {
+            FileOutputStream(temp).use { output -> output.write(bytes); output.fd.sync() }
+            check(temp.renameTo(target)) { "Cannot publish safety file" }
+        } finally {
+            temp.delete()
+        }
+    }
+
+    private fun pruneCloudRestoreSafety(directory: File, keep: Int) {
+        val backups = directory.listFiles()?.filter { it.name.endsWith(".zip") }
+            ?.sortedByDescending { it.name } ?: emptyList()
+        backups.drop(keep).forEach { backup ->
+            val preferences = File(directory, backup.name.removeSuffix(".zip") + ".preferences.json")
+            check(!preferences.exists() || preferences.delete()) { "Cannot prune safety preferences" }
+            check(backup.delete()) { "Cannot prune safety backup" }
+        }
+        directory.listFiles()?.filter { it.name.endsWith(".tmp") }?.forEach { it.delete() }
+    }
+
+    private const val BACKUP_ENTRY_LIMIT = 20 * 1024 * 1024
+    private const val BACKUP_JSON_LIMIT = 150 * 1024 * 1024
+    private const val BACKUP_TOTAL_LIMIT = 100 * 1024 * 1024
+    private const val BACKUP_COUNT_LIMIT = 1000
+
+    private data class BackupZipEntry(
+        val name: String, val size: Long, val crc: Long, val offset: Long,
+        val compressedSize: Long, val payloadEnd: Long, val flags: Int
+    )
+
+    // ZipInputStream alone accepts a truncated/missing central directory. Verify both views.
+    private fun validatedZipEntries(bytes: ByteArray): Map<String, ByteArray> {
+        fun u16(offset: Int): Int {
+            require(offset >= 0 && offset + 2 <= bytes.size) { "ZIP header truncated" }
+            return (bytes[offset].toInt() and 255) or ((bytes[offset + 1].toInt() and 255) shl 8)
+        }
+        fun u32(offset: Int): Long = u16(offset).toLong() or (u16(offset + 2).toLong() shl 16)
+        val end = (bytes.size - 22 downTo maxOf(0, bytes.size - 65557)).firstOrNull { offset ->
+            u32(offset) == 0x06054b50L && offset + 22 + u16(offset + 20) == bytes.size
+        } ?: throw IllegalArgumentException("ZIP central directory missing or truncated")
+        require(u16(end + 4) == 0 && u16(end + 6) == 0 && u16(end + 8) == u16(end + 10)) {
+            "Multi-volume ZIP is unsupported"
+        }
+        val count = u16(end + 10)
+        require(count in 1..BACKUP_COUNT_LIMIT) { "ZIP entry count exceeded or empty ZIP" }
+        val centralOffset = u32(end + 16)
+        require(centralOffset + u32(end + 12) == end.toLong()) { "Invalid ZIP directory bounds" }
+        var cursor = centralOffset.toInt()
+        val directory = mutableListOf<BackupZipEntry>()
+        val names = mutableSetOf<String>()
+        var declaredTotal = 0L
+        repeat(count) {
+            require(cursor >= 0 && cursor + 46 <= end && u32(cursor) == 0x02014b50L) { "Invalid ZIP directory" }
+            val flags = u16(cursor + 8)
+            require((flags and 1) == 0 && (flags and 64) == 0) { "Encrypted ZIP is unsupported" }
+            require(u16(cursor + 10) in listOf(0, 8) && u16(cursor + 34) == 0) { "Unsupported ZIP entry" }
+            val size = u32(cursor + 24)
+            declaredTotal += size
+            require(declaredTotal <= BACKUP_TOTAL_LIMIT) { "ZIP size limit exceeded" }
+            val nameLength = u16(cursor + 28)
+            val next = cursor.toLong() + 46 + nameLength + u16(cursor + 30) + u16(cursor + 32)
+            require(next <= end && nameLength > 0) { "Truncated ZIP entry name" }
+            val name = decodeBackupUtf8(bytes.copyOfRange(cursor + 46, cursor + 46 + nameLength))
+            val cleanName = name.removeSuffix("/")
+            require(size <= if (cleanName.endsWith(".json", ignoreCase = true)) BACKUP_JSON_LIMIT else BACKUP_ENTRY_LIMIT) { "ZIP entry size limit exceeded" }
+            require(name == name.trim() && SafeZipReader.isSafeEntryName(cleanName) && names.add(cleanName)) {
+                "Unsafe or duplicate ZIP entry name"
+            }
+            val localOffset = u32(cursor + 42)
+            require(localOffset < centralOffset && u32(localOffset.toInt()) == 0x04034b50L) { "Invalid ZIP local header" }
+            val local = localOffset.toInt()
+            require(u16(local + 6) == flags && u16(local + 8) == u16(cursor + 10)) { "ZIP local flags/method mismatch" }
+            val localNameLength = u16(local + 26)
+            val payloadStart = localOffset + 30 + localNameLength + u16(local + 28)
+            require(payloadStart <= centralOffset && decodeBackupUtf8(bytes.copyOfRange(local + 30,
+                local + 30 + localNameLength)) == name) { "ZIP local name mismatch" }
+            val compressedSize = u32(cursor + 20)
+            val payloadEnd = payloadStart + compressedSize
+            require(payloadEnd <= centralOffset) { "ZIP entry overlaps central directory" }
+            val crc = u32(cursor + 16)
+            if ((flags and 8) == 0) require(u32(local + 14) == crc && u32(local + 18) == compressedSize &&
+                u32(local + 22) == size) { "ZIP local sizes/CRC mismatch" }
+            directory += BackupZipEntry(name, size, crc, localOffset, compressedSize, payloadEnd, flags)
+            cursor = next.toInt()
+        }
+        require(cursor == end && directory.map { it.offset }.distinct().size == count &&
+            directory.minOf { it.offset } == 0L) { "Ambiguous ZIP directory" }
+        val ordered = directory.sortedBy { it.offset }
+        ordered.forEachIndexed { index, entry ->
+            val nextOffset = ordered.getOrNull(index + 1)?.offset ?: centralOffset
+            val gap = nextOffset - entry.payloadEnd
+            if ((entry.flags and 8) == 0) require(gap == 0L) { "Unindexed ZIP data" }
+            else {
+                val descriptor = entry.payloadEnd.toInt()
+                val start = when (gap) {
+                    12L -> descriptor
+                    16L -> { require(u32(descriptor) == 0x08074b50L) { "Invalid ZIP data descriptor" }; descriptor + 4 }
+                    else -> throw IllegalArgumentException("Invalid ZIP data descriptor length")
+                }
+                require(u32(start) == entry.crc && u32(start + 4) == entry.compressedSize && u32(start + 8) == entry.size) {
+                    "ZIP data descriptor mismatch"
+                }
+            }
+        }
+        val entries = linkedMapOf<String, ByteArray>()
+        var total = 0L
+        ZipInputStream(bytes.inputStream()).use { zip ->
+            ordered.forEach { expected ->
+                val entry = zip.nextEntry ?: throw IllegalArgumentException("ZIP local entries missing")
+                require(entry.name == expected.name) { "ZIP directory/local name mismatch" }
+                val entryLimit = if (entry.name.endsWith(".json", ignoreCase = true)) BACKUP_JSON_LIMIT else BACKUP_ENTRY_LIMIT
+                val data = SafeZipReader.readEntryBytes(zip, entry, entryLimit.toLong(), BACKUP_TOTAL_LIMIT - total)
+                total += data.size
+                require(data.size.toLong() == expected.size && entry.crc == expected.crc) { "ZIP entry size/CRC mismatch" }
+                zip.closeEntry()
+                if (entry.isDirectory) require(data.isEmpty()) { "ZIP directory contains data" }
+                else entries[entry.name] = data
+            }
+            require(zip.nextEntry == null) { "ZIP entries absent from central directory" }
+        }
+        return entries
+    }
+
+    private fun decodeBackupUtf8(bytes: ByteArray): String = Charsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT)
+        .decode(ByteBuffer.wrap(bytes)).toString()
+
+    private fun strictBackupJson(bytes: ByteArray, limit: Int = BACKUP_JSON_LIMIT): Any {
+        require(bytes.isNotEmpty() && bytes.size <= limit) { "JSON empty or size limit exceeded" }
+        val text = decodeBackupUtf8(bytes).removePrefix("\uFEFF")
+        StrictBackupJsonSyntax(text).validate()
+        return JSONTokener(text).nextValue()
+    }
+
+    // Android's org.json accepts comments, duplicate keys and trailing garbage: destructive
+    // restore must reject these before using the existing canonical model parsers.
+    private class StrictBackupJsonSyntax(private val text: String) {
+        private var cursor = 0
+        fun validate() {
+            value(0)
+            whitespace()
+            require(cursor == text.length) { "Trailing JSON data" }
+        }
+        private fun whitespace() {
+            while (cursor < text.length && text[cursor] in " \t\r\n") cursor++
+        }
+        private fun take(ch: Char): Boolean {
+            whitespace()
+            if (cursor >= text.length || text[cursor] != ch) return false
+            cursor++
+            return true
+        }
+        private fun value(depth: Int) {
+            require(depth <= 64) { "JSON nesting limit exceeded" }
+            whitespace()
+            require(cursor < text.length) { "Truncated JSON" }
+            when (text[cursor]) {
+                '{' -> {
+                    cursor++
+                    val keys = mutableSetOf<String>()
+                    if (!take('}')) {
+                        do {
+                            whitespace()
+                            require(keys.add(string())) { "Duplicate JSON key" }
+                            require(take(':')) { "Invalid JSON object" }
+                            value(depth + 1)
+                            if (take('}')) return
+                            require(take(',')) { "Invalid JSON object separator" }
+                        } while (true)
+                    }
+                }
+                '[' -> {
+                    cursor++
+                    if (!take(']')) {
+                        do {
+                            value(depth + 1)
+                            if (take(']')) return
+                            require(take(',')) { "Invalid JSON array separator" }
+                        } while (true)
+                    }
+                }
+                '"' -> string()
+                else -> {
+                    val start = cursor
+                    while (cursor < text.length && text[cursor] !in " \t\r\n,]}:") cursor++
+                    val token = text.substring(start, cursor)
+                    require(token in listOf("true", "false", "null") ||
+                        token.matches(Regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?")) &&
+                        token.toDoubleOrNull()?.isFinite() == true) { "Invalid JSON value" }
+                }
+            }
+        }
+        private fun string(): String {
+            val start = cursor
+            require(cursor < text.length && text[cursor++] == '"') { "JSON string expected" }
+            while (cursor < text.length) {
+                val ch = text[cursor++]
+                require(ch >= ' ') { "Unescaped JSON control character" }
+                if (ch == '"') return JSONTokener(text.substring(start, cursor)).nextValue() as String
+                if (ch == '\\') {
+                    require(cursor < text.length) { "Truncated JSON escape" }
+                    val escaped = text[cursor++]
+                    require(escaped in "\"\\/bfnrtu") { "Invalid JSON escape" }
+                    if (escaped == 'u') {
+                        require(cursor + 4 <= text.length && text.substring(cursor, cursor + 4)
+                            .all { it in "0123456789abcdefABCDEF" }) { "Invalid Unicode escape" }
+                        cursor += 4
+                    }
+                }
+            }
+            throw IllegalArgumentException("Unterminated JSON string")
+        }
+    }
+
+    private fun readValidatedBackup(bytes: ByteArray): ValidatedBackup {
+        try {
+            require(bytes.isNotEmpty() && bytes.size <= if (looksLikeZip(bytes)) BACKUP_TOTAL_LIMIT else BACKUP_JSON_LIMIT) { "Backup empty or size limit exceeded" }
+            val entries = if (looksLikeZip(bytes)) validatedZipEntries(bytes) else emptyMap()
+            val json = if (entries.isEmpty()) bytes else entries["backup.json"] ?: run {
+                val candidates = entries.filterKeys { it.endsWith(".json", ignoreCase = true) }
+                require(candidates.size == 1) { "ZIP must contain one unambiguous backup JSON" }
+                candidates.values.single()
+            }
+            val raw = strictBackupJson(json)
+            val root = when (raw) {
+                is JSONObject -> raw
+                is JSONArray -> if (looksLikeBankArray(raw)) JSONObject().put("banks", raw)
+                    else JSONObject().put("id", "bank_json_preview").put("name", "导入题库").put("questions", raw)
+                else -> throw IllegalArgumentException("Backup JSON must be an object or array")
+            }
+            validateBackupFields(root, strings = listOf("kind", "app", "exportedBy", "activeBankId"),
+                integers = listOf("version", "schemaVersion", "crossPlatformSchemaVersion"))
+            listOf("version", "schemaVersion").forEach { key ->
+                if (root.has(key) && !root.isNull(key)) require(root.getInt(key) in 1..3) { "Unsupported backup version" }
+            }
+            if (root.has("crossPlatformSchemaVersion")) require(root.getInt("crossPlatformSchemaVersion") == 1) {
+                "Unsupported cross-platform schema"
+            }
+            require(!root.has("crossPlatform") || root.optJSONObject("crossPlatform") != null) { "Invalid canonical state" }
+            val bankArray = if (root.has("questions")) {
+                validateQuestionArray(root.getJSONArray("questions"))
+                JSONArray().put(JSONObject().put("id", root.optString("id").ifBlank { "bank_json_preview" })
+                    .put("name", root.optString("name", root.optString("bankName", root.optString("title", "导入题库"))))
+                    .put("groupName", root.optString("groupName", root.optString("group", DEFAULT_BANK_GROUP_NAME)))
+                    .put("questions", root.getJSONArray("questions")))
+            } else optionalBackupArray(root, "banks")
+            val canonical = root.optJSONObject("crossPlatform") ?: root
+            require(root.has("banks") || root.has("questions") ||
+                listOf("wrongBook", "favoriteQuestions", "studyRecords", "favorites", "records")
+                    .any(canonical::has)) { "No recognized backup content" }
+            val bankIds = mutableSetOf<String>()
+            for (i in 0 until bankArray.length()) {
+                val bank = bankArray.getJSONObject(i)
+                validateBackupFields(bank, strings = listOf("id", "name", "groupName"))
+                require(bank.opt("id") is String && bank.optString("id").isNotBlank() && bankIds.add(bank.getString("id"))) { "Missing/duplicate bank ID" }
+                val questions = bank.getJSONArray("questions")
+                validateQuestionArray(questions)
+                require(bank.optString("id") != "demo-bank" &&
+                    !(bank.optString("name") == "示例题库" && questions.length() == 0)) { "Legacy demo bank would be discarded on restart" }
+            }
+            val parsedBanks = parseBanksJson(bankArray.toString())
+            require(parsedBanks.size == bankArray.length()) { "Bank parsing would discard content" }
+            val state = if (root.optJSONObject("crossPlatform") == null && isWebBackupJson(root) &&
+                (root.optJSONObject("wrongBook") != null || root.has("favorites") || root.has("records"))) {
+                canonicalizeLegacyWebContent(root, parsedBanks)
+            } else canonical
+            require(!state.has("favorites") && !state.has("records")) { "Unsupported or conflicting noncanonical state" }
+            val wrongArray = optionalBackupArray(state, "wrongBook")
+            val favoriteArray = optionalBackupArray(state, "favoriteQuestions")
+            val recordArray = optionalBackupArray(state, "studyRecords")
+            val slashedArray = optionalBackupArray(state, "slashedQuestions")
+            validateBackupEntries(wrongArray, favoriteArray, recordArray, slashedArray)
+            val wrong = parseWrongBookJson(wrongArray.toString())
+            val favorites = parseFavoriteQuestionsJson(favoriteArray.toString())
+            val records = parseStudyRecordsJson(recordArray.toString())
+            val slashed = parseSlashedQuestionsJson(slashedArray.toString())
+            require(wrong.size == wrongArray.length() && favorites.size == favoriteArray.length() &&
+                records.size == recordArray.length() && slashed.size == slashedArray.length()) { "State parsing would discard content" }
+            val repairs = parsedBanks.map(::sanitizeBankWithQuestionIdRepair).associateBy { it.bank.id }
+            fun resolve(reference: Question, bankId: String?): Question {
+                val repair = repairs[bankId]
+                if (repair != null && reference.id in repair.affectedLegacyIds) {
+                    val candidates = repair.repairs.filter { it.original.id == reference.id &&
+                        questionMigrationFingerprint(it.original) == questionMigrationFingerprint(reference) }
+                    require(candidates.size == 1) { "Ambiguous repaired question reference" }
+                    return reference.copy(id = candidates.single().repaired.id)
+                }
+                return if (reference.id.isBlank()) reference.copy(id = UUID.randomUUID().toString()) else reference
+            }
+            // Preserve embedded snapshots, even when their source bank no longer exists.
+            val repairedWrong = wrong.map { it.copy(question = resolve(it.question, it.bankId)) }.map(::sanitizeWrongEntry)
+            val repairedFavorites = favorites.map { it.copy(question = resolve(it.question, it.bankId)) }.map(::sanitizeFavoriteEntry)
+            require(repairedFavorites.map { it.bankId + "#" + it.question.id }.distinct().size == favorites.size) {
+                "Duplicate favorites would be discarded on restart"
+            }
+            require(records.map { it.id }.distinct().size == records.size) { "Duplicate record ID" }
+            val repairedRecords = records.map { record -> record.copy(questionResults = record.questionResults.map { result ->
+                result.copy(question = resolve(result.question, result.sourceBankId ?: record.bankId))
+            }) }
+            val repairedSlashed = slashed.map { entry ->
+                val repair = repairs[entry.bankId]
+                require(repair != null) { "Slashed question source bank missing" }
+                if (entry.questionKey in repair.affectedLegacyIds) require(repair.repairs.count {
+                    it.original.id == entry.questionKey
+                } == 1) { "Ambiguous slashed question ID" }
+                entry.copy(questionKey = resolveRepairedQuestionByLegacyId(entry.questionKey, repair)?.id ?: entry.questionKey)
+            }
+            val repairedBanks = parsedBanks.map { repairs.getValue(it.id).bank }
+            require(sanitizeSlashedEntries(repairedSlashed, repairedBanks).size == slashed.size) { "Slashed state would be discarded" }
+            val content = BackupContent(repairedBanks, repairedWrong, repairedFavorites, repairedRecords, repairedSlashed,
+                root.optString("activeBankId").takeIf { it in bankIds } ?: repairedBanks.firstOrNull()?.id)
+            val assets = entries.filterKeys { it.startsWith("assets/") }
+            contentQuestions(content).forEach { validateBackupQuestionAssets(it, assets) }
+            val sourceVersion = listOf("schemaVersion", "version").firstOrNull { root.has(it) && !root.isNull(it) }
+                ?.let(root::getInt)
+            return ValidatedBackup(content, assets, BackupContentPreview(
+                bankCount = content.banks.size, questionCount = content.banks.sumOf { it.questions.size },
+                wrongCount = content.wrong.size, favoriteCount = content.favorites.size, recordCount = content.records.size,
+                sourceVersion = sourceVersion, sourceKind = root.optString("kind").ifBlank { "unversioned_content" },
+                exportedBy = root.optString("exportedBy").ifBlank { null },
+                exportedAt = parseBackupTimeMillis(root.opt("exportedAt")), assetCount = assets.size,
+                slashedCount = content.slashed.size
+            ))
+        } catch (failure: Exception) {
+            if (failure is IllegalArgumentException) throw failure
+            throw IllegalArgumentException("Backup validation failed: ${failure.message}", failure)
+        }
+    }
+
+    private fun optionalBackupArray(root: JSONObject, key: String): JSONArray {
+        if (!root.has(key)) return JSONArray()
+        return root.optJSONArray(key) ?: throw IllegalArgumentException("$key must be an array")
+    }
+
+    private fun validateBackupFields(
+        root: JSONObject,
+        strings: List<String> = emptyList(),
+        integers: List<String> = emptyList(),
+        numbers: List<String> = emptyList(),
+        booleans: List<String> = emptyList(),
+        stringArrays: List<String> = emptyList()
+    ) {
+        strings.forEach { key ->
+            require(!root.has(key) || root.isNull(key) || root.get(key) is String) { "$key must be a string" }
+        }
+        (integers + numbers).forEach { key ->
+            if (root.has(key) && !root.isNull(key)) {
+                val value = root.get(key)
+                require(value is Number && value.toDouble().isFinite()) { "$key must be a finite number" }
+                if (key in integers) {
+                    require(value is Int || value is Long) { "$key must be an integer" }
+                    val intKeys = listOf("version", "schemaVersion", "crossPlatformSchemaVersion", "order", "width", "height",
+                        "total", "correct", "wrongCount", "rightCount", "reviewRightCount", "streakCorrectCount", "reviewLevel",
+                        "durationSeconds", "duration")
+                    if (key in intKeys) require(value.toLong() in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) { "$key exceeds integer range" }
+                }
+            }
+        }
+        booleans.forEach { key ->
+            require(!root.has(key) || root.isNull(key) || root.get(key) is Boolean) { "$key must be boolean" }
+        }
+        stringArrays.forEach { key ->
+            if (root.has(key)) {
+                val array = root.getJSONArray(key)
+                for (i in 0 until array.length()) require(array.get(i) is String) { "$key must contain only strings" }
+            }
+        }
+    }
+
+    private fun validateQuestionArray(array: JSONArray) {
+        for (i in 0 until array.length()) validateBackupQuestion(array.getJSONObject(i))
+        require(parseQuestionsArray(array).size == array.length()) { "Question parsing would discard content" }
+    }
+
+    private fun validateBackupQuestion(question: JSONObject) {
+        validateBackupFields(question,
+            strings = listOf("id", "number", "type", "question", "analysis", "category", "group", "volume", "subject", "grade",
+                "difficulty", "source", "sourceFileId", "reviewStatus"),
+            integers = listOf("version"), numbers = listOf("score", "aiConfidence"),
+            stringArrays = listOf("knowledgePoints", "tags", "warnings"))
+        require(!question.has("question") || question.opt("question") is String) { "Invalid question text" }
+        if (question.has("type")) {
+            val type = question.optString("type").trim().lowercase(Locale.ROOT).replace("-", "_").replace(" ", "_")
+            require(type in listOf("", "single", "single_choice", "singlechoice", "choice", "radio", "multiple",
+                "multiple_choice", "multiplechoice", "multi", "checkbox", "judge", "judgement", "judgment", "true_false",
+                "truefalse", "boolean", "blank", "fill_blank", "fillblank", "fill_in_blank", "short", "subjective", "essay", "qa", "question_answer")) {
+                "Unknown question type would fall back to single choice"
+            }
+        }
+        val options = question.opt("options")
+        if (question.has("options")) {
+            require(options is JSONArray || options is JSONObject) { "Invalid question options" }
+            fun option(value: Any) {
+                require(value is String && value.isNotBlank() || value is JSONObject) { "Invalid option" }
+                if (value is JSONObject) {
+                    validateBackupFields(value, strings = listOf("key", "text", "value", "content", "label"))
+                    require(listOf("text", "value", "content", "label").any { value.optString(it).isNotBlank() }) { "Empty option would be lost" }
+                }
+            }
+            if (options is JSONArray) for (i in 0 until options.length()) option(options.get(i))
+            if (options is JSONObject) options.keys().forEach { key -> require(key.isNotBlank()); option(options.get(key)) }
+        }
+        listOf("answer", "answers", "correctAnswer", "correctAnswers").forEach { key ->
+            if (question.has(key)) {
+                val value = question.get(key)
+                require(value is String || value is JSONArray) { "Invalid answer" }
+                if (value is JSONArray) for (i in 0 until value.length()) require(value.get(i) is String) { "Invalid answer element" }
+            }
+        }
+        if (question.has("blankAnswers")) {
+            val blanks = question.getJSONArray("blankAnswers")
+            require(blanks.length() == 0 || parseQuestionType(question.optString("type")) == QuestionType.BLANK) {
+                "Structured blank answers on non-blank question would be lost"
+            }
+            for (i in 0 until blanks.length()) {
+                val value = blanks.get(i)
+                require(value is String || value is JSONArray) { "Invalid structured blank answer" }
+                if (value is JSONArray) {
+                    for (j in 0 until value.length()) require(value.get(j) is String) { "Invalid blank answer element" }
+                    require((0 until value.length()).map { value.getString(it).trim() }.filter { it.isNotBlank() }
+                        .distinct().size <= 3) { "Blank answer alternatives would be truncated" }
+                }
+            }
+        }
+        val images = optionalBackupArray(question, "images")
+        for (i in 0 until images.length()) {
+            val image = images.getJSONObject(i)
+            validateBackupFields(image, strings = listOf("id", "localPath", "dataUrl", "dataUri", "src", "url", "sourceName", "name", "alt"),
+                integers = listOf("order", "width", "height", "sizeBytes"))
+            require(listOf("localPath", "dataUrl", "dataUri", "src", "url").any { image.optString(it).isNotBlank() }) { "Image path missing" }
+        }
+        val parsed = parseQuestion(question)
+        require(parsed.images.size == images.length()) { "Image parsing would discard content" }
+        require(parsed.question.isNotBlank() || parsed.images.isNotEmpty()) { "Empty question snapshot" }
+        if (options is JSONArray) require(parsed.options.size == options.length()) { "Option parsing would discard content" }
+        if (options is JSONObject) require(parsed.options.size == options.length()) { "Option parsing would discard content" }
+    }
+
+    private fun validateBackupEntries(wrong: JSONArray, favorites: JSONArray, records: JSONArray, slashed: JSONArray) {
+        for (i in 0 until wrong.length()) {
+            val entry = wrong.getJSONObject(i)
+            validateBackupFields(entry, strings = listOf("bankId", "bankName", "source", "status"),
+                integers = listOf("timestamp", "wrongCount", "rightCount", "reviewRightCount", "streakCorrectCount", "lastWrongAt",
+                    "lastCorrectAt", "lastReviewedAt", "nextReviewAt", "reviewLevel"), stringArrays = listOf("lastAnswer"))
+            require(entry.opt("bankId") is String && entry.optString("bankId").isNotBlank()) { "Wrong question bank ID missing" }
+            listOf("wrongCount", "rightCount", "reviewRightCount", "streakCorrectCount").forEach { key ->
+                require(!entry.has(key) || entry.getInt(key) >= 0) { "Negative wrong/review counter" }
+            }
+            require(!entry.has("reviewLevel") || entry.getInt("reviewLevel") in 0..5) { "Review level would be clamped" }
+            require(!entry.has("status") || WrongStatus.values().any { it.label == entry.optString("status") }) { "Unknown wrong question status" }
+            validateBackupQuestion(entry.getJSONObject("question"))
+        }
+        for (i in 0 until favorites.length()) {
+            val entry = favorites.getJSONObject(i)
+            validateBackupFields(entry, strings = listOf("bankId", "bankName"), integers = listOf("favoritedAt"))
+            require(entry.opt("bankId") is String && entry.optString("bankId").isNotBlank()) { "Favorite bank ID missing" }
+            validateBackupQuestion(entry.getJSONObject("question"))
+        }
+        for (i in 0 until records.length()) {
+            val record = records.getJSONObject(i)
+            validateBackupFields(record, strings = listOf("id", "bankId", "bankName", "source", "title", "scopeType", "scopeName"),
+                integers = listOf("total", "correct", "timestamp", "durationSeconds", "startedAt"),
+                numbers = listOf("earnedScore", "totalScore"), booleans = listOf("autoSubmitted"))
+            require(record.opt("id") is String && record.optString("id").isNotBlank()) { "Record ID missing" }
+            require(record.optInt("total") >= 0 && record.optInt("correct") in 0..record.optInt("total")) { "Invalid record counts" }
+            val results = optionalBackupArray(record, "questionResults")
+            for (j in 0 until results.length()) {
+                val result = results.getJSONObject(j)
+                validateBackupFields(result, strings = listOf("answerText", "sourceBankId", "sourceBankName"),
+                    numbers = listOf("earnedScore", "maxScore"), booleans = listOf("correct", "autoScored"),
+                    stringArrays = listOf("userAnswer", "userBlankAnswers"))
+                validateBackupQuestion(result.getJSONObject("question"))
+            }
+            require(parseStudyQuestionResults(results).size == results.length()) { "Record detail parsing would discard content" }
+        }
+        for (i in 0 until slashed.length()) {
+            val entry = slashed.getJSONObject(i)
+            validateBackupFields(entry, strings = listOf("bankId", "questionKey"), integers = listOf("slashedAt"))
+            require(entry.optString("bankId").isNotBlank() && entry.optString("questionKey").isNotBlank()) { "Invalid slashed reference" }
+        }
+    }
+
+    private fun canonicalizeLegacyWebContent(root: JSONObject, importedBanks: List<QuizBank>): JSONObject {
+        require(!root.has("favoriteQuestions") && !root.has("studyRecords")) { "Conflicting legacy/canonical content" }
+        val result = JSONObject()
+        fun bankQuestion(bankId: String, questionId: String): Question {
+            val candidates = importedBanks.firstOrNull { it.id == bankId }?.questions?.filter { it.id == questionId }.orEmpty()
+            require(candidates.size == 1) { "Legacy state references missing/ambiguous question" }
+            return candidates.single()
+        }
+        val wrong = JSONArray()
+        if (root.has("wrongBook")) {
+            val source = root.getJSONObject("wrongBook")
+            source.keys().forEach { bankId ->
+                val entries = source.getJSONArray(bankId)
+                for (i in 0 until entries.length()) {
+                    val entry = entries.getJSONObject(i)
+                    validateBackupFields(entry, strings = listOf("id", "status"),
+                        integers = listOf("wrongCount", "rightCount", "reviewRightCount", "streakCorrectCount", "reviewLevel"))
+                    val question = bankQuestion(bankId, entry.getString("id"))
+                    val now = System.currentTimeMillis()
+                    val time = if (entry.has("lastWrongAt")) requireBackupTime(entry.get("lastWrongAt")) else now
+                    val item = JSONObject(entry.toString()).put("bankId", bankId)
+                        .put("bankName", importedBanks.first { it.id == bankId }.name)
+                        .put("question", questionToJson(question)).put("lastAnswer", JSONArray())
+                        .put("source", "web-backup").put("timestamp", time).put("lastWrongAt", time)
+                    listOf("lastCorrectAt", "lastReviewedAt", "nextReviewAt").forEach { key ->
+                        if (entry.has(key) && !entry.isNull(key)) item.put(key, requireBackupTime(entry.get(key)))
+                    }
+                    wrong.put(item)
+                }
+            }
+        }
+        val favorites = JSONArray()
+        if (root.has("favorites")) {
+            val source = root.getJSONObject("favorites")
+            source.keys().forEach { bankId ->
+                val ids = source.getJSONArray(bankId)
+                for (i in 0 until ids.length()) {
+                    require(ids.get(i) is String) { "Legacy favorite ID must be a string" }
+                    val question = bankQuestion(bankId, ids.getString(i))
+                    favorites.put(JSONObject().put("bankId", bankId)
+                        .put("bankName", importedBanks.first { it.id == bankId }.name)
+                        .put("question", questionToJson(question)).put("favoritedAt", System.currentTimeMillis()))
+                }
+            }
+        }
+        val records = JSONArray()
+        val sourceRecords = optionalBackupArray(root, "records")
+        for (i in 0 until sourceRecords.length()) {
+            val record = sourceRecords.getJSONObject(i)
+            validateBackupFields(record, strings = listOf("id", "bankId", "bankName", "mode", "scopeType", "scopeName"),
+                integers = listOf("total", "correct", "duration"), numbers = listOf("score", "totalScore"),
+                booleans = listOf("autoSubmitted"))
+            val bankId = record.optString("bankId").ifBlank { null }
+            val details = optionalBackupArray(record, "details")
+            val results = JSONArray()
+            for (j in 0 until details.length()) {
+                val detail = details.getJSONObject(j)
+                validateBackupFields(detail, strings = listOf("questionId", "type", "category", "sourceBankId", "sourceBankName"),
+                    numbers = listOf("score", "fullScore"), booleans = listOf("correct"),
+                    stringArrays = listOf("chosen", "userBlankAnswers"))
+                val sourceBankId = detail.optString("sourceBankId").ifBlank { bankId }
+                val nested = detail.optJSONObject("question")
+                val question = when {
+                    nested != null -> { validateBackupQuestion(nested); parseQuestion(nested) }
+                    importedBanks.any { it.id == bankId && it.questions.any { q -> q.id == detail.optString("questionId") } } ->
+                        bankQuestion(bankId.orEmpty(), detail.optString("questionId"))
+                    else -> {
+                        require(detail.opt("question") is String && detail.getString("question").isNotBlank()) { "Legacy record detail has no usable question" }
+                        val snapshot = JSONObject(detail.toString()).put("id", detail.optString("questionId").ifBlank { "record_question_${i}_$j" })
+                        validateBackupQuestion(snapshot)
+                        parseQuestion(snapshot)
+                    }
+                }
+                val answers = detail.optJSONArray("answer") ?: JSONArray(question.answer)
+                for (a in 0 until answers.length()) require(answers.get(a) is String) { "Legacy record answer invalid" }
+                results.put(JSONObject().put("question", questionToJson(question))
+                    .put("userAnswer", detail.optJSONArray("chosen") ?: JSONArray())
+                    .put("userBlankAnswers", detail.optJSONArray("userBlankAnswers") ?: JSONArray())
+                    .put("correct", detail.optBoolean("correct"))
+                    .put("answerText", if (MultiBlankSupport.hasStructuredAnswers(question))
+                        MultiBlankSupport.expectedAnswerText(question.blankAnswers) else
+                        (0 until answers.length()).joinToString(" / ") { answers.getString(it) })
+                    .put("earnedScore", detail.opt("score")).put("maxScore", detail.opt("fullScore"))
+                    .put("autoScored", true).put("sourceBankId", sourceBankId)
+                    .put("sourceBankName", detail.optString("sourceBankName")))
+            }
+            val timestamp = when {
+                record.has("timestamp") -> requireBackupTime(record.get("timestamp"))
+                record.has("date") -> requireBackupTime(record.get("date"))
+                else -> System.currentTimeMillis()
+            }
+            records.put(JSONObject().put("id", record.optString("id").ifBlank { "record_web_$i" })
+                .put("bankId", bankId).put("bankName", record.optString("bankName"))
+                .put("source", "web").put("title", record.optString("mode", "练习"))
+                .put("total", record.optInt("total", results.length())).put("correct", record.optInt("correct"))
+                .put("timestamp", timestamp).put("durationSeconds", record.opt("duration"))
+                .put("autoSubmitted", record.optBoolean("autoSubmitted"))
+                .put("startedAt", if (record.has("startedAt") && !record.isNull("startedAt")) requireBackupTime(record.get("startedAt")) else null)
+                .put("earnedScore", record.opt("score")).put("totalScore", record.opt("totalScore"))
+                .put("scopeType", record.opt("scopeType")).put("scopeName", record.opt("scopeName"))
+                .put("questionResults", results))
+        }
+        return result.put("wrongBook", wrong).put("favoriteQuestions", favorites).put("studyRecords", records)
+            .put("slashedQuestions", optionalBackupArray(root, "slashedQuestions"))
+    }
+
+    private fun requireBackupTime(value: Any): Long = parseBackupTimeMillis(value)
+        ?: throw IllegalArgumentException("Invalid backup timestamp")
+
+    private fun contentQuestions(content: BackupContent): List<Question> = buildList {
+        content.banks.forEach { addAll(it.questions) }
+        content.wrong.forEach { add(it.question) }
+        content.favorites.forEach { add(it.question) }
+        content.records.forEach { record -> record.questionResults.forEach { add(it.question) } }
+    }
+
+    private fun validateBackupQuestionAssets(question: Question, assets: Map<String, ByteArray>) {
+        question.images.forEach { image ->
+            val path = image.localPath.trim()
+            when {
+                path.startsWith("data:image/", ignoreCase = true) -> backupDataImage(path)
+                path.startsWith("assets/") -> require(SafeZipReader.isSafeEntryName(path) && assets[path]?.isNotEmpty() == true) { "Referenced ZIP asset missing/unsafe" }
+                else -> require(isRemoteBackupImage(path)) { "Backup image is not self-contained; export an asset ZIP instead" }
+            }
+        }
+        val embedded = embeddedDataImageRegex.findAll(question.question).toList()
+        require(Regex("data:image/", RegexOption.IGNORE_CASE).findAll(question.question).count() == embedded.size) { "Invalid/unsupported embedded data image" }
+        embedded.forEach { backupDataImage(it.groupValues[2]) }
+        (listOf(question.question, question.analysis) + question.options.map { it.text }).forEach { text ->
+            backupMarkdownImageRegex.findAll(text).forEach { match ->
+                val path = match.groupValues[1]
+                when {
+                    path.startsWith("assets/") -> throw IllegalArgumentException("Local inline images must use the standard structured images field")
+                    path.startsWith("data:image/", ignoreCase = true) -> backupDataImage(path)
+                    else -> require(isRemoteBackupImage(path)) { "Inline backup image is not self-contained" }
+                }
+            }
+        }
+    }
+
+    private val backupMarkdownImageRegex = Regex("""!\[[^\]]*\]\(\s*([^\s)]+)[^)]*\)""")
+
+    private fun backupDataImage(uri: String): ParsedDataImage {
+        val data = parseDataImageUri(uri) ?: throw IllegalArgumentException("Invalid data image")
+        val raw = uri.substringAfter(',').replace(Regex("\\s+"), "")
+        require(raw.matches(Regex("[A-Za-z0-9+/]+={0,2}")) &&
+            ('=' !in raw || raw.length % 4 == 0) && data.bytes.size <= BACKUP_ENTRY_LIMIT &&
+            Base64.encodeToString(data.bytes, Base64.NO_WRAP).trimEnd('=') == raw.trimEnd('=')) { "Invalid base64 image encoding" }
+        return data
+    }
+
+    private fun isRemoteBackupImage(path: String): Boolean = runCatching {
+        val uri = java.net.URI(path)
+        uri.scheme?.lowercase(Locale.ROOT) in listOf("http", "https") && !uri.host.isNullOrBlank() && uri.userInfo == null
+    }.getOrDefault(false)
+
+    private fun materializeBackupContent(backup: ValidatedBackup, assetDir: File): BackupContent {
+        val installedImages = mutableMapOf<String, String>()
+        var installedBytes = 0L
+        fun save(key: String, bytes: ByteArray, extension: String): String = installedImages.getOrPut(key) {
+            installedBytes += bytes.size
+            check(bytes.isNotEmpty() && bytes.size <= BACKUP_ENTRY_LIMIT && installedBytes <= BACKUP_TOTAL_LIMIT) { "Restored asset size limit exceeded" }
+            check(assetDir.isDirectory || assetDir.mkdirs()) { "Cannot create restore assets" }
+            val file = File(assetDir, "${UUID.randomUUID()}.$extension")
+            writeSyncedFile(file, bytes)
+            check(file.readBytes().contentEquals(bytes)) { "Restored asset verification failed" }
+            file.absolutePath
+        }
+        fun install(question: Question): Question {
+            val images = question.images.map { image ->
+                val path = image.localPath.trim()
+                val installed = when {
+                    path.startsWith("assets/") -> {
+                        val extension = File(path).extension.replace(Regex("[^A-Za-z0-9]"), "").take(12).ifBlank { "bin" }
+                        save(path, backup.assets.getValue(path), extension)
+                    }
+                    path.startsWith("data:image/", ignoreCase = true) -> {
+                        val data = parseDataImageUri(path) ?: error("Validated data image became invalid")
+                        save(path, data.bytes, data.extension)
+                    }
+                    else -> path
+                }
+                if (installed == path) image else image.copy(localPath = installed, sizeBytes = File(installed).length())
+            }
+            val withImages = question.copy(images = images)
+            if (!question.question.contains("data:image/", ignoreCase = true)) return withImages
+            // Reuse the existing embedded-image transformation, but reject its silent failure paths.
+            val directory = File(assetDir, "embedded_${UUID.randomUUID()}")
+            check(directory.mkdirs()) { "Cannot create embedded image assets" }
+            val matches = embeddedDataImageRegex.findAll(question.question).toList()
+            val converted = convertEmbeddedDataImages(withImages, directory)
+            val added = converted.images.drop(images.size)
+            check(added.size == matches.size && !converted.question.contains("data:image/", ignoreCase = true)) { "Embedded image conversion would lose data" }
+            added.zip(matches).forEach { (image, match) ->
+                val expected = parseDataImageUri(match.groupValues[2]) ?: error("Invalid embedded data image")
+                val file = File(image.localPath)
+                check(file.isFile && file.readBytes().contentEquals(expected.bytes)) { "Embedded asset conversion failed" }
+                FileOutputStream(file, true).use { it.fd.sync() }
+                installedBytes += expected.bytes.size
+                check(installedBytes <= BACKUP_TOTAL_LIMIT) { "Restored asset size limit exceeded" }
+            }
+            return converted
+        }
+        val content = backup.content
+        return content.copy(
+            banks = content.banks.map { it.copy(questions = it.questions.map(::install)) },
+            wrong = content.wrong.map { it.copy(question = install(it.question)) },
+            favorites = content.favorites.map { it.copy(question = install(it.question)) },
+            records = content.records.map { record -> record.copy(questionResults = record.questionResults.map {
+                it.copy(question = install(it.question))
+            }) }
+        )
+    }
+
     fun importBackupJson(context: Context, rawText: String): String {
         return importBackupBytes(
             context = context,
@@ -2797,7 +3689,7 @@ object QuizRepository {
                     val data = SafeZipReader.readEntryBytes(
                         zip = zip,
                         entry = entry,
-                        maxSize = maxEntrySize,
+                        maxSize = if (name.endsWith(".json", ignoreCase = true)) BACKUP_JSON_LIMIT.toLong() else maxEntrySize,
                         maxTotalRemaining = maxTotalSize - totalSize
                     )
                     totalSize += data.size
@@ -3785,10 +4677,10 @@ object QuizRepository {
         )
     }
 
-    private fun sanitizeFavoriteEntries(entries: List<FavoriteQuestionEntry>, banks: List<QuizBank>): List<FavoriteQuestionEntry> {
-        val validBankIds = banks.map { it.id }.toSet()
+    private fun sanitizeFavoriteEntries(entries: List<FavoriteQuestionEntry>): List<FavoriteQuestionEntry> {
+        // An embedded favorite snapshot remains usable after its source bank was removed.
         return entries
-            .filter { entry -> entry.bankId in validBankIds && entry.question.id.isNotBlank() }
+            .filter { entry -> entry.bankId.isNotBlank() && entry.question.id.isNotBlank() }
             .map(::sanitizeFavoriteEntry)
             .distinctBy { it.bankId + "#" + it.question.id }
     }
@@ -5080,6 +5972,9 @@ object QuizRepository {
     }
     private fun registerBackupAsset(image: QuestionImage, assetMapping: MutableMap<String, BackupAsset>?, questionId: String): String? {
         if (assetMapping == null || image.localPath.isBlank()) return null
+        // Repeated snapshots may share a file but have different question/image IDs.
+        // Every JSON reference must use the one path actually included in the ZIP.
+        assetMapping[image.localPath]?.let { return it.backupPath }
         val file = File(image.localPath)
         if (!file.exists() || !file.isFile) return null
         val ext = file.extension.ifBlank { File(image.sourceName).extension.ifBlank { "bin" } }
@@ -5092,7 +5987,11 @@ object QuizRepository {
             .take(80)
             .ifBlank { "asset" }
         val pathHash = java.lang.Integer.toUnsignedString(image.localPath.hashCode(), 36)
-        val backupPath = "assets/${safeQuestionId}_${image.order.coerceAtLeast(1)}_${safeId}_${pathHash}.${ext}"
+        val basePath = "assets/${safeQuestionId}_${image.order.coerceAtLeast(1)}_${safeId}_${pathHash}"
+        var backupPath = "$basePath.$ext"
+        if (assetMapping.values.any { it.backupPath == backupPath }) {
+            backupPath = "${basePath}_${UUID.randomUUID()}.$ext"
+        }
         assetMapping[image.localPath] = BackupAsset(backupPath = backupPath, file = file)
         return backupPath
     }

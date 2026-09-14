@@ -69,6 +69,8 @@ import com.yiqiu.shirohaquiz.ui.screens.BankListScreen
 import com.yiqiu.shirohaquiz.ui.screens.BankReviewScreen
 import com.yiqiu.shirohaquiz.ui.screens.DataManagementScreen
 import com.yiqiu.shirohaquiz.ui.screens.DocumentRecognitionScreen
+import com.yiqiu.shirohaquiz.ui.screens.WebDavBackupScreen
+import com.yiqiu.shirohaquiz.ui.components.WebDavTaskCapsule
 import com.yiqiu.shirohaquiz.ui.screens.ExamScreen
 import com.yiqiu.shirohaquiz.ui.screens.FavoriteScreen
 import com.yiqiu.shirohaquiz.ui.screens.HomeScreen
@@ -116,6 +118,7 @@ private enum class MainTab(
     AiSettings("AI 设置", Icons.Rounded.Settings, showInBottomBar = false),
     DocumentRecognition("文档识别", Icons.Rounded.ImportExport, showInBottomBar = false),
     DataManagement("数据管理", Icons.Rounded.Settings, showInBottomBar = false),
+    CloudBackup("云端备份", Icons.Rounded.ImportExport, showInBottomBar = false),
     StandardFormat("标准格式", Icons.Rounded.ImportExport, showInBottomBar = false),
     About("关于", Icons.Rounded.Settings, showInBottomBar = false)
 }
@@ -137,6 +140,7 @@ private fun MainTab.fallbackBackTarget(): MainTab? = when (this) {
     MainTab.BankReview -> MainTab.BankDetail
     MainTab.RecordDetail -> MainTab.Records
     MainTab.PracticeQuickEdit -> MainTab.Practice
+    MainTab.CloudBackup -> MainTab.DataManagement
     MainTab.AppearancePreference,
     MainTab.PracticePreference,
     MainTab.WrongBookPreference,
@@ -260,6 +264,9 @@ fun ShirohaAppShell() {
                                 onClick = { navigateTo(MainTab.DocumentRecognition) }
                             )
                         }
+                        WebDavTaskCapsule(visible = currentTab != MainTab.CloudBackup,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            onOpen = { navigateTo(MainTab.CloudBackup) })
                         BottomAppBar(
                             containerColor = ShirohaColors.BottomBar,
                             tonalElevation = 0.dp
@@ -363,7 +370,6 @@ fun ShirohaAppShell() {
                         )
                         MainTab.Import -> ImportScreen(
                             onImportSaved = {
-                                DocumentRecognitionManager.onQuestionBankImportSaved()
                                 navigateRoot(MainTab.Home)
                             },
                             onOpenPreference = { navigateTo(MainTab.AiSettings) },
@@ -448,8 +454,10 @@ fun ShirohaAppShell() {
                             onUseResultForImport = { navigateRoot(MainTab.Import) }
                         )
                         MainTab.DataManagement -> DataManagementScreen(
-                            onBack = { navigateBack() }
+                            onBack = { navigateBack() },
+                            onOpenCloudBackup = { navigateTo(MainTab.CloudBackup) }
                         )
+                        MainTab.CloudBackup -> WebDavBackupScreen(onBack = { navigateBack() })
                         MainTab.StandardFormat -> StandardImportFormatScreen(
                             onBack = { navigateBack() }
                         )
@@ -458,20 +466,16 @@ fun ShirohaAppShell() {
                         )
                     }
                 }
-                    val documentTask = DocumentRecognitionManager.task
-                    if (
-                        useSideNavigation &&
-                        currentTab != MainTab.DocumentRecognition &&
-                        documentTask != null &&
-                        DocumentRecognitionManager.shouldShowGlobalTaskCapsule
-                    ) {
+                    if (useSideNavigation) Column(modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, vertical = 16.dp)) {
+                        val documentTask = DocumentRecognitionManager.task
+                        if (currentTab != MainTab.DocumentRecognition && documentTask != null && DocumentRecognitionManager.shouldShowGlobalTaskCapsule) {
                         DocumentTaskCapsule(
                             task = documentTask,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(horizontal = 24.dp, vertical = 16.dp),
                             onClick = { navigateTo(MainTab.DocumentRecognition) }
                         )
+                        }
+                        WebDavTaskCapsule(visible = currentTab != MainTab.CloudBackup,
+                            onOpen = { navigateTo(MainTab.CloudBackup) })
                     }
             }
         }

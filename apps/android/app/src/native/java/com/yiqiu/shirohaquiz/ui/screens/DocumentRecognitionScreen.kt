@@ -48,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,6 +67,13 @@ import com.yiqiu.shirohaquiz.document.MinerUSettings
 import com.yiqiu.shirohaquiz.document.SelectedDocument
 import com.yiqiu.shirohaquiz.document.isWorking
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
+import com.yiqiu.shirohaquiz.ui.components.DocumentImagesCard
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.platform.LocalContext
+import java.io.File
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
@@ -87,7 +95,23 @@ fun DocumentRecognitionScreen(
     val task = DocumentRecognitionManager.task
     val message = DocumentRecognitionManager.uiMessage
     val resultText = DocumentRecognitionManager.resultText
-    val isLocked = task?.isWorking == true || DocumentRecognitionManager.isPreparingDocument
+    val isLocked = task?.isWorking == true || DocumentRecognitionManager.isPreparingDocument || DocumentRecognitionManager.isPreparingImport
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var saveMessage by remember { mutableStateOf<String?>(null) }
+    val saveResult = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        val source = task?.rawResultPath?.let(::File)
+        if (uri != null && source != null) scope.launch {
+            saveMessage = try {
+                withContext(Dispatchers.IO) {
+                    require(source.isFile) { "识别结果已清理，请重新识别。" }
+                    val output = context.contentResolver.openOutputStream(uri) ?: error("无法写入所选位置。")
+                    output.use { out -> source.inputStream().use { it.copyTo(out) } }
+                }
+                "识别结果已保存，精准模式 ZIP 内含所选 DOCX / HTML / LaTeX 文件。"
+            } catch (error: Exception) { "保存识别结果失败：${error.message}" }
+        }
+    }
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     var showPrivacyDialog by rememberSaveable { mutableStateOf(false) }
     var showReplaceTaskDialog by rememberSaveable { mutableStateOf(false) }
@@ -186,12 +210,18 @@ fun DocumentRecognitionScreen(
                 text = resultText,
                 hasImageReferences = task.hasImageReferences,
                 onTextChange = DocumentRecognitionManager::updateResultText,
+                enabled = !isLocked,
                 onUseForImport = {
-                    if (DocumentRecognitionManager.prepareImportDraft(resultText)) {
-                        onUseResultForImport()
+                    scope.launch {
+                        if (DocumentRecognitionManager.prepareImportDraft(resultText)) onUseResultForImport()
                     }
                 }
             )
+            DocumentImagesCard(DocumentRecognitionManager.resultImages, enabled = !isLocked)
+            TextButton(enabled = !isLocked, onClick = {
+                saveResult.launch(if (task.mode == MinerUMode.PRECISE) "Shiroha_Quiz_识别结果.zip" else "Shiroha_Quiz_识别文本.md")
+            }) { Text("保存完整识别结果") }
+            saveMessage?.let { NoticeCard(it, warning = it.contains("失败")) }
         }
 
         NoticeCard(
@@ -502,6 +532,18 @@ private fun RecognitionSettingsCard(
                         )
                     }
                 }
+                Spacer(Modifier.height(12.dp))
+                Text("附加导出格式", style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("docx" to "Word", "html" to "HTML", "latex" to "LaTeX").forEach { (format, label) ->
+                        FilterChip(selected = format in settings.extraFormats, enabled = enabled, label = { Text(label) }, onClick = {
+                            val formats = if (format in settings.extraFormats) settings.extraFormats - format else settings.extraFormats + format
+                            onSettingsChange(settings.copy(extraFormats = formats))
+                        })
+                    }
+                }
+                Text("选择的格式包含在精准识别结果 ZIP 中，可保存后编辑。", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -537,7 +579,9 @@ private fun RecognitionTaskCard(task: DocumentRecognitionTask) {
         if (task.isWorking) {
             val determinate = task.totalPages > 0
             LinearProgressIndicator(
-                progress = if (determinate) {
+                progress = if (task.stage == DocumentTaskStage.UPLOADING && task.sizeBytes > 0) {
+                    (task.uploadedBytes.toFloat() / task.sizeBytes).coerceIn(0f, 1f)
+                } else if (determinate) {
                     (task.extractedPages.toFloat() / task.totalPages.toFloat()).coerceIn(0f, 1f)
                 } else {
                     when (task.stage) {
@@ -625,6 +669,7 @@ private fun RecognitionTaskActions(task: DocumentRecognitionTask, enabled: Boole
 private fun RecognitionResultCard(
     text: String,
     hasImageReferences: Boolean,
+    enabled: Boolean,
     onTextChange: (String) -> Unit,
     onUseForImport: () -> Unit
 ) {
@@ -639,13 +684,14 @@ private fun RecognitionResultCard(
         if (hasImageReferences) {
             Spacer(Modifier.height(10.dp))
             NoticeCard(
-                text = "识别结果包含图片引用。本阶段只导入文字并保留图片位置提示；图片下载、调整和题目绑定将在下一补丁实现。",
+                text = "精准模式可提取图片并按原文位置绑定，请在下方图片区和导入预览中核对。免费模式仅返回文字，缺失图片需要另行补充。",
                 warning = true
             )
         }
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = text,
+            enabled = enabled,
             onValueChange = onTextChange,
             modifier = Modifier
                 .fillMaxWidth()
@@ -658,7 +704,7 @@ private fun RecognitionResultCard(
             icon = Icons.Rounded.PlayArrow,
             text = "使用此文本导入",
             primary = true,
-            enabled = text.isNotBlank(),
+            enabled = enabled && text.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
