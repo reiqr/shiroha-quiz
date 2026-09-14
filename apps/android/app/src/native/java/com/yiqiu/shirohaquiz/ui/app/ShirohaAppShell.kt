@@ -59,13 +59,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.yiqiu.shirohaquiz.document.DocumentRecognitionManager
 import com.yiqiu.shirohaquiz.state.QuizRepository
+import com.yiqiu.shirohaquiz.ui.components.DocumentTaskCapsule
 import com.yiqiu.shirohaquiz.ui.screens.AboutScreen
 import com.yiqiu.shirohaquiz.ui.screens.AiSettingsScreen
 import com.yiqiu.shirohaquiz.ui.screens.BankDetailScreen
 import com.yiqiu.shirohaquiz.ui.screens.BankListScreen
 import com.yiqiu.shirohaquiz.ui.screens.BankReviewScreen
 import com.yiqiu.shirohaquiz.ui.screens.DataManagementScreen
+import com.yiqiu.shirohaquiz.ui.screens.DocumentRecognitionScreen
 import com.yiqiu.shirohaquiz.ui.screens.ExamScreen
 import com.yiqiu.shirohaquiz.ui.screens.FavoriteScreen
 import com.yiqiu.shirohaquiz.ui.screens.HomeScreen
@@ -111,6 +114,7 @@ private enum class MainTab(
     PracticeQuickEdit("快速编辑", Icons.Rounded.School, showInBottomBar = false),
     WrongBookPreference("错题本设置", Icons.Rounded.School, showInBottomBar = false),
     AiSettings("AI 设置", Icons.Rounded.Settings, showInBottomBar = false),
+    DocumentRecognition("文档识别", Icons.Rounded.ImportExport, showInBottomBar = false),
     DataManagement("数据管理", Icons.Rounded.Settings, showInBottomBar = false),
     StandardFormat("标准格式", Icons.Rounded.ImportExport, showInBottomBar = false),
     About("关于", Icons.Rounded.Settings, showInBottomBar = false)
@@ -137,6 +141,7 @@ private fun MainTab.fallbackBackTarget(): MainTab? = when (this) {
     MainTab.PracticePreference,
     MainTab.WrongBookPreference,
     MainTab.AiSettings,
+    MainTab.DocumentRecognition,
     MainTab.DataManagement,
     MainTab.StandardFormat,
     MainTab.About -> MainTab.Me
@@ -242,29 +247,43 @@ fun ShirohaAppShell() {
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
                 if (!useSideNavigation) {
-                    BottomAppBar(
-                        containerColor = ShirohaColors.BottomBar,
-                        tonalElevation = 0.dp
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    horizontal = ShirohaDimens.BottomBarHorizontalPadding,
-                                    vertical = ShirohaDimens.BottomBarVerticalPadding
-                                ),
-                            horizontalArrangement = Arrangement.spacedBy(ShirohaDimens.BottomNavItemGap),
-                            verticalAlignment = Alignment.CenterVertically
+                    Column {
+                        val documentTask = DocumentRecognitionManager.task
+                        if (
+                            currentTab != MainTab.DocumentRecognition &&
+                            documentTask != null &&
+                            DocumentRecognitionManager.shouldShowGlobalTaskCapsule
                         ) {
-                            MainTab.entries.filter { it.showInBottomBar }.forEach { tab ->
-                                ShirohaBottomNavItem(
-                                    tab = tab,
-                                    selected = selectedRootTab == tab,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        if (currentTab != tab) navigateRoot(tab)
-                                    }
-                                )
+                            DocumentTaskCapsule(
+                                task = documentTask,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                onClick = { navigateTo(MainTab.DocumentRecognition) }
+                            )
+                        }
+                        BottomAppBar(
+                            containerColor = ShirohaColors.BottomBar,
+                            tonalElevation = 0.dp
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = ShirohaDimens.BottomBarHorizontalPadding,
+                                        vertical = ShirohaDimens.BottomBarVerticalPadding
+                                    ),
+                                horizontalArrangement = Arrangement.spacedBy(ShirohaDimens.BottomNavItemGap),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                MainTab.entries.filter { it.showInBottomBar }.forEach { tab ->
+                                    ShirohaBottomNavItem(
+                                        tab = tab,
+                                        selected = selectedRootTab == tab,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = {
+                                            if (currentTab != tab) navigateRoot(tab)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -343,8 +362,14 @@ fun ShirohaAppShell() {
                             onBack = { navigateBack() }
                         )
                         MainTab.Import -> ImportScreen(
-                            onImportSaved = { navigateRoot(MainTab.Home) },
-                            onOpenPreference = { navigateTo(MainTab.AiSettings) }
+                            onImportSaved = {
+                                DocumentRecognitionManager.onQuestionBankImportSaved()
+                                navigateRoot(MainTab.Home)
+                            },
+                            onOpenPreference = { navigateTo(MainTab.AiSettings) },
+                            onOpenDocumentRecognition = { navigateTo(MainTab.DocumentRecognition) },
+                            ocrImportDraft = DocumentRecognitionManager.pendingImportDraft,
+                            onOcrImportDraftConsumed = DocumentRecognitionManager::consumePendingImportDraft
                         )
                         MainTab.Me -> MeScreen(
                             onOpenRecords = { navigateTo(MainTab.Records) },
@@ -352,6 +377,7 @@ fun ShirohaAppShell() {
                             onOpenPracticePreference = { navigateTo(MainTab.PracticePreference) },
                             onOpenWrongBookPreference = { navigateTo(MainTab.WrongBookPreference) },
                             onOpenAiSettings = { navigateTo(MainTab.AiSettings) },
+                            onOpenDocumentRecognition = { navigateTo(MainTab.DocumentRecognition) },
                             onOpenDataManagement = { navigateTo(MainTab.DataManagement) },
                             onOpenStandardFormat = { navigateTo(MainTab.StandardFormat) },
                             onOpenAbout = { navigateTo(MainTab.About) }
@@ -417,6 +443,10 @@ fun ShirohaAppShell() {
                         MainTab.AiSettings -> AiSettingsScreen(
                             onBack = { navigateBack() }
                         )
+                        MainTab.DocumentRecognition -> DocumentRecognitionScreen(
+                            onBack = { navigateBack() },
+                            onUseResultForImport = { navigateRoot(MainTab.Import) }
+                        )
                         MainTab.DataManagement -> DataManagementScreen(
                             onBack = { navigateBack() }
                         )
@@ -428,6 +458,21 @@ fun ShirohaAppShell() {
                         )
                     }
                 }
+                    val documentTask = DocumentRecognitionManager.task
+                    if (
+                        useSideNavigation &&
+                        currentTab != MainTab.DocumentRecognition &&
+                        documentTask != null &&
+                        DocumentRecognitionManager.shouldShowGlobalTaskCapsule
+                    ) {
+                        DocumentTaskCapsule(
+                            task = documentTask,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                            onClick = { navigateTo(MainTab.DocumentRecognition) }
+                        )
+                    }
             }
         }
     }

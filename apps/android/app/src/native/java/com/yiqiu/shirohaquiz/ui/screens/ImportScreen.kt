@@ -47,6 +47,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Done
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -98,6 +99,7 @@ import com.yiqiu.shirohaquiz.ai.AiRefactorResult
 import com.yiqiu.shirohaquiz.ai.AiAnalysisSuggestion
 import com.yiqiu.shirohaquiz.ai.AiReviewSuggestion
 import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
+import com.yiqiu.shirohaquiz.document.DocumentImportDraft
 import com.yiqiu.shirohaquiz.importer.model.ImportDiagnostics
 import com.yiqiu.shirohaquiz.importer.model.ImportResult
 import com.yiqiu.shirohaquiz.importer.model.ImportWarning
@@ -144,7 +146,10 @@ import kotlin.math.roundToInt
 @Composable
 fun ImportScreen(
     onImportSaved: () -> Unit,
-    onOpenPreference: () -> Unit
+    onOpenPreference: () -> Unit,
+    onOpenDocumentRecognition: () -> Unit,
+    ocrImportDraft: DocumentImportDraft? = null,
+    onOcrImportDraftConsumed: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val importScope = rememberCoroutineScope()
@@ -233,6 +238,25 @@ fun ImportScreen(
         aiBatchState = null
         aiStopRequested = false
         if (clearImages) importedImages = emptyList()
+    }
+
+    LaunchedEffect(ocrImportDraft?.id) {
+        val draft = ocrImportDraft ?: return@LaunchedEffect
+        useDualImport = false
+        selectedFileName = draft.sourceFileName
+        selectedAnswerFileName = "未选择答案文件"
+        rawText = draft.text
+        answerText = ""
+        rawTextEditorExpanded = draft.text.length <= LARGE_TEXT_PREVIEW_THRESHOLD
+        answerTextEditorExpanded = true
+        clearParsedResult(clearImages = true)
+        statusText = if (draft.hasImageReferences) {
+            "已接收在线 OCR 文本。原 PDF 含图片引用，本阶段仅带入图片位置提示，请在解析前核对。"
+        } else {
+            "已接收在线 OCR 文本，请核对后开始解析。"
+        }
+        isStatusWarn = draft.hasImageReferences
+        onOcrImportDraftConsumed(draft.id)
     }
 
     fun applyParsedResult(result: ImportResult) {
@@ -1035,6 +1059,18 @@ fun ImportScreen(
                     }
                 )
             }
+            Spacer(Modifier.height(10.dp))
+            ActionPillButton(
+                icon = Icons.Rounded.DocumentScanner,
+                text = "在线解析 PDF",
+                primary = false,
+                enabled = !isImportBusy,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                fillWidthContent = true,
+                onClick = onOpenDocumentRecognition
+            )
             Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),

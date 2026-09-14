@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import com.yiqiu.shirohaquiz.document.DocumentRecognitionManager
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.app.ShirohaAppShell
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
@@ -58,6 +59,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         QuizRepository.init(applicationContext)
+        DocumentRecognitionManager.init(applicationContext)
         LauncherIconSwitcher.applyShirohaMode(applicationContext, QuizRepository.shirohaModeEnabled)
         applyStatusBarTheme(QuizRepository.darkThemeEnabled)
         setContent {
