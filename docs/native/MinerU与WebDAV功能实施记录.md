@@ -46,6 +46,8 @@
 
 MinerU Token 与 WebDAV 密码使用独立逻辑密钥和 Android Keystore 别名，密文写入 `noBackupFilesDir`。它们不存入题库仓库、不进入题库备份，也不会随云端恢复覆盖。
 
+AI API Key 同样接入该密钥存储。升级时会验证加密写入成功，再清理旧的明文偏好；迁移失败保留旧 Key 并在 AI 设置提示。新 Key 与对应接口地址、服务商、模型一起加密保存，避免保存中断后密钥和接口错配。普通答题保存不再写入明文 Key，显式清除 AI 配置只删除 AI 密钥，不影响 MinerU 与 WebDAV 凭据。
+
 WebDAV 只备份已保存的数据，未确认的 OCR 草稿、原始 PDF 和临时 AI 对话不上传。
 
 完整 JSON 的读取限制与图片资源单项限制分开：完整 JSON / 云端文件最多 150 MiB；ZIP 解压总量保持 100 MiB，图片等单项保持 20 MiB，最多 1000 个条目。ZIP 路径、重复条目、CRC、大小、版本和资源引用均做验证。
@@ -54,14 +56,14 @@ WebDAV 只备份已保存的数据，未确认的 OCR 草稿、原始 PDF 和临
 
 新增测试分别覆盖 Markdown 保真、图片标记与人工归属、WebDAV 网络操作，以及隔离的覆盖恢复/回滚。云端恢复测试使用独立偏好和文件目录，不操作用户真实题库。
 
-本轮新增 27 项定向单元测试全部通过，其中云端恢复测试包含 14 个隔离场景。原生 Kotlin 编译和 Android 恢复测试包构建通过；UTF-8 与改动空白检查通过。
+MinerU/WebDAV 的 27 项定向测试通过；AI Key 加密、迁移、失败保留和清除新增 13 项测试，合计 40 项。其中云端恢复测试包含 14 个隔离场景。原生 Kotlin 编译和 Android 恢复测试包构建通过；UTF-8 与改动空白检查通过。
 
 编译与模拟测试通过不能替代实际设备、真实 PDF 和服务商账户的验收；免费限频、Token 权限、服务商 MOVE 支持和大文件体验仍需实测。目前没有连接测试设备，也未使用真实 MinerU Token 或 WebDAV 账户。
 
 本地定向测试可在 `apps/android` 目录执行：
 
 ```powershell
-.\gradlew.bat :app:testNativeDebugUnitTest --tests 'com.yiqiu.shirohaquiz.document.*' --tests 'com.yiqiu.shirohaquiz.sync.webdav.*' --tests 'com.yiqiu.shirohaquiz.state.CloudRestoreJvmTest'
+.\gradlew.bat :app:testNativeDebugUnitTest --tests 'com.yiqiu.shirohaquiz.document.*' --tests 'com.yiqiu.shirohaquiz.sync.webdav.*' --tests 'com.yiqiu.shirohaquiz.security.*' --tests 'com.yiqiu.shirohaquiz.state.CloudRestoreJvmTest'
 ```
 
 首次执行需要下载依赖。已有依赖缓存时可加 `--offline`。测试依赖仅加在原生测试配置中，不进入正式安装包。

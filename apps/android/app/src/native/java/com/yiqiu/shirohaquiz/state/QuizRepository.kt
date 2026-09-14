@@ -16,6 +16,9 @@ import com.yiqiu.shirohaquiz.importer.model.QuestionImage
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import com.yiqiu.shirohaquiz.util.LauncherIconSwitcher
 import com.yiqiu.shirohaquiz.util.SafeZipReader
+import com.yiqiu.shirohaquiz.security.AiApiKeyStore
+import com.yiqiu.shirohaquiz.security.AiKeyConfiguration
+import com.yiqiu.shirohaquiz.security.SecureSecretStore
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -231,7 +234,6 @@ object QuizRepository {
     private const val KEY_COMPACT_OPTIONS_ENABLED = "compact_options_enabled"
     private const val KEY_AI_PROVIDER = "ai_provider"
     private const val KEY_AI_API_BASE_URL = "ai_api_base_url"
-    private const val KEY_AI_API_KEY = "ai_api_key"
     private const val KEY_AI_MODEL_NAME = "ai_model_name"
     private const val KEY_AI_REFACTOR_ENABLED = "ai_refactor_enabled"
     private const val KEY_AI_REVIEW_ENABLED = "ai_review_enabled"
@@ -365,6 +367,8 @@ object QuizRepository {
     var aiApiBaseUrl by mutableStateOf("")
         private set
     var aiApiKey by mutableStateOf("")
+        private set
+    var aiCredentialWarning by mutableStateOf<String?>(null)
         private set
     var aiModelName by mutableStateOf("")
         private set
@@ -595,8 +599,15 @@ object QuizRepository {
         compactOptionsEnabled = prefs.getBoolean(KEY_COMPACT_OPTIONS_ENABLED, false)
         aiProvider = prefs.getString(KEY_AI_PROVIDER, "DeepSeek") ?: "DeepSeek"
         aiApiBaseUrl = prefs.getString(KEY_AI_API_BASE_URL, "") ?: ""
-        aiApiKey = prefs.getString(KEY_AI_API_KEY, "") ?: ""
+        val loadedAiKey = aiKeyStore(context).load()
+        aiApiKey = loadedAiKey.apiKey
+        aiCredentialWarning = loadedAiKey.warning
         aiModelName = prefs.getString(KEY_AI_MODEL_NAME, "") ?: ""
+        loadedAiKey.configuration?.let { configuration ->
+            aiProvider = configuration.provider
+            aiApiBaseUrl = configuration.apiBaseUrl
+            aiModelName = configuration.modelName
+        }
         aiRefactorEnabled = prefs.getBoolean(KEY_AI_REFACTOR_ENABLED, false)
         aiReviewEnabled = prefs.getBoolean(KEY_AI_REVIEW_ENABLED, false)
         aiAnalysisEnabled = prefs.getBoolean(KEY_AI_ANALYSIS_ENABLED, false)
@@ -1959,19 +1970,28 @@ object QuizRepository {
         else -> 21
     }
 
+    private fun aiKeyStore(context: Context): AiApiKeyStore = AiApiKeyStore(
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE), SecureSecretStore(context)
+    )
+
     fun setAiInterfaceConfig(
         context: Context,
         provider: String,
         apiBaseUrl: String,
         apiKey: String,
         modelName: String
-    ) {
+    ): Boolean {
+        val configuration = AiKeyConfiguration(provider.ifBlank { "DeepSeek" }, apiBaseUrl.trim(), modelName.trim())
+        val result = aiKeyStore(context).save(apiKey, configuration)
+        aiCredentialWarning = result.warning
+        if (!result.success) return false
         appContext = context.applicationContext
         aiProvider = provider.ifBlank { "DeepSeek" }
         aiApiBaseUrl = apiBaseUrl.trim()
         aiApiKey = apiKey.trim()
         aiModelName = modelName.trim()
         persist()
+        return true
     }
 
     fun setAiRefactorEnabled(context: Context, enabled: Boolean) {
@@ -2023,7 +2043,10 @@ object QuizRepository {
         persist()
     }
 
-    fun clearAiConfig(context: Context) {
+    fun clearAiConfig(context: Context): Boolean {
+        val result = aiKeyStore(context).clear()
+        aiCredentialWarning = result.warning
+        if (!result.success) return false
         appContext = context.applicationContext
         aiApiBaseUrl = ""
         aiApiKey = ""
@@ -2033,6 +2056,7 @@ object QuizRepository {
         aiAnalysisEnabled = false
         aiSingleQuestionAnalysisEnabled = false
         persist()
+        return true
     }
 
     fun isAiConfigured(): Boolean {

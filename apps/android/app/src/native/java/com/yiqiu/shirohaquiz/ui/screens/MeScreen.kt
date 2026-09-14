@@ -47,6 +47,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -1123,6 +1124,9 @@ private fun AiSettingsPanel(context: Context) {
     var isTestingConnection by remember { mutableStateOf(false) }
     var showClearAiConfigConfirm by remember { mutableStateOf(false) }
     val aiScope = rememberCoroutineScope()
+    LaunchedEffect(QuizRepository.aiCredentialWarning) {
+        QuizRepository.aiCredentialWarning?.let { statusText = it; statusWarning = true }
+    }
 
     if (showClearAiConfigConfirm) {
         ShirohaDangerConfirmDialog(
@@ -1131,11 +1135,13 @@ private fun AiSettingsPanel(context: Context) {
             confirmText = "确认清除",
             onDismiss = { showClearAiConfigConfirm = false },
             onConfirm = {
-                QuizRepository.clearAiConfig(context)
-                apiBaseUrl = ""
-                apiKey = ""
-                modelName = ""
-                statusText = "AI 配置已清除。"
+                val cleared = QuizRepository.clearAiConfig(context)
+                if (cleared) {
+                    apiBaseUrl = ""
+                    apiKey = ""
+                    modelName = ""
+                }
+                statusText = QuizRepository.aiCredentialWarning ?: if (cleared) "AI 配置已清除。" else "AI 配置清除失败。"
                 statusWarning = true
                 showClearAiConfigConfirm = false
             }
@@ -1204,15 +1210,15 @@ private fun AiSettingsPanel(context: Context) {
         Row(horizontalArrangement = Arrangement.spacedBy(ShirohaSpacing.Sm)) {
             TextButton(
                 onClick = {
-                    QuizRepository.setAiInterfaceConfig(
+                    val saved = QuizRepository.setAiInterfaceConfig(
                         context = context,
                         provider = provider,
                         apiBaseUrl = apiBaseUrl,
                         apiKey = apiKey,
                         modelName = modelName
                     )
-                    statusText = "AI 接口配置已保存。"
-                    statusWarning = false
+                    statusText = QuizRepository.aiCredentialWarning ?: if (saved) "AI 接口配置已保存。" else "AI 接口配置保存失败。"
+                    statusWarning = !saved || QuizRepository.aiCredentialWarning != null
                 }
             ) {
                 Text("保存配置")

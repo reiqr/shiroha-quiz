@@ -18,12 +18,19 @@ import javax.crypto.spec.GCMParameterSpec
  * Small device-local secret store. Ciphertext lives under noBackupFilesDir and the AES key stays
  * in Android Keystore, so API tokens are excluded from Shiroha backups and Android Auto Backup.
  */
-class SecureSecretStore(context: Context) {
+interface LocalSecretStore {
+    fun put(key: String, value: String)
+    fun get(key: String): String?
+    fun contains(key: String): Boolean
+    fun remove(key: String)
+}
+
+class SecureSecretStore(context: Context) : LocalSecretStore {
     private val appContext = context.applicationContext
     private val secretFile = File(appContext.noBackupFilesDir, SECRET_FILE_NAME)
 
     @Synchronized
-    fun put(key: String, value: String): Unit = synchronized(STORE_LOCK) {
+    override fun put(key: String, value: String): Unit = synchronized(STORE_LOCK) {
         require(key.isNotBlank()) { "Secret key must not be blank." }
         if (value.isBlank()) {
             remove(key)
@@ -47,7 +54,7 @@ class SecureSecretStore(context: Context) {
     }
 
     @Synchronized
-    fun get(key: String): String? = synchronized(STORE_LOCK) {
+    override fun get(key: String): String? = synchronized(STORE_LOCK) {
         val root = runCatching { readRoot() }.getOrNull() ?: return@synchronized null
         val entry = root.optJSONObject(key) ?: return@synchronized null
         runCatching {
@@ -60,7 +67,10 @@ class SecureSecretStore(context: Context) {
     }
 
     @Synchronized
-    fun remove(key: String): Unit = synchronized(STORE_LOCK) {
+    override fun contains(key: String): Boolean = synchronized(STORE_LOCK) { readRoot().has(key) }
+
+    @Synchronized
+    override fun remove(key: String): Unit = synchronized(STORE_LOCK) {
         val root = readRoot()
         if (root.has(key)) {
             root.remove(key)
