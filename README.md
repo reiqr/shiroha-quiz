@@ -436,6 +436,15 @@ Web ZIP **不含离线扩展库**（PDF.js 完整包、MathJax、Tesseract OCR�
 
 ---
 
+## 贡献者
+
+感谢以下贡献者对项目的帮助：
+
+- [@jiesou](https://github.com/jiesou) —— 提供了练习页单题 AI 解析与追问的实现思路
+- [@anupamme](https://github.com/anupamme) —— 报告了 AI API Key 明文存储的安全问题
+
+---
+
 ## 许可证
 
 本项目采用 `GPL-3.0` 开源。
