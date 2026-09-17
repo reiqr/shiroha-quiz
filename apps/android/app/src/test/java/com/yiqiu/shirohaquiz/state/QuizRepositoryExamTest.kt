@@ -73,8 +73,14 @@ class QuizRepositoryExamTest {
     }
 
     @Test
-    fun `wrong answer should enter wrong book and records`() {
+    fun `wrong answer should enter wrong book and defer practice record until finished`() {
         seedBank()
+        // 先启动练习：未启动时没有当前题，submitPracticeQuestion 会直接返回 null
+        QuizRepository.startPracticeSession(
+            questionCount = 2,
+            allowedTypes = setOf(QuestionType.SINGLE, QuestionType.MULTIPLE),
+            randomize = false
+        )
 
         QuizRepository.toggleAnswer("B", multiple = false)
         val result = QuizRepository.submitPracticeQuestion()
@@ -82,8 +88,8 @@ class QuizRepositoryExamTest {
         assertNotNull(result)
         assertFalse(result!!.correct)
         assertEquals(1, QuizRepository.wrongBook.size)
-        assertEquals(1, QuizRepository.studyRecords.size)
-        assertEquals("练习", QuizRepository.studyRecords.first().source)
+        // 练习记录在整轮完成时产生；本轮共 2 题，仅提交 1 题不应提前生成记录
+        assertEquals(0, QuizRepository.studyRecords.size)
     }
 
     @Test

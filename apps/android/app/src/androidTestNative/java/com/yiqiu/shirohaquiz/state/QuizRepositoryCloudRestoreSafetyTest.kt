@@ -44,25 +44,17 @@ class QuizRepositoryCloudRestoreSafetyTest(private val context: Context) {
     private lateinit var isolated: RestoreContext
 
     fun runAll(): Int {
-        val cases = listOf(
-            ::testPreviewIsReadOnlyAndCountsIndependentContent,
-            ::testReplacementPreservesSettingsAndIndependentContentAcrossRestart,
-            ::testCommitFailureRollsBackObjectsAssetsAndPreferences,
-            ::testFailedRollbackIsRecoveredBeforeLoadingOnRestart,
-            ::testSafetyBackupFailureNeverStartsReplacement,
-            ::testSafetyCopiesAreReadableAndBounded,
-            ::testLossyAndMalformedJsonIsRejectedBeforeAnyWrite,
-            ::testZipTraversalTruncationDuplicatesAndMissingAssetsAreRejected,
-            ::testSameBasenameAssetsRemainDistinctAndOldAssetsRemainAvailable,
-            ::testEmptyFullBackupAndRecordOnlyBackupAreLegal,
-            ::testCanonicalIdRepairPreservesNestedQuestionSnapshots,
-            ::testLegacyUnmappableStateAndNonSelfContainedImagesAreRejected,
-            ::testZipCountSizeCrcAndUtf8LimitsAreEnforced,
-            ::testSafetyBackupIncludesSharedAssetReferencedByDifferentQuestionIds
-        )
-        cases.forEach { test ->
+        // 自动收集 test 开头的无参公开方法，新增用例无需再手动登记到本列表
+        val cases = javaClass.declaredMethods
+            .filter { method ->
+                method.name.startsWith("test") &&
+                    method.parameterCount == 0 &&
+                    java.lang.reflect.Modifier.isPublic(method.modifiers)
+            }
+            .sortedBy { it.name }
+        cases.forEach { method ->
             setUp()
-            try { test() } finally { tearDown() }
+            try { method.invoke(this) } finally { tearDown() }
         }
         return cases.size
     }

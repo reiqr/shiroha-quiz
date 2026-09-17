@@ -41,6 +41,7 @@ class ParserRuleSmokeTest {
         assertEquals(
             listOf(
                 "table_answer",
+                "compact_answer_line",
                 "labeled_answer",
                 "expression_answer",
                 "subjective_answer",
