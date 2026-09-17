@@ -113,7 +113,7 @@ fun MultiBlankAnswerEditor(
                 }
                 TextButton(onClick = {
                     val next = blankAnswers.toMutableList()
-                    next[blankIndex] = List(answerCount) { answers.getOrNull(it).orEmpty() } + ""
+                    next[blankIndex] = answers + listOf("")
                     onChange(next)
                 }) { Text("增加备选答案") }
                 Spacer(Modifier.height(8.dp))
