@@ -35,13 +35,19 @@ git push origin main
 
 ## 版本号规则
 
-| 版本号            | 含义          |
-| -------------- | ----------- |
-| `v0.1.0-alpha` | 首次公开测试版     |
-| `v0.1.1-alpha` | 修复 bug、小幅调整 |
-| `v0.2.0-alpha` | 新增功能        |
-| `v0.3.0-beta`  | 基本可用，进入测试阶段 |
-| `v1.0.0`       | 正式稳定版       |
+本项目使用三条并行的版本线：
+
+| 版本线 | 格式 | 适用场景 |
+| --- | --- | --- |
+| 双端统一 | `v2.X.Y-beta` | 双端同时发布（含 APK + Web ZIP） |
+| Web 版 | `v0.X.Y-alpha` | 仅 Web 端变更 |
+| 原生 Compose 版 | `v0.X.Y-native` | 仅原生端变更 |
+
+变更级别与位数对应：
+
+- **第四位**（`v0.9.9` → `v0.9.9.1`）：小修复、文档微调
+- **第二位**（`v0.9.9` → `v0.9.10`）：功能级变更
+- **第一位**（`v0.9` → `v0.10`）：架构级变更
 
 ---
 
@@ -51,10 +57,10 @@ Tag 是 Git 层面的版本标记，独立于 Release。
 
 ```powershell
 # 创建标签
-git tag -a v0.2.0-alpha -m "v0.2.0-alpha"
+git tag -a <tag> -m "<tag>"
 
 # 推送标签到远端
-git push origin v0.2.0-alpha
+git push origin <tag>
 
 # 查看已有标签
 git tag -l
@@ -71,7 +77,7 @@ Release 是 GitHub 层面的发布，可以附带说明和附件。
 创建 tag + 创建 release + 上传附件，一条命令搞定：
 
 ```powershell
-gh release create v0.2.0-alpha "./apps/压缩包.zip" "./apps/xxx.apk" -t "v0.2.0-alpha" -n "版本说明"
+gh release create <tag> "./apps/压缩包.zip" "./apps/xxx.apk" -t "<tag>" -n "版本说明"
 ```
 
 多个附件用空格分隔，全部写在同一行。
@@ -80,11 +86,11 @@ gh release create v0.2.0-alpha "./apps/压缩包.zip" "./apps/xxx.apk" -t "v0.2.
 
 ```powershell
 # 第一步：打 tag 并推送
-git tag -a v0.2.0-alpha -m "v0.2.0-alpha"
-git push origin v0.2.0-alpha
+git tag -a <tag> -m "<tag>"
+git push origin <tag>
 
 # 第二步：基于已有 tag 创建 release（带附件）
-gh release create v0.2.0-alpha "./apps/压缩包.zip" -t "v0.2.0-alpha" -n "版本说明"
+gh release create <tag> "./apps/压缩包.zip" -t "<tag>" -n "版本说明"
 ```
 
 ### 方式三：草稿模式（先创建草稿，上传完再发布）
@@ -93,14 +99,14 @@ gh release create v0.2.0-alpha "./apps/压缩包.zip" -t "v0.2.0-alpha" -n "版�
 
 ```powershell
 # 第一步：创建草稿
-gh release create v0.2.0-alpha -t "v0.2.0-alpha" -n "版本说明" -d
+gh release create <tag> -t "<tag>" -n "版本说明" -d
 
 # 第二步：上传附件（可多次执行）
-gh release upload v0.2.0-alpha "./apps/压缩包.zip" --repo reiqr/shiroha-quiz
-gh release upload v0.2.0-alpha "./apps/xxx.apk" --repo reiqr/shiroha-quiz
+gh release upload <tag> "./apps/压缩包.zip" --repo reiqr/shiroha-quiz
+gh release upload <tag> "./apps/xxx.apk" --repo reiqr/shiroha-quiz
 
 # 第三步：发布草稿
-gh release edit v0.2.0-alpha --draft=false
+gh release edit <tag> --draft=false
 ```
 
 ---
@@ -108,7 +114,7 @@ gh release edit v0.2.0-alpha --draft=false
 ## 修改 Release 说明
 
 ```powershell
-gh release edit v0.2.0-alpha -n "新的版本说明"
+gh release edit <tag> -n "新的版本说明"
 ```
 
 ---
@@ -121,10 +127,10 @@ gh release edit v0.2.0-alpha -n "新的版本说明"
 
 ```powershell
 # 1. 删除旧 release（不会删除 tag）
-gh release delete v0.2.0-alpha --yes
+gh release delete <tag> --yes
 
 # 2. 重建（带附件）
-gh release create v0.2.0-alpha "./apps/压缩包.zip" "./apps/xxx.apk" -t "v0.2.0-alpha" -n "版本说明"
+gh release create <tag> "./apps/压缩包.zip" "./apps/xxx.apk" -t "<tag>" -n "版本说明"
 ```
 
 ---
@@ -136,7 +142,7 @@ git status                        # 当前改动
 git log --oneline -10             # 最近 10 条提交
 git tag -l                        # 本地标签列表
 gh release list                   # Release 列表
-gh release view v0.2.0-alpha      # 查看某个 Release
+gh release view <tag>      # 查看某个 Release
 ```
 
 ---
@@ -147,8 +153,8 @@ gh release view v0.2.0-alpha      # 查看某个 Release
 git restore 文件名                  # 撤销还没 add 的改动
 git restore --staged 文件名         # 取消暂存
 git rm -r --cached 文件夹名/        # 取消跟踪（不删除本地文件）
-git tag -d v0.2.0-alpha            # 删除本地标签
-git push origin :refs/tags/v0.2.0-alpha   # 删除远端标签
+git tag -d <tag>            # 删除本地标签
+git push origin :refs/tags/<tag>   # 删除远端标签
 ```
 
 ---
