@@ -257,7 +257,10 @@ shiroha-quiz/
 │       │   │   │   ├── parser/      #   文本 / 表格 / 双文件解析
 │       │   │   │   ├── score/       #   解析策略评分
 │       │   │   │   └── validate/    #   导入结果校验
+│       │   │   ├── document/        # 文档识别（MinerU 在线 OCR）
+│       │   │   ├── security/        # 密钥加密存储（Android Keystore）
 │       │   │   ├── state/           # 全局状态管理
+│       │   │   ├── sync/            # WebDAV 云备份
 │       │   │   ├── ui/              # Compose UI
 │       │   │   │   ├── app/         #   App Shell
 │       │   │   │   ├── components/  #   可复用组件
@@ -265,7 +268,8 @@ shiroha-quiz/
 │       │   │   │   └── theme/       #   主题与设计 Token
 │       │   │   └── util/            # 工具类
 │       │   ├── src/test/            # 通用单元测试
-│       │   └── src/testNative/      # 原生版解析器测试
+│       │   ├── src/testNative/      # 原生 JVM 单元测试
+│       │   └── src/androidTestNative/  # 云端恢复安全场景（真机运行）
 │       ├── build.gradle.kts
 │       ├── settings.gradle.kts
 │       ├── gradle.properties
@@ -278,8 +282,10 @@ shiroha-quiz/
 │   ├── native/
 │   ├── universal/
 │   └── archive/
-├── test/                            # 解析器回归测试
-│   └── native-parser-regression/
+├── test/                            # 测试包
+│   ├── native-parser-regression/    # 解析器外部回归
+│   ├── web-webdav/                  # Web 端 WebDAV 请求测试
+│   └── web-ai-practice/             # Web 端 AI 练习测试
 ├── assets/                          # 宣传图与素材源文件
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
@@ -335,9 +341,11 @@ apps/android/app/build/outputs/
 
 ## 测试与回归
 
-原生解析器有一套外部回归测试，用真实题库样例验证导入解析逻辑是否被新改动误伤。
+项目有三层测试，分别覆盖解析逻辑、原生业务逻辑与 Web 端。
 
-推荐入口：
+### 解析器外部回归（真实题库样例）
+
+用真实题库验证导入解析逻辑是否被新改动误伤：
 
 ```powershell
 .\run-regression.ps1
@@ -356,8 +364,26 @@ cd test\native-parser-regression
 - `test/native-parser-regression/actual/runner-summary.json`
 - `test/native-parser-regression/actual/comparison-summary.json`
 
+### 原生 JVM 单元测试
+
+覆盖 DOCX 解码、多空题备选答案、AI 密钥存储、WebDAV 备份与云端恢复安全等：
+
+```powershell
+cd apps/android
+.\gradlew.bat :app:testNativeDebugUnitTest
+```
+
+### Web 端测试
+
+`test/web-webdav/` 与 `test/web-ai-practice/` 使用 Node 内置测试运行器，无需安装依赖：
+
+```powershell
+node --test test/web-webdav/request.test.cjs
+```
+
 说明文档：
 
+- [测试体系整理说明](docs/native/测试体系整理说明.md)
 - [解析器回归测试说明](docs/native/解析器回归测试说明.md)
 - [外部回归测试包说明](test/native-parser-regression/README.md)
 
