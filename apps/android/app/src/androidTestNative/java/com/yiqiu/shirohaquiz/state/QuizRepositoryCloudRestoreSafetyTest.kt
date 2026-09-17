@@ -11,10 +11,12 @@ import com.yiqiu.shirohaquiz.importer.model.QuestionImage
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /** Real Android APIs, without adding a JUnit/Robolectric/AndroidX dependency to shared builds. */
@@ -285,6 +287,23 @@ class QuizRepositoryCloudRestoreSafetyTest(private val context: Context) {
         val zip = QuizRepository.exportFullBackupZip()
         assertEquals(2, QuizRepository.previewBackupBytes(zip).questionCount)
         assertEquals(1, QuizRepository.previewBackupBytes(zip).assetCount)
+
+        val entries = linkedMapOf<String, ByteArray>()
+        ZipInputStream(ByteArrayInputStream(zip)).use { input ->
+            while (true) {
+                val entry = input.nextEntry ?: break
+                if (!entry.isDirectory) entries[entry.name] = input.readBytes()
+            }
+        }
+        val backup = JSONObject(entries.getValue("backup.json").toString(Charsets.UTF_8))
+        val exportedQuestion = (0 until backup.getJSONArray("banks").length())
+            .asSequence()
+            .map { backup.getJSONArray("banks").getJSONObject(it).getJSONArray("questions") }
+            .flatMap { questions -> (0 until questions.length()).asSequence().map { questions.getJSONObject(it) } }
+            .first { it.optString("id") == "local-q" }
+        val assetPath = exportedQuestion.getJSONArray("images").getJSONObject(0).getString("localPath")
+        assertTrue(assetPath.startsWith("assets/"))
+        assertEquals(listOf<Byte>(9, 8, 7), entries.getValue(assetPath).toList())
         assertTrue(QuizRepository.replaceContentFromBackupBytes(independentBackup()).startsWith("已覆盖恢复"))
     }
 
