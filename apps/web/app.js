@@ -8556,12 +8556,16 @@ function webdavPublicUrlV378(url){try{const parsed=new URL(url);return parsed.or
 function webdavErrorV378(message,meta={}){const error=new Error(message);Object.assign(error,meta);return error}
 async function webdavRequestV378(config,password,relativePath,options={}){
   const method=String(options.method||'GET').toUpperCase();const url=webdavUrlV378(config,relativePath,!!options.trailingSlash);
-  if(typeof location!=='undefined'&&location.protocol==='https:'&&new URL(url).protocol==='http:')throw webdavErrorV378('HTTPS 页面不能请求 HTTP WebDAV（浏览器会拦截混合内容）。',{code:'mixed_content',method,url});
   const controller=new AbortController();const timeoutMs=Number(options.timeoutMs||30000);const timer=setTimeout(()=>controller.abort(),timeoutMs);
   const headers={...(options.headers||{})};if(config.username||password)headers.Authorization=webdavBasicAuthV378(config.username,password);
   let response;
   try{response=await fetch(url,{method,headers,body:options.body,signal:controller.signal,credentials:'omit',cache:'no-store'})}
-  catch(error){if(error&&error.name==='AbortError')throw webdavErrorV378(`请求超时（${Math.round(timeoutMs/1000)} 秒）。`,{code:'timeout',method,url,cause:error});throw webdavErrorV378('浏览器未能连接 WebDAV 服务。',{code:'network',method,url,cause:error})}
+  catch(error){
+    if(error&&error.name==='AbortError')throw webdavErrorV378(`请求超时（${Math.round(timeoutMs/1000)} 秒）。`,{code:'timeout',method,url,cause:error});
+    // Fetch failures do not distinguish mixed content from CORS or network errors.
+    const possibleMixedContent=typeof location!=='undefined'&&location.protocol==='https:'&&new URL(url).protocol==='http:';
+    throw webdavErrorV378('浏览器未能连接 WebDAV 服务。',{code:possibleMixedContent?'mixed_content':'network',method,url,cause:error});
+  }
   finally{clearTimeout(timer)}
   const accepted=options.acceptStatuses||[200,201,204,207];
   if(!accepted.includes(response.status))throw webdavErrorV378(`WebDAV 返回 HTTP ${response.status}。`,{code:'http',status:response.status,method,url});
@@ -8569,7 +8573,7 @@ async function webdavRequestV378(config,password,relativePath,options={}){
 }
 function classifyWebdavErrorV378(error){
   const status=Number(error&&error.status||0),code=String(error&&error.code||'');
-  if(code==='mixed_content')return {type:'混合内容拦截',summary:'当前 HTTPS 页面不能访问 HTTP WebDAV。',suggestion:'改用 HTTPS WebDAV，或从受信任的 HTTP/localhost 页面打开本应用。'};
+  if(code==='mixed_content')return {type:'可能的混合内容拦截 / 网络 / CORS',summary:'HTTPS 页面请求 HTTP WebDAV 失败，可能被浏览器拦截，也可能是网络或跨域配置问题。',suggestion:'建议使用 HTTPS WebDAV；HTTP 会明文传输账号凭据和备份。若已在浏览器中允许不安全内容，请检查服务状态、CORS 配置及浏览器控制台中的具体错误。'};
   if(code==='timeout')return {type:'请求超时',summary:'服务未在限定时间内响应。',suggestion:'检查网络、服务状态和反向代理超时设置。'};
   if(code==='network')return {type:'网络 / CORS / TLS',summary:'浏览器未取得 WebDAV 响应。',suggestion:'确认服务已启动、证书可信，并允许当前 Origin 以及 OPTIONS、PROPFIND、MKCOL、GET、PUT 和 Authorization、Content-Type、Depth 请求头。'};
   const map={401:['鉴权失败','用户名、密码或应用专用密码不正确。','检查账号凭据；启用双重验证时通常需要应用专用密码。'],403:['权限 / CORS 拒绝','服务器拒绝当前请求。','检查目录读写权限、Origin 白名单和反向代理规则。'],404:['路径不存在','WebDAV 地址或远端目录不存在。','核对 WebDAV 根地址；首次上传会自动创建所配置的远端目录。'],405:['方法不允许','服务器未开放当前 WebDAV 方法。','确认反向代理允许 PROPFIND、MKCOL、GET 和 PUT。'],409:['父目录不存在','服务器要求先创建上级目录。','核对 WebDAV 根地址和远端目录权限。'],412:['条件冲突','服务器拒绝覆盖或条件请求。','检查服务端文件锁定、版本或覆盖策略。'],413:['上传过大','服务器拒绝当前备份大小。','提高服务端上传限制，或减少题库中的大图片。'],423:['资源被锁定','远端文件或目录正被锁定。','稍后重试，或在 WebDAV 服务端解除锁定。'],429:['请求过多','服务端暂时限流。','稍后重试。'],507:['远端空间不足','WebDAV 存储空间不足。','清理远端旧文件或扩充配额后重试。']};
