@@ -31,9 +31,9 @@ Shiroha Quiz 解决一个很实际的问题：
 
 | 你的情况 | 推荐版本 | 入口 |
 | --- | --- | --- |
-| 用手机（Android） | 原生 Compose 版 `v0.9.9.1-native`（**主推**） | [下载 APK](https://github.com/reiqr/shiroha-quiz/releases) |
-| 电脑上 / 想先快速体验 | Web 版 `v0.8.6-alpha` | [在线版](https://reiqr.github.io/shiroha-quiz) |
-| 想要最新功能、双端都用 | 统一发布版 `v2.8.8-beta`（一次发布含 APK + Web ZIP） | [Releases](https://github.com/reiqr/shiroha-quiz/releases) |
+| 用手机（Android） | 原生 Compose 版 `v0.9.10-native`（**主推**） | [下载 APK](https://github.com/reiqr/shiroha-quiz/releases) |
+| 电脑上 / 想先快速体验 | Web 版 `v0.8.6.1-alpha` | [在线版](https://reiqr.github.io/shiroha-quiz) |
+| 想要最新功能、双端都用 | 统一发布版 `v2.8.9-beta`（一次发布含 APK + Web ZIP） | [Releases](https://github.com/reiqr/shiroha-quiz/releases) |
 
 > **当前为 beta 测试阶段，功能尚在完善中，不建议用于高风险正式考试场景。** 使用前请阅读[数据备份建议](#数据备份建议)。
 
@@ -398,9 +398,9 @@ node --test test/web-webdav/request.test.cjs
 
 最新版本请以 [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 为准。当前仓库文档记录的主要版本线为：
 
-- 统一发布版：`v2.8.8-beta`（双端一次发布，含 APK + Web ZIP）
-- Web 版：`v0.8.6-alpha`
-- 原生 Compose 版：`v0.9.9.1-native`
+- 统一发布版：`v2.8.9-beta`（双端一次发布，含 APK + Web ZIP）
+- Web 版：`v0.8.6.1-alpha`
+- 原生 Compose 版：`v0.9.10-native`
 
 `v0.9.x-native` 系列近期重点：
 
