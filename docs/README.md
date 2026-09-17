@@ -33,6 +33,7 @@
 
 - [原生开发进度](./native/原生开发进度.md)
 - [解析器回归测试说明](./native/解析器回归测试说明.md)
+- [测试体系整理说明](./native/测试体系整理说明.md)
 - [解析器回归测试剩余关注项](./native/解析器回归测试未覆盖功能点.md)
 - [安卓组件与状态说明](./native/安卓组件与状态说明.md)
 - [原生 Compose 视觉规范](./native/Shiroha_Quiz_原生Android_Compose视觉规范_v30.md)
