@@ -547,7 +547,6 @@ object ShirohaAiClient {
                             .map { answerIndex -> group.optString(answerIndex).trim() }
                             .filter { it.isNotBlank() }
                             .distinct()
-                            .take(3)
                     } else {
                         blankAnswersJson.optString(blankIndex).trim()
                             .takeIf { it.isNotBlank() }

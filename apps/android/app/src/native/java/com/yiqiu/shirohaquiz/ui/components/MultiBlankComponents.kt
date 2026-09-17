@@ -75,14 +75,15 @@ fun MultiBlankAnswerEditor(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(8.dp))
-                repeat(3) { answerIndex ->
+                val answerCount = answers.size.coerceAtLeast(3)
+                repeat(answerCount) { answerIndex ->
                     OutlinedTextField(
                         value = answers.getOrNull(answerIndex).orEmpty(),
                         onValueChange = { value ->
                             val next = blankAnswers.map { it.toMutableList() }.toMutableList()
-                            val group = MutableList(3) { slot -> answers.getOrNull(slot).orEmpty() }
+                            val group = MutableList(answerCount) { slot -> answers.getOrNull(slot).orEmpty() }
                             group[answerIndex] = value
-                            next[blankIndex] = group.dropLastWhile { it.isBlank() }.toMutableList()
+                            next[blankIndex] = group
                             onChange(next.map { it.toList() })
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -90,16 +91,31 @@ fun MultiBlankAnswerEditor(
                             Text(
                                 when (answerIndex) {
                                     0 -> "主答案"
-                                    1 -> "备选答案1"
-                                    else -> "备选答案2"
+                                    else -> "备选答案$answerIndex"
                                 }
                             )
                         },
+                        trailingIcon = if (answerIndex > 0) {
+                            {
+                                TextButton(onClick = {
+                                    val next = blankAnswers.toMutableList()
+                                    next[blankIndex] = answers.toMutableList().also { group ->
+                                        if (answerIndex < group.size) group.removeAt(answerIndex)
+                                    }
+                                    onChange(next)
+                                }) { Text("删除") }
+                            }
+                        } else null,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
-                    if (answerIndex < 2) Spacer(Modifier.height(8.dp))
+                    if (answerIndex < answerCount - 1) Spacer(Modifier.height(8.dp))
                 }
+                TextButton(onClick = {
+                    val next = blankAnswers.toMutableList()
+                    next[blankIndex] = List(answerCount) { answers.getOrNull(it).orEmpty() } + ""
+                    onChange(next)
+                }) { Text("增加备选答案") }
                 Spacer(Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     TextButton(

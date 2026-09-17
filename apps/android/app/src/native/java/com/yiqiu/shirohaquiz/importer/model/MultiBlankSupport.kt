@@ -19,7 +19,6 @@ object MultiBlankSupport {
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
                 .distinct()
-                .take(3)
             if (cleaned.isNotEmpty() || preserveEmptyGroups) cleaned else null
         }
     }
@@ -32,7 +31,7 @@ object MultiBlankSupport {
     }
 
     fun withBlankAnswers(question: Question, groups: List<List<String>>): Question {
-        val preservedGroups = groups.map { group -> group.take(3) }
+        val preservedGroups = groups.map { group -> group.toList() }
         val cleanWarnings = clearMultiBlankWarnings(question.warnings)
         return question.copy(
             blankAnswers = preservedGroups,
