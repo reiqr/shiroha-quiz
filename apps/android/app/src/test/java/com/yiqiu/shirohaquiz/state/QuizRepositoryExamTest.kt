@@ -90,6 +90,15 @@ class QuizRepositoryExamTest {
         assertEquals(1, QuizRepository.wrongBook.size)
         // 练习记录在整轮完成时产生；本轮共 2 题，仅提交 1 题不应提前生成记录
         assertEquals(0, QuizRepository.studyRecords.size)
+
+        // 答完剩余题目后结束练习，这时才应生成记录
+        QuizRepository.toggleAnswer("A", multiple = true)
+        QuizRepository.toggleAnswer("B", multiple = true)
+        QuizRepository.submitPracticeQuestion()
+        QuizRepository.completePracticeSession()
+
+        assertEquals(1, QuizRepository.studyRecords.size)
+        assertEquals("练习", QuizRepository.studyRecords.first().source)
     }
 
     @Test

@@ -44,7 +44,8 @@ class QuizRepositoryCloudRestoreSafetyTest(private val context: Context) {
     private lateinit var isolated: RestoreContext
 
     fun runAll(): Int {
-        // 自动收集 test 开头的无参公开方法，新增用例无需再手动登记到本列表
+        // 自动收集 test 开头的无参公开方法，新增用例无需再手动登记到本列表。
+        // 约定：test* 前缀保留给测试用例，辅助方法请勿使用该前缀命名，否则会被一并执行。
         val cases = javaClass.declaredMethods
             .filter { method ->
                 method.name.startsWith("test") &&
