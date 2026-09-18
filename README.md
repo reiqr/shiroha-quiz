@@ -57,7 +57,7 @@ Shiroha Quiz 解决一个很实际的问题：
 
 <table>
   <tr>
-    <th width="80">维度</th>
+    <th width="110">维度</th>
     <th>Android 原生版</th>
     <th>Web 版</th>
   </tr>
