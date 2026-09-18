@@ -1710,14 +1710,15 @@ function tableSheetsToQuestionsV49(sheets,fileName){
     const rows=(sheet.rows||[]).filter(r=>(r||[]).some(c=>String(c||'').trim()));
     sheetSummary.push({sheetName:sheet.sheetName||'Sheet',rows:rows.length});
     if(!rows.length)continue;
+    const hasTableHeader=findTableHeaderRowV49(rows)>=0;
     const parsed=parseTableRowsWithHeaderV49(rows,sheet.sheetName||'');
     if(parsed.questions.length)questions.push(...parsed.questions);
-    else{
+    else if(!hasTableHeader){
       const text=rows.map(r=>r.map(c=>String(c||'').trim()).filter(Boolean).join('\n')).filter(Boolean).join('\n');
       const fallback=parseTextQuestionsBase(text).map((q,i)=>({...q,group:q.group||sheet.sheetName||'',number:q.number||questions.length+i+1}));
       if(fallback.length)questions.push(...fallback);
       else warnings.push(`${sheet.sheetName||'Sheet'}：未识别到有效题目`);
-    }
+    } else warnings.push(`${sheet.sheetName||'Sheet'}：表头已识别，但没有填写题目数据`);
   }
   const normalized=questions.map((q,i)=>normalizeQuestion(q,i)).filter(q=>q.question);
   const stats=countTypes(normalized);
