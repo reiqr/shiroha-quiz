@@ -46,6 +46,7 @@ build-release.cmd
 build-release.ps1
 build-release-native.cmd
 build-release-native.ps1
+build-docs.ps1
 
 # Local convenience scripts
 open-web.bat
