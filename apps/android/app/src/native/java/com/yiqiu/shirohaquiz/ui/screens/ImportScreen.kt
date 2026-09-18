@@ -1434,7 +1434,7 @@ fun ImportScreen(
                                 }.distinct().take(120)
                                 val beforeCount = editableQuestions.size
                                 aiBatchState = null
-                                statusText = "AI 重构中：优先清洗原文并重新本地解析，必要时再使用 AI 直接重构结果。"
+                                statusText = "AI 重构中：优先生成结构化题目 JSON；结构化校验失败时自动退回标准文本重解析。"
                                 isStatusWarn = false
                                 importScope.launch {
                                     isImportBusy = true
@@ -1473,21 +1473,83 @@ fun ImportScreen(
                                         val refactorResult = applyResult.refactorResult
                                         val reparsedResult = applyResult.reparsedResult
                                         val directQuestions = refactorResult.questions
-                                        val shouldUseReparsed = reparsedResult != null && reparsedResult.questions.isNotEmpty() &&
-                                            (directQuestions.isEmpty() || reparsedResult.questions.size >= directQuestions.size || reparsedResult.questions.size >= beforeCount)
+                                        val refactorNotes = (
+                                            refactorResult.notes +
+                                                refactorResult.structuredValidationIssues.map { "结构化校验：$it" }
+                                            ).distinct()
 
-                                        if (shouldUseReparsed && reparsedResult != null) {
-                                            val refactoredQuestions = reparsedResult.questions
+                                        if (refactorResult.structuredUsable && directQuestions.isNotEmpty()) {
+                                            val countNote = if (beforeCount > 0 && directQuestions.size != beforeCount) {
+                                                listOf("结构化重构题数由 $beforeCount 题变为 ${directQuestions.size} 题，请重点核对是否存在合并、漏题或原解析碎片。")
+                                            } else {
+                                                emptyList()
+                                            }
+                                            val directBaseResult = displayResult.copy(
+                                                questions = directQuestions,
+                                                strategyName = "${displayResult.strategyName} + AI结构化重构",
+                                                warnings = emptyList(),
+                                                diagnostics = displayResult.diagnostics.copy(
+                                                    blockCount = directQuestions.size,
+                                                    answeredCount = directQuestions.count { it.answer.isNotEmpty() || it.blankAnswers.any { group -> group.isNotEmpty() } },
+                                                    candidateCount = directQuestions.size,
+                                                    notes = (
+                                                        displayResult.diagnostics.notes +
+                                                            "AI重构：优先采用结构化 JSON，由 $beforeCount 题重整为 ${directQuestions.size} 题。" +
+                                                            refactorNotes +
+                                                            countNote
+                                                        ).distinct()
+                                                )
+                                            )
+                                            val directBoundResult = if (importedImages.isNotEmpty()) {
+                                                QuestionImageBinder.attach(directBaseResult, importedImages)
+                                            } else {
+                                                directBaseResult
+                                            }
+                                            val refactoredQuestions = directBoundResult.questions
                                             val nextWarnings = refreshImportWarningsForQuestions(
-                                                aiRefactorImportWarnings(refactorResult.notes, "AI重构已清洗原文并重新本地解析，请人工确认题量、题干、选项、答案和解析后再保存。") +
-                                                    reparsedResult.warnings,
+                                                aiRefactorImportWarnings(
+                                                    refactorNotes + countNote,
+                                                    "AI重构已采用结构化题目 JSON，并通过基础结构校验。请人工确认题量、题干、选项、答案和解析后再保存。"
+                                                ) + directBoundResult.warnings,
+                                                refactoredQuestions
+                                            )
+                                            val nextResult = directBoundResult.copy(
+                                                warnings = nextWarnings
+                                            )
+                                            importResult = nextResult
+                                            editableQuestions = refactoredQuestions
+                                            reviewIndex = 0
+                                            reviewFilterName = ReviewFilter.ALL.name
+                                            previewOnlyAnomaly = false
+                                            aiReviewedQuestionIds = emptyList()
+                                            aiAnalyzedQuestionIds = emptyList()
+                                            aiAnalysisAppliedQuestionIds = emptyList()
+                                            aiReviewSuggestions = emptyList()
+                                            statusText = "AI 重构完成：已采用结构化 JSON，由 $beforeCount 题得到 ${refactoredQuestions.size} 题；未再次经过题块切割。请先人工核对，再继续 AI 核对或 AI 补解析。"
+                                            isStatusWarn = nextWarnings.isNotEmpty()
+                                        } else if (reparsedResult != null && reparsedResult.questions.isNotEmpty()) {
+                                            val refactoredQuestions = reparsedResult.questions
+                                            val fallbackLabel = if (refactorResult.usedCleanTextFallback) {
+                                                "结构化 JSON 校验失败后已自动使用 clean_text 兜底，并重新本地解析。"
+                                            } else {
+                                                "AI 返回 clean_text，已重新本地解析。"
+                                            }
+                                            val nextWarnings = refreshImportWarningsForQuestions(
+                                                aiRefactorImportWarnings(
+                                                    refactorNotes,
+                                                    "$fallbackLabel 请人工确认题量、题干、选项、答案和解析后再保存。"
+                                                ) + reparsedResult.warnings,
                                                 refactoredQuestions
                                             )
                                             val nextResult = reparsedResult.copy(
-                                                strategyName = "AI重构重解析 + ${reparsedResult.strategyName}",
+                                                strategyName = "AI文本兜底重解析 + ${reparsedResult.strategyName}",
                                                 warnings = nextWarnings,
                                                 diagnostics = reparsedResult.diagnostics.copy(
-                                                    notes = (reparsedResult.diagnostics.notes + "AI重构：已清洗原文并重新本地解析，由 $beforeCount 题解析为 ${refactoredQuestions.size} 题。" + refactorResult.notes).distinct()
+                                                    notes = (
+                                                        reparsedResult.diagnostics.notes +
+                                                            "AI重构：结构化结果未直接采用，已走 clean_text 兜底，由 $beforeCount 题解析为 ${refactoredQuestions.size} 题。" +
+                                                            refactorNotes
+                                                        ).distinct()
                                                 )
                                             )
                                             importResult = nextResult
@@ -1499,38 +1561,13 @@ fun ImportScreen(
                                             aiAnalyzedQuestionIds = emptyList()
                                             aiAnalysisAppliedQuestionIds = emptyList()
                                             aiReviewSuggestions = emptyList()
-                                            statusText = "AI 重构完成：已清洗原文并重新本地解析，由 $beforeCount 题得到 ${refactoredQuestions.size} 题。请先人工核对，再继续 AI 核对或 AI 补解析。"
-                                            isStatusWarn = nextWarnings.isNotEmpty()
-                                        } else if (directQuestions.isNotEmpty()) {
-                                            val refactoredQuestions = directQuestions
-                                            val nextWarnings = refreshImportWarningsForQuestions(
-                                                aiRefactorImportWarnings(refactorResult.notes, "AI重构已生成新的待核对结果，请人工确认题量、题干、选项、答案和解析后再保存。"),
-                                                refactoredQuestions
-                                            )
-                                            val nextResult = displayResult.copy(
-                                                questions = refactoredQuestions,
-                                                strategyName = "${displayResult.strategyName} + AI重构",
-                                                warnings = nextWarnings,
-                                                diagnostics = displayResult.diagnostics.copy(
-                                                    notes = (displayResult.diagnostics.notes + "AI重构：由 $beforeCount 题重整为 ${refactoredQuestions.size} 题。" + refactorResult.notes).distinct()
-                                                )
-                                            )
-                                            importResult = nextResult
-                                            editableQuestions = refactoredQuestions
-                                            reviewIndex = 0
-                                            reviewFilterName = ReviewFilter.ALL.name
-                                            previewOnlyAnomaly = false
-                                            aiReviewedQuestionIds = emptyList()
-                                            aiAnalyzedQuestionIds = emptyList()
-                                            aiAnalysisAppliedQuestionIds = emptyList()
-                                            aiReviewSuggestions = emptyList()
-                                            statusText = "AI 重构完成：由 $beforeCount 题重整为 ${refactoredQuestions.size} 题。请先人工核对，再继续 AI 核对或 AI 补解析。"
-                                            isStatusWarn = nextWarnings.isNotEmpty()
+                                            statusText = "AI 重构完成：结构化结果不可直接采用，已自动退回标准文本重解析，由 $beforeCount 题得到 ${refactoredQuestions.size} 题。请先人工核对。"
+                                            isStatusWarn = true
                                         } else if (reparsedResult != null) {
-                                            statusText = "AI 重构已返回清洗文本，但本地重解析未得到可用题目，当前待核对结果未改动。"
+                                            statusText = "AI 重构已退回标准文本，但本地重解析仍未得到可用题目，当前待核对结果未改动。"
                                             isStatusWarn = true
                                         } else {
-                                            statusText = "AI 重构完成但没有返回可用清洗文本或题目，当前待核对结果未改动。"
+                                            statusText = "AI 重构没有得到通过校验的结构化题目或可用文本兜底，当前待核对结果未改动。"
                                             isStatusWarn = true
                                         }
                                     }.onFailure { error ->

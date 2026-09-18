@@ -4,6 +4,7 @@ import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
+import com.yiqiu.shirohaquiz.importer.parser.AnswerTokenParser
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -70,7 +71,10 @@ data class AiRefactorResult(
     val cleanedText: String?,
     val cleanedAnswerText: String?,
     val questions: List<Question>,
-    val notes: List<String>
+    val notes: List<String>,
+    val structuredUsable: Boolean = false,
+    val structuredValidationIssues: List<String> = emptyList(),
+    val usedCleanTextFallback: Boolean = false
 )
 
 object ShirohaAiClient {
@@ -239,23 +243,84 @@ object ShirohaAiClient {
     ): AiRefactorResult {
         validateConfig(apiBaseUrl, apiKey, modelName)
         checkAiInput(rawText.trim().isNotBlank()) { "AI 重构需要原始文本。" }
-        val content = requestChatCompletion(
-            apiBaseUrl = apiBaseUrl,
-            apiKey = apiKey,
-            modelName = modelName,
-            systemPrompt = AiPrompts.AI_REFACTOR_SYSTEM_PROMPT,
-            userPayload = JSONObject()
-                .put("task", "refactor_questions")
-                .put("outputFormat", refactorOutputContract())
-                .put("sourceText", rawText)
-                .put("answerText", answerText)
-                .put("currentQuestionCount", currentQuestions.size)
-                .put("currentQuestions", questionsToJson(currentQuestions))
-                .put("warnings", JSONArray().also { array -> warnings.forEach { array.put(it) } })
-                .toString(),
-            timeoutSeconds = timeoutSeconds.coerceIn(15, 180)
+
+        fun request(mode: String, fallbackReason: String = ""): String {
+            return requestChatCompletion(
+                apiBaseUrl = apiBaseUrl,
+                apiKey = apiKey,
+                modelName = modelName,
+                systemPrompt = AiPrompts.AI_REFACTOR_SYSTEM_PROMPT,
+                userPayload = JSONObject()
+                    .put("task", "refactor_questions")
+                    .put("requestedMode", mode)
+                    .put("fallbackReason", fallbackReason)
+                    .put("outputFormat", refactorOutputContract(mode))
+                    .put("sourceText", rawText)
+                    .put("answerText", answerText)
+                    .put("currentQuestionCount", currentQuestions.size)
+                    .put("currentQuestions", questionsToJson(currentQuestions))
+                    .put("warnings", JSONArray().also { array -> warnings.forEach { array.put(it) } })
+                    .toString(),
+                timeoutSeconds = timeoutSeconds.coerceIn(15, 180)
+            )
+        }
+
+        var primaryParseError: String? = null
+        val primary = runCatching {
+            parseRefactorResult(request("direct_questions"))
+        }.getOrElse { error ->
+            primaryParseError = error.message ?: "结构化 JSON 无法解析"
+            null
+        }
+
+        if (primary != null && primary.structuredUsable) {
+            return primary.copy(
+                mode = "direct_questions",
+                usedCleanTextFallback = false
+            )
+        }
+
+        if (primary != null && !primary.cleanedText.isNullOrBlank()) {
+            val reason = buildList {
+                addAll(primary.structuredValidationIssues)
+                if (primary.questions.isEmpty()) add("AI 未返回可用结构化题目")
+            }.distinct()
+            return primary.copy(
+                mode = "clean_text",
+                questions = emptyList(),
+                notes = (primary.notes + reason.map { "结构化校验：$it" }).distinct(),
+                usedCleanTextFallback = true
+            )
+        }
+
+        val fallbackReason = buildList {
+            primaryParseError?.takeIf { it.isNotBlank() }?.let { add(it) }
+            primary?.structuredValidationIssues?.let(::addAll)
+            if (primary != null && primary.questions.isEmpty()) add("AI 未返回可用结构化题目")
+        }.distinct().joinToString("；").ifBlank { "结构化结果不可用" }
+
+        val fallback = runCatching {
+            parseRefactorResult(request("clean_text", fallbackReason))
+        }.getOrElse { error ->
+            throw IllegalStateException(
+                "AI 结构化结果不可用，文本兜底也失败：${error.message ?: fallbackReason}",
+                error
+            )
+        }
+        if (fallback.cleanedText.isNullOrBlank()) {
+            throw IllegalStateException("AI 结构化结果不可用，文本兜底未返回 cleanedText：$fallbackReason")
+        }
+        return fallback.copy(
+            mode = "clean_text",
+            questions = emptyList(),
+            notes = (
+                fallback.notes +
+                    listOf("已自动从结构化 JSON 切换到 clean_text 兜底。") +
+                    listOf("结构化失败原因：$fallbackReason")
+                ).distinct(),
+            structuredUsable = false,
+            usedCleanTextFallback = true
         )
-        return parseRefactorResult(content)
     }
 
     private fun requestChatCompletion(
@@ -401,6 +466,13 @@ object ShirohaAiClient {
                     .put("blankAnswers", blankAnswers)
                     .put("analysis", question.analysis)
                     .put("category", question.category)
+                    .put("score", question.score ?: JSONObject.NULL)
+                    .put("subject", question.subject)
+                    .put("grade", question.grade)
+                    .put("difficulty", question.difficulty)
+                    .put("knowledgePoints", JSONArray(question.knowledgePoints))
+                    .put("tags", JSONArray(question.tags))
+                    .put("source", question.source)
             )
         }
         return array
@@ -526,18 +598,65 @@ object ShirohaAiClient {
         val notes = (0 until notesJson.length())
             .map { notesJson.optString(it).trim() }
             .filter { it.isNotBlank() }
-        val questions = (0 until questionsJson.length()).mapNotNull { index ->
-            val item = questionsJson.optJSONObject(index) ?: return@mapNotNull null
+
+        val mode = root.optString("mode").trim().lowercase().let { raw ->
+            when (raw) {
+                "direct_questions", "structured_questions", "structured" -> "direct_questions"
+                "clean_text", "cleantext" -> "clean_text"
+                else -> if (questionsJson.length() > 0) "direct_questions" else "clean_text"
+            }
+        }
+        val structuredIssues = mutableListOf<String>()
+        val questions = mutableListOf<Question>()
+
+        for (index in 0 until questionsJson.length()) {
+            val item = questionsJson.optJSONObject(index)
+            if (item == null) {
+                structuredIssues += "第${index + 1}项不是题目对象"
+                continue
+            }
             val questionText = item.optString("question").trim()
-            if (questionText.isBlank()) return@mapNotNull null
+            if (questionText.isBlank()) {
+                structuredIssues += "第${index + 1}题题干为空"
+                continue
+            }
+            val type = parseRefactorQuestionType(item.optString("type"))
+            if (type == null) {
+                structuredIssues += "第${index + 1}题题型无效：${item.optString("type").take(24)}"
+                continue
+            }
+
             val optionsJson = item.optJSONArray("options") ?: JSONArray()
-            val options = (0 until optionsJson.length()).mapNotNull { optionIndex ->
-                val option = optionsJson.optJSONObject(optionIndex) ?: return@mapNotNull null
+            val options = mutableListOf<Option>()
+            val seenOptionKeys = mutableSetOf<String>()
+            var optionStructureInvalid = false
+            for (optionIndex in 0 until optionsJson.length()) {
+                val option = optionsJson.optJSONObject(optionIndex)
+                if (option == null) {
+                    structuredIssues += "第${index + 1}题第${optionIndex + 1}个选项不是对象"
+                    optionStructureInvalid = true
+                    continue
+                }
                 val key = option.optString("key").trim().uppercase()
                 val text = option.optString("text").trim()
-                if (key.isBlank() && text.isBlank()) null else Option(key, text)
+                when {
+                    !Regex("""^[A-G]$""").matches(key) -> {
+                        structuredIssues += "第${index + 1}题存在非法选项键：${key.ifBlank { "空" }}"
+                        optionStructureInvalid = true
+                    }
+                    text.isBlank() -> {
+                        structuredIssues += "第${index + 1}题选项${key}内容为空"
+                        optionStructureInvalid = true
+                    }
+                    !seenOptionKeys.add(key) -> {
+                        structuredIssues += "第${index + 1}题选项${key}重复"
+                        optionStructureInvalid = true
+                    }
+                    else -> options += Option(key, text)
+                }
             }
-            val type = parseQuestionType(item.optString("type"))
+            if (optionStructureInvalid) continue
+
             val blankAnswersJson = item.optJSONArray("blankAnswers")
             val blankAnswers = if (blankAnswersJson != null) {
                 (0 until blankAnswersJson.length()).map { blankIndex ->
@@ -557,26 +676,70 @@ object ShirohaAiClient {
             } else {
                 emptyList()
             }
+
             val answerJson = item.optJSONArray("answer")
             val rawAnswers = if (answerJson != null) {
                 (0 until answerJson.length())
                     .map { answerJson.optString(it).trim() }
                     .filter { it.isNotBlank() }
             } else {
-                val raw = item.optString("answer").trim()
-                when (type) {
-                    QuestionType.BLANK, QuestionType.SHORT -> raw.takeIf { it.isNotBlank() }?.let(::listOf).orEmpty()
-                    else -> raw.split(Regex("[,，、\\s]+"))
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() }
+                item.optString("answer").trim()
+                    .takeIf { it.isNotBlank() }
+                    ?.let(::listOf)
+                    .orEmpty()
+            }
+
+            val optionKeys = options.map { it.key }
+            val answers = when (type) {
+                QuestionType.SINGLE, QuestionType.MULTIPLE -> {
+                    AnswerTokenParser.parseObjectiveAnswers(rawAnswers.joinToString(","))
+                }
+                QuestionType.JUDGE -> {
+                    AnswerTokenParser.parseJudgeAnswer(rawAnswers.joinToString(" "))
+                }
+                QuestionType.BLANK -> {
+                    if (blankAnswers.isNotEmpty()) {
+                        MultiBlankSupport.compatibilityAnswer(blankAnswers)
+                    } else {
+                        rawAnswers.map { it.trim() }.filter { it.isNotBlank() }
+                    }
+                }
+                QuestionType.SHORT -> rawAnswers.map { it.trim() }.filter { it.isNotBlank() }
+            }
+
+            var semanticStructureInvalid = false
+            if (type == QuestionType.SINGLE && answers.size > 1) {
+                structuredIssues += "第${index + 1}题为单选题但返回多个答案"
+                semanticStructureInvalid = true
+            }
+            if (type in setOf(QuestionType.SINGLE, QuestionType.MULTIPLE) && options.isNotEmpty()) {
+                val unknownAnswers = answers.filter { it !in optionKeys }
+                if (unknownAnswers.isNotEmpty()) {
+                    structuredIssues += "第${index + 1}题答案超出已有选项：${unknownAnswers.joinToString(",")}"
+                    semanticStructureInvalid = true
                 }
             }
-            val answers = when {
-                type == QuestionType.BLANK && blankAnswers.isNotEmpty() -> MultiBlankSupport.compatibilityAnswer(blankAnswers)
-                type == QuestionType.BLANK || type == QuestionType.SHORT -> rawAnswers
-                else -> rawAnswers.map { it.uppercase() }
+            if (type in setOf(QuestionType.SINGLE, QuestionType.MULTIPLE) && options.size == 1) {
+                structuredIssues += "第${index + 1}题选择题仅有一个有效选项"
             }
-            Question(
+            if (type == QuestionType.JUDGE && answers.size > 1) {
+                structuredIssues += "第${index + 1}题判断题返回多个答案"
+                semanticStructureInvalid = true
+            }
+            if (semanticStructureInvalid) continue
+
+            fun stringArray(field: String): List<String> {
+                val array = item.optJSONArray(field) ?: return emptyList()
+                return (0 until array.length())
+                    .map { valueIndex -> array.optString(valueIndex).trim() }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+            }
+            val score = item.takeIf { it.has("score") && !it.isNull("score") }
+                ?.optDouble("score")
+                ?.takeIf { !it.isNaN() && !it.isInfinite() }
+
+            questions += Question(
                 number = item.optString("number", (index + 1).toString()).trim().ifBlank { (index + 1).toString() },
                 type = type,
                 question = questionText,
@@ -584,21 +747,45 @@ object ShirohaAiClient {
                 answer = answers,
                 blankAnswers = if (type == QuestionType.BLANK) blankAnswers else emptyList(),
                 analysis = item.optString("analysis").trim(),
-                category = item.optString("category").trim()
+                category = item.optString("category").trim(),
+                score = score,
+                subject = item.optString("subject").trim(),
+                grade = item.optString("grade").trim(),
+                difficulty = item.optString("difficulty").trim(),
+                knowledgePoints = stringArray("knowledgePoints"),
+                tags = stringArray("tags"),
+                source = item.optString("source").trim()
             )
         }
+
         val cleanedText = root.optString("cleanedText").nullIfBlankOrLiteralNull()
         val cleanedAnswerText = root.optString("cleanedAnswerText").nullIfBlankOrLiteralNull()
-        val mode = root.optString("mode").trim().ifBlank {
-            if (!cleanedText.isNullOrBlank()) "clean_text" else "direct_questions"
-        }
+        val structuredUsable =
+            mode == "direct_questions" &&
+                questionsJson.length() > 0 &&
+                questions.size == questionsJson.length()
+
         return AiRefactorResult(
             mode = mode,
             cleanedText = cleanedText,
             cleanedAnswerText = cleanedAnswerText,
             questions = questions,
-            notes = notes
+            notes = notes,
+            structuredUsable = structuredUsable,
+            structuredValidationIssues = structuredIssues.distinct(),
+            usedCleanTextFallback = false
         )
+    }
+
+    private fun parseRefactorQuestionType(value: String): QuestionType? {
+        return when (value.trim().lowercase()) {
+            "single", "single_choice", "choice", "单选", "单选题" -> QuestionType.SINGLE
+            "multiple", "multiple_choice", "multi", "多选", "多选题" -> QuestionType.MULTIPLE
+            "judge", "true_false", "判断", "判断题" -> QuestionType.JUDGE
+            "blank", "fill_blank", "填空", "填空题" -> QuestionType.BLANK
+            "short", "essay", "subjective", "简答", "简答题", "问答", "问答题", "面试题" -> QuestionType.SHORT
+            else -> null
+        }
     }
 
     private fun parseQuestionType(value: String): QuestionType {
@@ -692,25 +879,46 @@ object ShirohaAiClient {
             .put("warning", "不确定、题库答案疑似异常或追问与题目无关时填写；否则为空")
     }
 
-    private fun refactorOutputContract(): JSONObject {
+    private fun refactorOutputContract(requestedMode: String): JSONObject {
         return JSONObject()
-            .put("mode", "clean_text / direct_questions")
-            .put("cleanedText", "优先返回清洗后的标准题库文本；direct_questions 模式可为空")
-            .put("cleanedAnswerText", "如仍需双文件解析，可返回清洗后的答案文本；否则为空")
+            .put("mode", requestedMode)
+            .put(
+                "cleanedText",
+                if (requestedMode == "clean_text") {
+                    "结构化结果不可用时的标准题库文本兜底；此模式必须返回"
+                } else {
+                    "direct_questions 主模式通常为空；只有无法可靠结构化时才可提供兼容兜底文本"
+                }
+            )
+            .put(
+                "cleanedAnswerText",
+                if (requestedMode == "clean_text") {
+                    "如仍需双文件解析可返回清洗后的答案文本；否则为空"
+                } else {
+                    "通常为空"
+                }
+            )
             .put(
                 "questions",
                 JSONArray().put(
                     JSONObject()
                         .put("number", "1")
                         .put("type", "single / multiple / judge / blank / short")
-                        .put("question", "题干")
-                        .put("options", JSONArray().put(JSONObject().put("key", "A").put("text", "选项文本")))
+                        .put("question", "原题干；保留图片占位标记")
+                        .put("options", JSONArray().put(JSONObject().put("key", "A").put("text", "原选项文本")))
                         .put("answer", JSONArray().put("A"))
                         .put("blankAnswers", JSONArray().put(JSONArray().put("第1空主答案").put("第1空备选答案")))
-                        .put("analysis", "解析；没有可靠来源时可为空")
-                        .put("category", "分区或来源；没有可为空")
+                        .put("analysis", "原文解析；没有可靠来源时为空")
+                        .put("category", "原章节或分区；没有可为空")
+                        .put("score", JSONObject.NULL)
+                        .put("subject", "原科目；没有可为空")
+                        .put("grade", "原年级；没有可为空")
+                        .put("difficulty", "原难度；没有可为空")
+                        .put("knowledgePoints", JSONArray())
+                        .put("tags", JSONArray())
+                        .put("source", "原来源；没有可为空")
                 )
             )
-            .put("notes", JSONArray().put("重构说明和需要人工确认的点"))
+            .put("notes", JSONArray().put("只记录清洗说明和需要人工确认的点"))
     }
 }
