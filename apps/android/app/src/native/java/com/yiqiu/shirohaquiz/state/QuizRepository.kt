@@ -239,6 +239,7 @@ object QuizRepository {
     private const val KEY_AI_REVIEW_ENABLED = "ai_review_enabled"
     private const val KEY_AI_ANALYSIS_ENABLED = "ai_analysis_enabled"
     private const val KEY_AI_SINGLE_QUESTION_ANALYSIS_ENABLED = "ai_single_question_analysis_enabled"
+    private const val KEY_AI_MISSING_ANSWER_REFERENCE_ENABLED = "ai_missing_answer_reference_enabled"
     private const val KEY_AI_ONLY_ANOMALY = "ai_only_anomaly"
     private const val KEY_AI_REQUIRE_CONFIRM = "ai_require_confirm"
     private const val KEY_AI_MAX_QUESTIONS = "ai_max_questions"
@@ -379,6 +380,8 @@ object QuizRepository {
     var aiAnalysisEnabled by mutableStateOf(false)
         private set
     var aiSingleQuestionAnalysisEnabled by mutableStateOf(false)
+        private set
+    var aiMissingAnswerReferenceEnabled by mutableStateOf(false)
         private set
     var aiOnlyAnomaly by mutableStateOf(true)
         private set
@@ -612,6 +615,7 @@ object QuizRepository {
         aiReviewEnabled = prefs.getBoolean(KEY_AI_REVIEW_ENABLED, false)
         aiAnalysisEnabled = prefs.getBoolean(KEY_AI_ANALYSIS_ENABLED, false)
         aiSingleQuestionAnalysisEnabled = prefs.getBoolean(KEY_AI_SINGLE_QUESTION_ANALYSIS_ENABLED, false)
+        aiMissingAnswerReferenceEnabled = prefs.getBoolean(KEY_AI_MISSING_ANSWER_REFERENCE_ENABLED, false)
         aiOnlyAnomaly = prefs.getBoolean(KEY_AI_ONLY_ANOMALY, true)
         aiRequireConfirm = prefs.getBoolean(KEY_AI_REQUIRE_CONFIRM, true)
         aiMaxQuestions = prefs.getInt(KEY_AI_MAX_QUESTIONS, 20).coerceIn(5, 100)
@@ -2018,6 +2022,12 @@ object QuizRepository {
         persist()
     }
 
+    fun setAiMissingAnswerReferenceEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        aiMissingAnswerReferenceEnabled = enabled
+        persist()
+    }
+
     fun setAiOnlyAnomaly(context: Context, enabled: Boolean) {
         appContext = context.applicationContext
         aiOnlyAnomaly = enabled
@@ -2055,6 +2065,7 @@ object QuizRepository {
         aiReviewEnabled = false
         aiAnalysisEnabled = false
         aiSingleQuestionAnalysisEnabled = false
+        aiMissingAnswerReferenceEnabled = false
         persist()
         return true
     }
@@ -2063,10 +2074,18 @@ object QuizRepository {
         return aiApiBaseUrl.isNotBlank() && aiApiKey.isNotBlank() && aiModelName.isNotBlank()
     }
 
-    fun submitPracticeQuestion(): QuestionCheckResult? {
+    fun submitPracticeQuestion(
+        temporaryReferenceAnswer: List<String>? = null,
+        temporaryReferenceAnswerText: String? = null
+    ): QuestionCheckResult? {
         if (practiceMode == PRACTICE_MODE_BATCH && !practiceBatchSubmitted) return null
         val question = currentPracticeQuestion() ?: return null
-        val result = evaluateQuestion(question, selectedAnswer)
+        val result = evaluateQuestion(
+            question = question,
+            userAnswer = selectedAnswer,
+            temporaryReferenceAnswer = temporaryReferenceAnswer,
+            temporaryReferenceAnswerText = temporaryReferenceAnswerText
+        )
         val sessionKey = currentPracticeSessionKey() ?: return null
         val bank = currentPracticeSourceBank()
         practiceLastResult = result
@@ -2076,45 +2095,14 @@ object QuizRepository {
             userAnswer = result.userAnswer,
             userBlankAnswers = result.userBlankAnswers,
             correct = result.correct,
-            answerText = result.answerText,
+            answerText = if (temporaryReferenceAnswer != null) "AI 临时参考答案" else result.answerText,
             autoScored = result.autoScored,
             sourceBankId = bank?.id,
             sourceBankName = bank?.name
         )
 
-        if (result.autoScored && result.correct) {
-            markWrongQuestionRight(bank = bank, question = question)
-        } else if (result.autoScored) {
-            addWrongQuestion(
-                bank = bank,
-                question = question,
-                userAnswer = result.userAnswer,
-                source = currentPracticeWrongSource()
-            )
-        }
-        persist()
-        return result
-    }
-
-    fun submitPracticeBatch(): Boolean {
-        if (practiceMode != PRACTICE_MODE_BATCH || practiceQuestions.isEmpty() || practiceBatchSubmitted) return false
-        practiceCurrentBatchIndexes().forEach { index ->
-            val question = practiceQuestions.getOrNull(index) ?: return@forEach
-            val sessionKey = practiceSessionKeyAt(index) ?: return@forEach
-            val userAnswer = practiceDraftAnswers[sessionKey].orEmpty()
-            val result = evaluateQuestion(question, userAnswer)
-            val bank = bankForPracticeIndex(index)
-            practiceSessionResults[sessionKey] = result.correct
-            practiceAnswerResults[sessionKey] = StudyQuestionResult(
-                question = question,
-                userAnswer = result.userAnswer,
-                userBlankAnswers = result.userBlankAnswers,
-                correct = result.correct,
-                answerText = result.answerText,
-                autoScored = result.autoScored,
-                sourceBankId = bank?.id,
-                sourceBankName = bank?.name
-            )
+        // AI 临时答案只用于当前练习会话判定，不写回题库，也不据此改动错题本。
+        if (temporaryReferenceAnswer == null) {
             if (result.autoScored && result.correct) {
                 markWrongQuestionRight(bank = bank, question = question)
             } else if (result.autoScored) {
@@ -2124,6 +2112,51 @@ object QuizRepository {
                     userAnswer = result.userAnswer,
                     source = currentPracticeWrongSource()
                 )
+            }
+        }
+        persist()
+        return result
+    }
+
+    fun submitPracticeBatch(
+        temporaryReferenceAnswers: Map<String, List<String>> = emptyMap(),
+        temporaryReferenceAnswerTexts: Map<String, String> = emptyMap()
+    ): Boolean {
+        if (practiceMode != PRACTICE_MODE_BATCH || practiceQuestions.isEmpty() || practiceBatchSubmitted) return false
+        practiceCurrentBatchIndexes().forEach { index ->
+            val question = practiceQuestions.getOrNull(index) ?: return@forEach
+            val sessionKey = practiceSessionKeyAt(index) ?: return@forEach
+            val userAnswer = practiceDraftAnswers[sessionKey].orEmpty()
+            val temporaryAnswer = temporaryReferenceAnswers[sessionKey]
+            val result = evaluateQuestion(
+                question = question,
+                userAnswer = userAnswer,
+                temporaryReferenceAnswer = temporaryAnswer,
+                temporaryReferenceAnswerText = temporaryReferenceAnswerTexts[sessionKey]
+            )
+            val bank = bankForPracticeIndex(index)
+            practiceSessionResults[sessionKey] = result.correct
+            practiceAnswerResults[sessionKey] = StudyQuestionResult(
+                question = question,
+                userAnswer = result.userAnswer,
+                userBlankAnswers = result.userBlankAnswers,
+                correct = result.correct,
+                answerText = if (temporaryAnswer != null) "AI 临时参考答案" else result.answerText,
+                autoScored = result.autoScored,
+                sourceBankId = bank?.id,
+                sourceBankName = bank?.name
+            )
+            if (temporaryAnswer == null) {
+                if (result.autoScored && result.correct) {
+                    markWrongQuestionRight(bank = bank, question = question)
+                } else if (result.autoScored) {
+                    addWrongQuestion(
+                        bank = bank,
+                        question = question,
+                        userAnswer = result.userAnswer,
+                        source = currentPracticeWrongSource()
+                    )
+                }
             }
         }
         practiceBatchSubmitted = true
@@ -4803,7 +4836,12 @@ object QuizRepository {
         QuestionType.SHORT to 5.0
     )
 
-    private fun evaluateQuestion(question: Question, userAnswer: List<String>): QuestionCheckResult {
+    private fun evaluateQuestion(
+        question: Question,
+        userAnswer: List<String>,
+        temporaryReferenceAnswer: List<String>? = null,
+        temporaryReferenceAnswerText: String? = null
+    ): QuestionCheckResult {
         val structuredBlank = MultiBlankSupport.hasStructuredAnswers(question)
         val normalizedUserAnswer = if (structuredBlank) {
             MultiBlankSupport.padUserAnswers(userAnswer, question.blankAnswers.size)
@@ -4812,20 +4850,31 @@ object QuizRepository {
         } else {
             userAnswer.map { it.trim() }.filter { it.isNotBlank() }
         }
-        val answerText = if (structuredBlank) {
+        val referenceAnswer = temporaryReferenceAnswer
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?: question.answer
+        val hasReferenceAnswer = if (structuredBlank && temporaryReferenceAnswer == null) {
+            question.blankAnswers.any { group -> group.any { it.isNotBlank() } }
+        } else {
+            referenceAnswer.isNotEmpty()
+        }
+        val answerText = temporaryReferenceAnswerText?.trim()?.takeIf { it.isNotBlank() } ?: if (structuredBlank) {
             MultiBlankSupport.expectedAnswerText(question.blankAnswers)
         } else {
-            question.answer
+            referenceAnswer
                 .joinToString(if (question.type == QuestionType.SHORT) "\n\n" else " / ")
                 .ifBlank { "未识别答案" }
         }
         val correct = when (question.type) {
             QuestionType.SINGLE,
             QuestionType.MULTIPLE,
-            QuestionType.JUDGE -> normalizeJudgeAnswersForCompare(normalizedUserAnswer) ==
-                normalizeJudgeAnswersForCompare(question.answer) &&
+            QuestionType.JUDGE -> hasReferenceAnswer &&
+                normalizeJudgeAnswersForCompare(normalizedUserAnswer) == normalizeJudgeAnswersForCompare(referenceAnswer) &&
                 normalizedUserAnswer.isNotEmpty()
-            QuestionType.BLANK -> if (structuredBlank) {
+            QuestionType.BLANK -> if (!hasReferenceAnswer) {
+                false
+            } else if (structuredBlank && temporaryReferenceAnswer == null) {
                 isStructuredBlankAnswerCorrect(
                     userAnswers = normalizedUserAnswer,
                     acceptedAnswers = question.blankAnswers
@@ -4833,7 +4882,7 @@ object QuizRepository {
             } else {
                 isBlankAnswerCorrect(
                     userAnswer = normalizedUserAnswer.joinToString(" "),
-                    acceptedAnswers = question.answer
+                    acceptedAnswers = referenceAnswer
                 )
             }
             QuestionType.SHORT -> false
@@ -4845,7 +4894,7 @@ object QuizRepository {
             userBlankAnswers = if (structuredBlank) normalizedUserAnswer else emptyList(),
             correct = correct,
             answerText = answerText,
-            autoScored = isAutoScoredQuestionType(question.type)
+            autoScored = isAutoScoredQuestionType(question.type) && hasReferenceAnswer
         )
     }
 
@@ -5389,6 +5438,7 @@ object QuizRepository {
             .putBoolean(KEY_AI_REVIEW_ENABLED, aiReviewEnabled)
             .putBoolean(KEY_AI_ANALYSIS_ENABLED, aiAnalysisEnabled)
             .putBoolean(KEY_AI_SINGLE_QUESTION_ANALYSIS_ENABLED, aiSingleQuestionAnalysisEnabled)
+            .putBoolean(KEY_AI_MISSING_ANSWER_REFERENCE_ENABLED, aiMissingAnswerReferenceEnabled)
             .putBoolean(KEY_AI_ONLY_ANOMALY, aiOnlyAnomaly)
             .putBoolean(KEY_AI_REQUIRE_CONFIRM, aiRequireConfirm)
             .putInt(KEY_AI_MAX_QUESTIONS, aiMaxQuestions)
