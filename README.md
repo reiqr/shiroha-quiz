@@ -29,11 +29,13 @@ Shiroha Quiz 解决一个很实际的问题：
 
 ## 快速开始
 
-| 你的情况 | 推荐版本 | 入口 |
+| 你的情况 | 下载什么 | 入口 |
 | --- | --- | --- |
-| 用手机（Android） | 原生 Compose 版 `v0.9.11-native`（**主推**） | [下载 APK](https://github.com/reiqr/shiroha-quiz/releases) |
-| 电脑上 / 想先快速体验 | Web 版 `v0.8.7-alpha` | [在线版](https://reiqr.github.io/shiroha-quiz) |
-| 想要最新功能、双端都用 | 统一发布版 `v2.8.10-beta`（一次发布含 APK + Web ZIP） | [Releases](https://github.com/reiqr/shiroha-quiz/releases) |
+| 用手机（Android） | 原生 Compose 版 APK（**主推**），文件名以 `-native-release.apk` 结尾 | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
+| 电脑上 / 想先快速体验 | 在线即用，无需安装 | [打开在线版](https://reiqr.github.io/shiroha-quiz) |
+| 想要离线包 / 双端都用 | 统一发布版 `v2.8.10-beta`，同时含 APK 与 Web ZIP | [Releases](https://github.com/reiqr/shiroha-quiz/releases/latest) |
+
+> **版本号怎么看**：原生版与 Web 版各自独立编号，不是新旧关系。统一发布版 `v2.8.10-beta` 一次产出两个文件，文件名自带各自版本号：`Shiroha-Quiz-v0.9.11-native-release.apk`（原生）、`shiroha-quiz-web-v0.8.7-alpha.zip`（Web）。**下载认文件名即可。**
 
 > **当前为 beta 测试阶段，功能尚在完善中，不建议用于高风险正式考试场景。** 使用前请阅读[数据备份建议](#数据备份建议)。
 
@@ -104,7 +106,7 @@ Shiroha Quiz 解决一个很实际的问题：
 ### 题库导入
 
 #### 多格式支持
-- 上传 `docx` 文件（推荐），也支持 `xlsx`/`csv` 表格（旧版 `.xls`/`.xlsm` 需先另存为 `.xlsx` 或 `.csv`）、`txt`、`json`、文字层 `pdf` 或粘贴纯文本
+- 上传 `docx` 文件（推荐；旧版 `.doc` 需先在 Word 或 WPS 中另存为 `.docx`），也支持 `xlsx`/`csv` 表格（旧版 `.xls`/`.xlsm` 需先另存为 `.xlsx` 或 `.csv`）、`txt`、`json`、文字层 `pdf` 或粘贴纯文本
 - 原生版支持 **docx 内嵌图片提取**，Web 版支持 PDF.js 解析文字层 PDF，并提供扫描 PDF OCR 测试兜底
 - 原生版兼容 Web 导出的图片题 JSON：支持旧 Markdown base64 图片和新的 `images` 数组结构
 - 扫描件/图片型 PDF 建议先在 Web 版 OCR 测试区转成可编辑文本或 DOCX，人工核对后再导入题库
@@ -144,7 +146,7 @@ Shiroha Quiz 解决一个很实际的问题：
 - **原生版 AI 补解析（编辑器）**：题库编辑、审阅、导入预览、快速编辑等入口统一集成，一键生成解析建议；导入页 AI 重构默认走结构化优先路径（见本节首条）。
 - **原生版 AI 单题追问（练习页）**：练习中可围绕当前题继续追问，生成的解析可保存回题库，并同步当前练习、错题本和收藏夹中的题目副本。
 - **原生版 AI 临时参考答案**（默认关闭）：练习题缺少题库答案时，提交后临时向 AI 取一次参考答案用于本次判分，不写回题库、不计入错题本；关闭时保持原有判分行为不变。
-- 支持 DeepSeek、OpenAI 兼容接口和自定义接口，可配置 API 地址、API Key 与模型名称；Web 版也可配置 Ollama / LM Studio 等本机 OpenAI 兼容服务。
+- 支持 DeepSeek、OpenAI 兼容接口和自定义接口，可配置 API 地址、API Key 与模型名称；Web 版也可配置 Ollama / LM Studio 等本机 OpenAI 兼容服务。**AI 功能需自备 API Key，费用由所选服务商按用量收取；不使用 AI 时，刷题、考试、错题本等功能完全不受影响。**
 - AI 结果仅作辅助参考。涉及答案、题型和解析的写入都应经过用户确认，不建议把不确定答案交给 AI 编造。
 - **隐私提示**：使用 AI 功能时，当前题目文本会发送到你配置的 AI 服务提供商（DeepSeek / OpenAI / Ollama 等）。API Key 不会写入源码、备份或打包文件，但请勿将敏感内容用于 AI 处理；本地 Ollama / LM Studio 可完全离线运行。
 
@@ -165,7 +167,7 @@ Shiroha Quiz 解决一个很实际的问题：
 | --- | --- | --- |
 | 使用形态 | 安装 APK（Android 8.0+，即 API 26+） | 浏览器直接打开，免安装 |
 | 数据存储 | 本地 SharedPreferences | 浏览器 LocalStorage |
-| 离线能力 | 完全离线可用 | 离线扩展库需单独下载（约 88 MB） |
+| 离线能力 | 除 AI 与在线文档识别外，可完全离线使用 | 离线扩展库需单独下载（约 88 MB） |
 | 文档识别 | MinerU 在线 OCR、docx 内嵌图片提取 | PDF.js 文字层 PDF 解析、OCR 测试区 |
 | 平台特色 | 暗夜模式、平板侧边导航、系统返回键、背题模式、斩题、智能复习 | 单题 AI 解析分层、OCR 结果导出 DOCX |
 | 适用场景 | 手机日常刷题 | 电脑端题库清洗与快速体验 |
@@ -386,10 +388,16 @@ cd apps/android
 
 ### Web 端测试
 
-`test/web-webdav/` 与 `test/web-ai-practice/` 使用 Node 内置测试运行器，无需安装依赖：
+**WebDAV 请求测试**：`test/web-webdav/` 使用 Node 18+ 内置测试运行器，无需安装依赖。
 
 ```powershell
 node --test test/web-webdav/request.test.cjs
+```
+
+**AI 练习回归**：`test/web-ai-practice/` 需要预先具备 Node、可被 `require('playwright')` 解析的 Playwright 包，以及已安装的 Chromium（或用 `--executable-path` 指定现有 Chromium / Edge）。脚本**不会自动安装依赖或下载浏览器**。
+
+```powershell
+node ./test/web-ai-practice/runner.cjs
 ```
 
 说明文档：
@@ -407,11 +415,7 @@ node --test test/web-webdav/request.test.cjs
 - [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases)
 - [在线体验](https://reiqr.github.io/shiroha-quiz)
 
-最新版本请以 [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 为准。当前仓库文档记录的主要版本线为：
-
-- 统一发布版：`v2.8.10-beta`（双端一次发布，含 APK + Web ZIP）
-- Web 版：`v0.8.7-alpha`
-- 原生 Compose 版：`v0.9.11-native`
+最新版本请以 [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases) 为准。本次统一发布版为 `v2.8.10-beta`，版本号关系见文首[快速开始](#快速开始)。
 
 `v0.9.x-native` 系列近期重点：
 
@@ -442,7 +446,7 @@ node --test test/web-webdav/request.test.cjs
 
 每次发布包含 Android APK 与 Web ZIP。
 
-Web ZIP **不含离线扩展库**（PDF.js 完整包、MathJax、Tesseract OCR，合计约 **88 MB**）。解压后运行 `libs/download-*.ps1` 按需下载，也可直接联网使用 CDN 兜底。详见 `额外附加功能说明.txt`。
+Web ZIP **不含离线扩展库**（PDF.js 完整包、MathJax、Tesseract OCR，合计约 **88 MB**）。解压后运行 `libs/` 下对应的下载脚本按需获取，也可直接联网使用 CDN 兜底。详见 [额外附加功能说明.txt](apps/web/额外附加功能说明.txt)。
 
 ---
 
