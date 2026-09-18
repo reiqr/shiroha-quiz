@@ -55,14 +55,19 @@ Shiroha Quiz 解决一个很实际的问题：
 
 ## 原生版与 Web 版区别
 
-| 维度 | Android 原生版 | Web 版 |
-| --- | --- | --- |
-| 使用形态 | 安装 APK（Android 8.0+，即 API 26+） | 浏览器直接打开，免安装 |
-| 数据存储 | 本地 SharedPreferences | 浏览器 LocalStorage |
-| 离线能力 | 除 AI 与在线文档识别外，可完全离线使用 | 离线扩展库需单独下载（约 88 MB） |
-| 文档识别 | MinerU 在线 OCR、docx 内嵌图片提取 | PDF.js 文字层 PDF 解析、OCR 测试区 |
-| 平台特色 | 暗夜模式、平板侧边导航、系统返回键、Shiroha 模式、背题模式、斩题、智能复习 | 单题 AI 解析分层、OCR 结果导出 DOCX |
-| 适用场景 | 手机日常刷题 | 电脑端题库清洗与快速体验 |
+<table>
+  <tr>
+    <th width="80">维度</th>
+    <th>Android 原生版</th>
+    <th>Web 版</th>
+  </tr>
+  <tr><td>使用形态</td><td>安装 APK（Android 8.0+，即 API 26+）</td><td>浏览器直接打开，免安装</td></tr>
+  <tr><td>数据存储</td><td>本地 SharedPreferences</td><td>浏览器 LocalStorage</td></tr>
+  <tr><td>离线能力</td><td>除 AI 与在线文档识别外可完全离线</td><td>离线扩展库需单独下载（约 88 MB）</td></tr>
+  <tr><td>文档识别</td><td>MinerU 在线 OCR、docx 内嵌图片提取</td><td>PDF.js 文字层 PDF 解析、OCR 测试区</td></tr>
+  <tr><td>平台特色</td><td>暗夜模式、平板侧边导航、系统返回键、Shiroha 模式、背题模式、斩题、智能复习</td><td>单题 AI 解析分层、OCR 结果导出 DOCX</td></tr>
+  <tr><td>适用场景</td><td>手机日常刷题</td><td>电脑端题库清洗与快速体验</td></tr>
+</table>
 
 Releases 页面推荐下载原生版 APK（支持 **Android 8.0+**，即 API 26+）：
 
