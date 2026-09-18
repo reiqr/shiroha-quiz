@@ -1,8 +1,8 @@
 # Shiroha Quiz 文档索引
 
-这里整理当前仍建议阅读的文档入口。每个主要文档按主题放在独立文件夹中，Markdown 用于 GitHub 阅读，Word 用于本地查看或分发；有 PDF 的文档会在同一文件夹内同时提供。历史计划和旧方案统一放在 `archive/`，避免和当前主线混在一起。
+这里整理当前仍建议阅读的文档入口。主要文档按主题放在独立文件夹中；历史计划和旧方案统一放在 `archive/`，避免和当前主线混在一起。
 
-当前主线：Web 版与原生 Android Compose 版均已加入 WebDAV 云备份与单题 AI 解析追问，原生版已更新到 `v0.9.11-native`，重点能力包括文档识别（MinerU 在线 OCR）、WebDAV 云备份、AI 导入结构化重构与核对 / 补解析、按题型分层的单题 AI 解析、可独立保存的追问解析草稿和答案区恢复。原生解析器外部回归当前维护 63 个有效 parser 用例，编号已扩展到 64。具体功能状态以根目录 [README](../README.md) 和 [CHANGELOG](../CHANGELOG.md) 为准。
+当前主线为 Web 版与原生 Android Compose 版。原生版已更新到 `v0.9.11-native`，外部回归当前维护 63 个有效 parser 用例（历史编号已使用至 64）。具体功能状态以根目录 [README](../README.md) 和 [CHANGELOG](../CHANGELOG.md) 为准。
 
 ## 目录
 
@@ -38,7 +38,6 @@
 - [安卓组件与状态说明](./native/安卓组件与状态说明.md)
 - [原生 Compose 视觉规范](./native/Shiroha_Quiz_原生Android_Compose视觉规范_v30.md)
 - [安卓设计 Token 规范](./native/安卓设计Token规范.md)
-- [原生安卓图片素材使用建议](./native/Shiroha Quiz 原生安卓图片素材使用建议.md)
 
 <a name="docs-engineering"></a>
 
