@@ -21,7 +21,7 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 > [!IMPORTANT]
 > **更新节奏**：最近工作稍微闲了一些，应该会开始恢复更新。问题反馈仍欢迎提交。
 
-<div style="clear: both;"></div>
+<br clear="right">
 
 ---
 
