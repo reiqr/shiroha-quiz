@@ -17,7 +17,7 @@ Shiroha Quiz 解决一个很实际的问题：
 
 当前项目主要包含两条公开使用线：
 
-- **Web 版**：下载解压后本地运行，数据保存在自己的浏览器里；支持题库导入、刷题考试、错题复习、分组练习、数据备份与跨端互通，含 AI 辅助导入、扫描 PDF OCR 测试与单题 AI 解析追问，适合桌面端整理题库。
+- **Web 版**：下载解压后双击 `打开Shiroha Quiz.cmd` 启动本地服务，浏览器打开即用，数据保存在自己的浏览器里；支持题库导入、刷题考试、错题复习、分组练习、数据备份与跨端互通，含 AI 辅助导入、扫描 PDF OCR 测试与单题 AI 解析追问，适合桌面端整理题库。
 - **Android 原生版**：当前主推安装包，使用 Kotlin + Compose 原生实现，**AI 全功能**、**多空填空**、**背题/斩题**、**图片题**等原生体验。
 
 > [!IMPORTANT]
@@ -32,7 +32,7 @@ Shiroha Quiz 解决一个很实际的问题：
 | 你的情况 | 下载什么 | 入口 |
 | --- | --- | --- |
 | 用手机（Android） | 原生版 APK（**主推**），文件名以 `-native-release.apk` 结尾 | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
-| 电脑上（推荐） | Web ZIP，解压后本地运行，数据存在自己的浏览器里 | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
+| 电脑上（推荐） | Web ZIP，解压后双击 `打开Shiroha Quiz.cmd`，数据存在自己的浏览器里 | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
 | 只是想先看看 | 在线版，免安装、免解压 | [打开在线版](https://reiqr.github.io/shiroha-quiz) |
 
 > **版本号怎么看**：原生版与 Web 版各自独立编号，不是新旧关系。统一发布版 `v2.8.10-beta` 一次产出两个文件，文件名自带各自版本号：`Shiroha-Quiz-v0.9.11-native-release.apk`（原生）、`shiroha-quiz-web-v0.8.7-alpha.zip`（Web）。**下载认文件名即可。**
@@ -65,7 +65,7 @@ Shiroha Quiz 解决一个很实际的问题：
   <tr><td>数据存储</td><td>本地 SharedPreferences</td><td>浏览器 LocalStorage</td></tr>
   <tr><td>离线能力</td><td>除 AI 与在线文档识别外可完全离线</td><td>离线扩展库需单独下载（约 88 MB）</td></tr>
   <tr><td>文档识别</td><td>MinerU 在线 OCR、docx 内嵌图片提取</td><td>PDF.js 文字层 PDF 解析、OCR 测试区</td></tr>
-  <tr><td>平台特色</td><td>暗夜模式、平板侧边导航、系统返回键、Shiroha 模式、背题模式、斩题、智能复习</td><td>单题 AI 解析分层、OCR 结果导出 DOCX</td></tr>
+  <tr><td>平台特色</td><td>移动端深度适配：暗夜模式、平板侧边导航、系统返回键，Shiroha 模式、斩题、背题、智能复习</td><td>桌面端题库工作流：单题 AI 解析按题型分层，OCR 测试区可将扫描件转文本并导出 DOCX</td></tr>
   <tr><td>适用场景</td><td>手机日常刷题</td><td>电脑端题库清洗与快速体验</td></tr>
 </table>
 
@@ -203,7 +203,7 @@ Releases 页面推荐下载原生版 APK（支持 **Android 8.0+**，即 API 26+
 
 ### Web 版快速上手
 
-1. 从 [Releases](https://github.com/reiqr/shiroha-quiz/releases/latest) 下载 Web ZIP 解压，打开 `index.html` 即可使用（OCR 等依赖 Worker 的功能需执行 `npx serve .` 后访问）；也可以先用[在线版](https://reiqr.github.io/shiroha-quiz)试，但两者数据不互通。
+1. 从 [Releases](https://github.com/reiqr/shiroha-quiz/releases/latest) 下载 Web ZIP 解压，双击 `打开Shiroha Quiz.cmd`：脚本会拉起本地服务并自动打开浏览器，**不需要预装任何环境**。也可以先用[在线版](https://reiqr.github.io/shiroha-quiz)试，但两者数据不互通。
 2. 进入 **导入题库**，粘贴文本或上传文件。
 3. 系统自动识别题型、选项、答案和解析；扫描 PDF 可先在 **OCR 测试区** 转成文本或 DOCX。
 4. 在**识别预览**中确认题目无误。
@@ -225,7 +225,7 @@ Releases 页面推荐下载原生版 APK（支持 **Android 8.0+**，即 API 26+
 
 Shiroha Quiz 的题库和记录保存在本地存储中（Web 版使用浏览器 LocalStorage，原生版使用 SharedPreferences）。
 
-Web 版的存储按来源隔离：**在线版、本地解压版（`file://`）、本地服务版（`localhost`）是三套互不相通的存储**，在它们之间切换会看不到原来的题库；清缓存或换浏览器也会清空。建议固定一种打开方式，并定期导出备份。
+Web 版的存储按浏览器来源隔离（协议 + 主机 + 端口，任一不同即为不同来源）：**在线版、`打开Shiroha Quiz.cmd` 启动的本地服务（`http://127.0.0.1:51735`）、直接双击 `index.html`（`file://`）互不相通**，在它们之间切换会看不到原来的题库；清缓存或换浏览器也会清空。建议固定一种打开方式，并定期导出备份。
 
 建议：
 
@@ -304,6 +304,10 @@ Web 版的存储按来源隔离：**在线版、本地解压版（`file://`）�
 
 Web ZIP **不含离线扩展库**（PDF.js 完整包、MathJax、Tesseract OCR，合计约 **88 MB**）。解压后运行 `libs/` 下对应的下载脚本按需获取，也可直接联网使用 CDN 兜底。详见 [额外附加功能说明.txt](apps/web/额外附加功能说明.txt)。
 
+ZIP 自带 `打开Shiroha Quiz.cmd` 启动器：优先用 Python 起本地服务，系统没有 Python 时自动改用 Windows 自带的 PowerShell（`serve.ps1`），因此**解压即用，不需要预装任何环境**；两条路径的监听地址都是 `http://127.0.0.1:51735`，仅本机可访问。
+
+> **请勿直接双击 `index.html`。** PDF 解析与 OCR 依赖 Web Worker 和 ES module，浏览器在 `file://` 下会拒绝加载，这两项功能会失效；数据也会落到另一个来源，与启动器打开时互不相通。
+
 ---
 
 
@@ -359,12 +363,14 @@ Android 工程通过 `productFlavors` 保留历史 WebView 壳与当前原生版
 `apps/web/` 是纯静态页面，无需构建。
 
 ```bash
-# 方式一：直接打开
-apps/web/index.html
+# 方式一：启动器（与发布包用法一致，会在 127.0.0.1:51735 拉起本地服务）
+apps/web/打开Shiroha Quiz.cmd
 
-# 方式二：本地静态服务
+# 方式二：任意静态服务器
 npx serve apps/web
 ```
+
+> 直接以 `file://` 打开 `apps/web/index.html` 只能刷题：PDF 解析与 OCR 依赖 Web Worker 和 ES module，浏览器会拒绝加载。
 
 在线版：[https://reiqr.github.io/shiroha-quiz](https://reiqr.github.io/shiroha-quiz)
 
