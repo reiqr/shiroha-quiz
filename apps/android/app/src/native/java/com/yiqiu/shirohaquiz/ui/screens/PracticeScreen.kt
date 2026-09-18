@@ -95,6 +95,7 @@ import com.yiqiu.shirohaquiz.ai.AiSingleQuestionConversationMessage
 import com.yiqiu.shirohaquiz.ai.AiSingleQuestionAnalysis
 import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
 import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
+import com.yiqiu.shirohaquiz.importer.parser.AnswerTokenParser
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
 import com.yiqiu.shirohaquiz.importer.model.QuestionType
@@ -135,6 +136,9 @@ fun PracticeScreen(
     val autoNextScope = rememberCoroutineScope()
     val singleQuestionAiSessions = remember(QuizRepository.practiceOptionShuffleSeed) {
         mutableStateMapOf<String, SingleQuestionAiSessionState>()
+    }
+    val missingAnswerAiReferences = remember(QuizRepository.practiceOptionShuffleSeed) {
+        mutableStateMapOf<String, MissingAnswerAiReferenceState>()
     }
     val practiceQuestions = QuizRepository.activePracticeQuestions()
     val question = QuizRepository.currentPracticeQuestion()
@@ -581,6 +585,7 @@ fun PracticeScreen(
         val isCurrentQuestionFavorited = QuizRepository.isCurrentPracticeQuestionFavorited()
         val batchDraftAnsweredCount = QuizRepository.practiceDraftAnsweredCount()
         var showBatchSubmitConfirm by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
+        var batchMissingAnswerAiRunning by rememberSaveable(practiceQuestions.size, QuizRepository.practiceBatchSubmitted, batchGroupStart) { mutableStateOf(false) }
         var showExitPracticeConfirm by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
         var showUnsubmittedCompleteConfirm by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
         var isUnsubmittedReviewMode by rememberSaveable(practiceQuestions.size) { mutableStateOf(false) }
@@ -673,11 +678,31 @@ fun PracticeScreen(
                 }
             }
         }
-        val submitCurrentPracticeQuestion = {
+        val currentMissingAnswerAiState = missingAnswerAiReferences[currentSessionKey] ?: MissingAnswerAiReferenceState()
+        val currentTemporaryAiDisplayAnswer = currentMissingAnswerAiState
+            .takeIf { it.status == MissingAnswerAiReferenceStatus.READY && it.referenceAnswer.isNotEmpty() }
+            ?.let { state ->
+                when (question.type) {
+                    QuestionType.SINGLE, QuestionType.MULTIPLE -> practiceAnswersForDisplay(state.referenceAnswer, displayAnswerMap).joinToString(" / ")
+                    QuestionType.JUDGE -> practiceTemporaryAiReferenceDisplayAnswer(question, state.analysis ?: return@let state.displayAnswer, state.referenceAnswer)
+                    else -> state.displayAnswer
+                }
+            }
+            .orEmpty()
+        val effectiveCorrectAnswersForDisplay = currentMissingAnswerAiState
+            .takeIf { it.status == MissingAnswerAiReferenceStatus.READY && it.referenceAnswer.isNotEmpty() }
+            ?.let { state -> optionCorrectAnswersForDisplay(question.copy(answer = state.referenceAnswer)) }
+            ?: optionCorrectAnswersForDisplay(question)
+        val hasLocalReferenceAnswer = practiceQuestionHasUsableReferenceAnswer(question)
+        val shouldUseMissingAnswerAi = QuizRepository.aiMissingAnswerReferenceEnabled && !hasLocalReferenceAnswer
+        val finishCurrentPracticeSubmission: (List<String>?, String?) -> QuestionCheckResult? = { temporaryAnswer, temporaryAnswerText ->
             val autoNextQuestionId = currentSessionKey
             val autoNextIndex = QuizRepository.practiceIndex
             val wasResolvingUnsubmitted = isResolvingUnsubmitted
-            val submitted = QuizRepository.submitPracticeQuestion()
+            val submitted = QuizRepository.submitPracticeQuestion(
+                temporaryReferenceAnswer = temporaryAnswer,
+                temporaryReferenceAnswerText = temporaryAnswerText
+            )
             if (submitted != null) {
                 if (wasResolvingUnsubmitted) {
                     if (QuizRepository.practiceUnsubmittedQuestionIndexes().isEmpty()) {
@@ -691,6 +716,185 @@ fun PracticeScreen(
             }
             submitted
         }
+        val submitCurrentPracticeQuestion: () -> Unit = submit@{
+            if (!shouldUseMissingAnswerAi) {
+                finishCurrentPracticeSubmission(null, null)
+                return@submit
+            }
+
+            val cached = missingAnswerAiReferences[currentSessionKey]
+            if (cached?.status == MissingAnswerAiReferenceStatus.READY && cached.referenceAnswer.isNotEmpty()) {
+                finishCurrentPracticeSubmission(cached.referenceAnswer, cached.displayAnswer)
+                return@submit
+            }
+            if (cached?.status == MissingAnswerAiReferenceStatus.LOADING) return@submit
+            if (cached?.status == MissingAnswerAiReferenceStatus.REVIEW || cached?.status == MissingAnswerAiReferenceStatus.ERROR) {
+                finishCurrentPracticeSubmission(null, null)
+                return@submit
+            }
+
+            if (!QuizRepository.isAiConfigured()) {
+                missingAnswerAiReferences[currentSessionKey] = MissingAnswerAiReferenceState(
+                    status = MissingAnswerAiReferenceStatus.ERROR,
+                    message = "AI 尚未配置，本题已按“无可靠标准答案”提交，不会自动判错。"
+                )
+                finishCurrentPracticeSubmission(null, null)
+                return@submit
+            }
+
+            val requestSessionKey = currentSessionKey
+            val requestQuestion = question
+            val requestUserAnswer = displayedSelection
+            missingAnswerAiReferences[requestSessionKey] = MissingAnswerAiReferenceState(
+                status = MissingAnswerAiReferenceStatus.LOADING,
+                message = "正在获取 AI 临时参考答案…"
+            )
+            autoNextScope.launch {
+                val result = runCatching {
+                    withContext(Dispatchers.IO) {
+                        ShirohaAiClient.analyzeSingleQuestion(
+                            apiBaseUrl = QuizRepository.aiApiBaseUrl,
+                            apiKey = QuizRepository.aiApiKey,
+                            modelName = QuizRepository.aiModelName,
+                            question = requestQuestion,
+                            userAnswer = requestUserAnswer,
+                            timeoutSeconds = QuizRepository.aiTimeoutSeconds
+                        )
+                    }
+                }
+                result.onSuccess { analysis ->
+                    val parsedReference = practiceTemporaryAiReferenceAnswer(requestQuestion, analysis)
+                    if (parsedReference.isNotEmpty()) {
+                        val displayAnswer = practiceTemporaryAiReferenceDisplayAnswer(requestQuestion, analysis, parsedReference)
+                        missingAnswerAiReferences[requestSessionKey] = MissingAnswerAiReferenceState(
+                            status = MissingAnswerAiReferenceStatus.READY,
+                            referenceAnswer = parsedReference,
+                            displayAnswer = displayAnswer,
+                            analysis = analysis,
+                            message = "本题使用 AI 临时参考答案判定；结果不会写回题库或错题本。"
+                        )
+                        if (QuizRepository.currentPracticeSessionKey() == requestSessionKey) {
+                            finishCurrentPracticeSubmission(parsedReference, displayAnswer)
+                        }
+                    } else {
+                        val message = buildString {
+                            append("AI 未给出足够可靠的参考答案，本题不会自动判错。")
+                            analysis.warning.trim().takeIf { it.isNotBlank() }?.let { append(" ").append(it) }
+                        }
+                        missingAnswerAiReferences[requestSessionKey] = MissingAnswerAiReferenceState(
+                            status = MissingAnswerAiReferenceStatus.REVIEW,
+                            analysis = analysis,
+                            displayAnswer = analysis.suggestedAnswer.trim(),
+                            message = message
+                        )
+                        if (QuizRepository.currentPracticeSessionKey() == requestSessionKey) {
+                            finishCurrentPracticeSubmission(null, null)
+                        }
+                    }
+                }.onFailure { error ->
+                    missingAnswerAiReferences[requestSessionKey] = MissingAnswerAiReferenceState(
+                        status = MissingAnswerAiReferenceStatus.ERROR,
+                        message = "AI 临时参考答案获取失败：${error.message ?: "请检查接口配置或网络。"} 本题不会自动判错。"
+                    )
+                    if (QuizRepository.currentPracticeSessionKey() == requestSessionKey) {
+                        finishCurrentPracticeSubmission(null, null)
+                    }
+                }
+            }
+        }
+        val submitPracticeBatchWithMissingAnswerAi: () -> Unit = batchSubmit@{
+            if (batchMissingAnswerAiRunning) return@batchSubmit
+            val missingTargets = batchGroupIndexes.mapNotNull { index ->
+                val targetQuestion = practiceQuestions.getOrNull(index) ?: return@mapNotNull null
+                val sessionKey = QuizRepository.practiceSessionKeyAt(index) ?: return@mapNotNull null
+                if (practiceQuestionHasUsableReferenceAnswer(targetQuestion)) null else Triple(index, sessionKey, targetQuestion)
+            }
+            if (!QuizRepository.aiMissingAnswerReferenceEnabled || missingTargets.isEmpty()) {
+                QuizRepository.submitPracticeBatch()
+                return@batchSubmit
+            }
+            if (!QuizRepository.isAiConfigured()) {
+                missingTargets.forEach { (_, sessionKey, _) ->
+                    missingAnswerAiReferences[sessionKey] = MissingAnswerAiReferenceState(
+                        status = MissingAnswerAiReferenceStatus.ERROR,
+                        message = "AI 尚未配置，本题将按“无可靠标准答案”提交，不会自动判错。"
+                    )
+                }
+                QuizRepository.submitPracticeBatch()
+                return@batchSubmit
+            }
+
+            val batchSessionIdentity = batchGroupIndexes.mapNotNull(QuizRepository::practiceSessionKeyAt)
+            batchMissingAnswerAiRunning = true
+            autoNextScope.launch {
+                val referenceAnswers = mutableMapOf<String, List<String>>()
+                val referenceTexts = mutableMapOf<String, String>()
+                try {
+                    for ((_, sessionKey, targetQuestion) in missingTargets) {
+                        val cached = missingAnswerAiReferences[sessionKey]
+                        if (cached?.status == MissingAnswerAiReferenceStatus.READY && cached.referenceAnswer.isNotEmpty()) {
+                            referenceAnswers[sessionKey] = cached.referenceAnswer
+                            cached.displayAnswer.takeIf { it.isNotBlank() }?.let { referenceTexts[sessionKey] = it }
+                            continue
+                        }
+                        missingAnswerAiReferences[sessionKey] = MissingAnswerAiReferenceState(
+                            status = MissingAnswerAiReferenceStatus.LOADING,
+                            message = "正在获取 AI 临时参考答案…"
+                        )
+                        val userAnswer = QuizRepository.practiceDraftAnswers[sessionKey].orEmpty()
+                        val aiResult = runCatching {
+                            withContext(Dispatchers.IO) {
+                                ShirohaAiClient.analyzeSingleQuestion(
+                                    apiBaseUrl = QuizRepository.aiApiBaseUrl,
+                                    apiKey = QuizRepository.aiApiKey,
+                                    modelName = QuizRepository.aiModelName,
+                                    question = targetQuestion,
+                                    userAnswer = userAnswer,
+                                    timeoutSeconds = QuizRepository.aiTimeoutSeconds
+                                )
+                            }
+                        }
+                        aiResult.onSuccess { analysis ->
+                            val parsed = practiceTemporaryAiReferenceAnswer(targetQuestion, analysis)
+                            if (parsed.isNotEmpty()) {
+                                val display = practiceTemporaryAiReferenceDisplayAnswer(targetQuestion, analysis, parsed)
+                                referenceAnswers[sessionKey] = parsed
+                                referenceTexts[sessionKey] = display
+                                missingAnswerAiReferences[sessionKey] = MissingAnswerAiReferenceState(
+                                    status = MissingAnswerAiReferenceStatus.READY,
+                                    referenceAnswer = parsed,
+                                    displayAnswer = display,
+                                    analysis = analysis,
+                                    message = "本题使用 AI 临时参考答案判定；结果不会写回题库或错题本。"
+                                )
+                            } else {
+                                missingAnswerAiReferences[sessionKey] = MissingAnswerAiReferenceState(
+                                    status = MissingAnswerAiReferenceStatus.REVIEW,
+                                    displayAnswer = analysis.suggestedAnswer.trim(),
+                                    analysis = analysis,
+                                    message = "AI 未给出足够可靠的参考答案，本题不会自动判错。${analysis.warning.trim().takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()}"
+                                )
+                            }
+                        }.onFailure { error ->
+                            missingAnswerAiReferences[sessionKey] = MissingAnswerAiReferenceState(
+                                status = MissingAnswerAiReferenceStatus.ERROR,
+                                message = "AI 临时参考答案获取失败：${error.message ?: "请检查接口配置或网络。"} 本题不会自动判错。"
+                            )
+                        }
+                    }
+                    val activeBatchIdentity = QuizRepository.practiceCurrentBatchIndexes().mapNotNull(QuizRepository::practiceSessionKeyAt)
+                    if (!QuizRepository.practiceBatchSubmitted && activeBatchIdentity == batchSessionIdentity) {
+                        QuizRepository.submitPracticeBatch(
+                            temporaryReferenceAnswers = referenceAnswers,
+                            temporaryReferenceAnswerTexts = referenceTexts
+                        )
+                    }
+                } finally {
+                    batchMissingAnswerAiRunning = false
+                }
+            }
+        }
+
         val isPracticeComplete = !isReciteMode &&
             practiceQuestions.isNotEmpty() &&
             if (isBatchPractice) QuizRepository.isAllPracticeBatchGroupsSubmitted() else QuizRepository.practiceAnsweredCount() >= practiceQuestions.size
@@ -995,7 +1199,7 @@ fun PracticeScreen(
                             selected = displayedSelection.any { it.trim().equals(option.originalKey, ignoreCase = true) },
                             resultStyle = practiceOptionResultStyle(
                                 optionKey = option.originalKey,
-                                correctAnswers = optionCorrectAnswersForDisplay(question),
+                                correctAnswers = effectiveCorrectAnswersForDisplay,
                                 result = effectiveResult,
                                 revealAnswer = isReciteMode
                             ),
@@ -1062,17 +1266,18 @@ fun PracticeScreen(
             if (!isReciteMode && isBatchBeforeSubmit) {
                 ActionPillButton(
                     Icons.Rounded.CheckCircle,
-                    "提交本组",
+                    if (batchMissingAnswerAiRunning) "正在获取 AI 参考" else "提交本组",
                     primary = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     fillWidthContent = true,
+                    enabled = !batchMissingAnswerAiRunning,
                     onClick = {
                         if (batchDraftAnsweredCount < batchGroupTotal) {
                             showBatchSubmitConfirm = true
                         } else {
-                            QuizRepository.submitPracticeBatch()
+                            submitPracticeBatchWithMissingAnswerAi()
                         }
                     }
                 )
@@ -1089,6 +1294,7 @@ fun PracticeScreen(
                             .weight(1f)
                             .height(50.dp),
                         fillWidthContent = true,
+                        enabled = currentMissingAnswerAiState.status != MissingAnswerAiReferenceStatus.LOADING,
                         onClick = {
                             if (!isSubmitted) {
                                 submitCurrentPracticeQuestion()
@@ -1103,6 +1309,7 @@ fun PracticeScreen(
                             .weight(1f)
                             .height(50.dp),
                         fillWidthContent = true,
+                        enabled = !isSubmitted && currentMissingAnswerAiState.status != MissingAnswerAiReferenceStatus.LOADING,
                         onClick = {
                             if (!isSubmitted) {
                                 submitCurrentPracticeQuestion()
@@ -1110,6 +1317,14 @@ fun PracticeScreen(
                         }
                     )
                 }
+            }
+            if (shouldUseMissingAnswerAi || currentMissingAnswerAiState.status != MissingAnswerAiReferenceStatus.IDLE) {
+                Spacer(Modifier.height(10.dp))
+                MissingAnswerAiReferenceCard(
+                    currentMissingAnswerAiState.copy(
+                        displayAnswer = currentTemporaryAiDisplayAnswer.ifBlank { currentMissingAnswerAiState.displayAnswer }
+                    )
+                )
             }
             Spacer(Modifier.height(10.dp))
             Row(
@@ -1231,7 +1446,8 @@ fun PracticeScreen(
             }
 
             if (isReciteMode || effectiveResult != null) {
-                val answerText = when (question.type) {
+                val temporaryAiAnswerText = currentTemporaryAiDisplayAnswer.takeIf { it.isNotBlank() }
+                val answerText = temporaryAiAnswerText ?: when (question.type) {
                     QuestionType.SINGLE,
                     QuestionType.MULTIPLE -> practiceAnswersForDisplay(question.answer, displayAnswerMap)
                         .joinToString(" / ")
@@ -1250,11 +1466,17 @@ fun PracticeScreen(
                     if (effectiveResult.autoScored) {
                         AnswerResultCapsule(correct = effectiveResult.correct)
                     } else {
-                        SubjectiveSubmittedCapsule()
+                        SubjectiveSubmittedCapsule(
+                            label = if (!hasLocalReferenceAnswer && question.type != QuestionType.SHORT) "已提交 · 无可靠标准答案" else "已提交作答"
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                 }
-                val answerLabel = if (question.type == QuestionType.SHORT) "参考答案" else "正确答案"
+                val answerLabel = when {
+                    temporaryAiAnswerText != null -> "AI 临时参考答案"
+                    question.type == QuestionType.SHORT -> "参考答案"
+                    else -> "正确答案"
+                }
                 NoticeCard("$answerLabel：\n${LatexDisplayFormatter.format(answerText)}", warning = false)
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -1375,7 +1597,7 @@ fun PracticeScreen(
                     unansweredCount = (batchGroupTotal - batchDraftAnsweredCount).coerceAtLeast(0),
                     onDismiss = { showBatchSubmitConfirm = false },
                     onConfirm = {
-                        QuizRepository.submitPracticeBatch()
+                        submitPracticeBatchWithMissingAnswerAi()
                         showBatchSubmitConfirm = false
                     }
                 )
@@ -2467,11 +2689,11 @@ private fun SubjectiveAnswerEditor(
 }
 
 @Composable
-private fun SubjectiveSubmittedCapsule() {
+private fun SubjectiveSubmittedCapsule(label: String = "已提交作答") {
     val accent = MaterialTheme.colorScheme.primary
     Surface(
         modifier = Modifier.clearAndSetSemantics {
-            contentDescription = "已提交作答"
+            contentDescription = label
             if (QuizRepository.screenReaderAssistEnabled) liveRegion = LiveRegionMode.Polite
         },
         shape = RoundedCornerShape(ShirohaRadius.Pill),
@@ -2485,13 +2707,13 @@ private fun SubjectiveSubmittedCapsule() {
         ) {
             Icon(
                 imageVector = Icons.Rounded.EditNote,
-                contentDescription = "已提交作答",
+                contentDescription = label,
                 modifier = Modifier.size(15.dp),
                 tint = accent
             )
             Spacer(Modifier.width(5.dp))
             Text(
-                text = "已提交作答",
+                text = label,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = accent
@@ -3171,6 +3393,138 @@ private fun resolvePracticeQuestionCount(
         else -> customCount.coerceIn(1, safeAvailable)
     }
 }
+
+private fun practiceQuestionHasUsableReferenceAnswer(question: Question): Boolean {
+    return if (question.type == QuestionType.BLANK && MultiBlankSupport.hasStructuredAnswers(question)) {
+        question.blankAnswers.any { group -> group.any { it.isNotBlank() } }
+    } else {
+        question.answer.any { it.isNotBlank() }
+    }
+}
+
+private fun practiceTemporaryAiReferenceAnswer(
+    question: Question,
+    analysis: AiSingleQuestionAnalysis
+): List<String> {
+    if (analysis.needsReview || analysis.confidence.trim().equals("LOW", ignoreCase = true)) return emptyList()
+    val raw = analysis.suggestedAnswer.trim()
+    if (raw.isBlank() || raw.equals("无法判断", ignoreCase = true)) return emptyList()
+    return when (question.type) {
+        QuestionType.SINGLE -> {
+            val parsed = AnswerTokenParser.parseObjectiveAnswers(raw, question.options.map { it.key })
+            parsed.takeIf { it.size == 1 } ?: emptyList()
+        }
+        QuestionType.MULTIPLE -> AnswerTokenParser.parseObjectiveAnswers(raw, question.options.map { it.key })
+        QuestionType.JUDGE -> {
+            AnswerTokenParser.parseJudgeAnswer(raw).takeIf { it.size == 1 }
+                ?: AnswerTokenParser.parseObjectiveAnswers(raw, listOf("A", "B")).takeIf { it.size == 1 }
+                ?: emptyList()
+        }
+        QuestionType.BLANK -> {
+            if (MultiBlankSupport.hasStructuredAnswers(question)) emptyList() else listOf(raw)
+        }
+        QuestionType.SHORT -> listOf(raw)
+    }
+}
+
+private fun practiceTemporaryAiReferenceDisplayAnswer(
+    question: Question,
+    analysis: AiSingleQuestionAnalysis,
+    parsedReference: List<String>
+): String {
+    val raw = analysis.suggestedAnswer.trim()
+    return when (question.type) {
+        QuestionType.SINGLE, QuestionType.MULTIPLE -> parsedReference.joinToString(" / ")
+        QuestionType.JUDGE -> parsedReference.joinToString(" / ") { value ->
+            when (value.trim().uppercase()) {
+                "A", "正确", "对", "是", "TRUE", "T", "√" -> "正确"
+                "B", "错误", "错", "否", "FALSE", "F", "×", "X" -> "错误"
+                else -> value
+            }
+        }
+        else -> raw.ifBlank { parsedReference.joinToString(" / ") }
+    }
+}
+
+@Composable
+private fun MissingAnswerAiReferenceCard(state: MissingAnswerAiReferenceState) {
+    val isWarning = state.status == MissingAnswerAiReferenceStatus.REVIEW || state.status == MissingAnswerAiReferenceStatus.ERROR
+    val title = when (state.status) {
+        MissingAnswerAiReferenceStatus.IDLE -> "AI 临时参考答案"
+        MissingAnswerAiReferenceStatus.LOADING -> "正在获取 AI 临时参考答案"
+        MissingAnswerAiReferenceStatus.READY -> "已采用 AI 临时参考答案"
+        MissingAnswerAiReferenceStatus.REVIEW -> "AI 结果需要人工确认"
+        MissingAnswerAiReferenceStatus.ERROR -> "AI 临时参考不可用"
+    }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clearAndSetSemantics {
+                contentDescription = listOf(title, state.displayAnswer, state.message).filter { it.isNotBlank() }.joinToString("。")
+                if (QuizRepository.screenReaderAssistEnabled) liveRegion = LiveRegionMode.Polite
+            },
+        shape = RoundedCornerShape(16.dp),
+        color = if (isWarning) ShirohaColors.StateDangerSoft.copy(alpha = 0.45f) else ShirohaColors.BrandPrimarySoft.copy(alpha = 0.5f),
+        border = BorderStroke(
+            ShirohaDimens.Hairline,
+            if (isWarning) ShirohaColors.StateDanger.copy(alpha = 0.28f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (isWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            state.displayAnswer.takeIf { it.isNotBlank() }?.let { answer ->
+                Text(
+                    text = "参考：${LatexDisplayFormatter.format(answer)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Text(
+                text = state.message.ifBlank {
+                    if (state.status == MissingAnswerAiReferenceStatus.IDLE) {
+                        "题库未提供答案。提交后可临时调用 AI；结果只用于本次练习，不会写回题库。"
+                    } else {
+                        "AI 结果仅供参考。"
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                color = if (isWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private enum class MissingAnswerAiReferenceStatus {
+    IDLE,
+    LOADING,
+    READY,
+    REVIEW,
+    ERROR
+}
+
+private data class MissingAnswerAiReferenceState(
+    val status: MissingAnswerAiReferenceStatus = MissingAnswerAiReferenceStatus.IDLE,
+    val referenceAnswer: List<String> = emptyList(),
+    val displayAnswer: String = "",
+    val analysis: AiSingleQuestionAnalysis? = null,
+    val message: String = ""
+)
 
 private enum class SingleQuestionAiLoadingAction {
     ANALYZE,
