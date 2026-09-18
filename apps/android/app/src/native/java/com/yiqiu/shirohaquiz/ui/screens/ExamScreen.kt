@@ -227,8 +227,8 @@ fun ExamScreen(
 
         if (examScopeQuestions.isEmpty() || availableExamCount == 0) {
             EmptyStateIllustration(
-                title = "还没有可用于考试的客观题",
-                message = "当前考试先支持单选题、多选题和判断题。",
+                title = "还没有可用于考试的题目",
+                message = "当前考试支持单选题、多选题、判断题和填空题。",
                 action = { Spacer(Modifier.height(14.dp)) }
             )
             GlassCard {
@@ -392,7 +392,7 @@ private fun ExamSetupPanel(
         count * (typeScoreTexts[type].orEmpty().toDoubleOrNull() ?: defaultTypeScore(type))
     }
     val groupSummary = if (groupMode == ExamGroupMode.RANDOM) {
-        "自动从客观题里随机抽题，并把本场总分折算为 100 分。"
+        "自动从可考试题目中随机抽题，并把本场总分折算为 100 分。"
     } else {
         if (customQuestionCount == 0) "点击设置每种题型的题量和分值。" else "预计 $customQuestionCount 题 · ${customTotalScore.trimScoreText()} 分"
     }
@@ -1421,7 +1421,8 @@ private fun ExamGroupMode.preferenceKey(): String {
 private val examTypeOrder = listOf(
     QuestionType.SINGLE,
     QuestionType.MULTIPLE,
-    QuestionType.JUDGE
+    QuestionType.JUDGE,
+    QuestionType.BLANK
 )
 
 private fun defaultTypeCountTextMap(): Map<QuestionType, String> = examTypeOrder.associateWith { "0" }
