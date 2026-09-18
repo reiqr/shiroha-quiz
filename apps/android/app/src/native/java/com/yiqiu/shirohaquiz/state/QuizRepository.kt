@@ -2084,7 +2084,8 @@ object QuizRepository {
             question = question,
             userAnswer = selectedAnswer,
             temporaryReferenceAnswer = temporaryReferenceAnswer,
-            temporaryReferenceAnswerText = temporaryReferenceAnswerText
+            temporaryReferenceAnswerText = temporaryReferenceAnswerText,
+            skipAutoScoreWhenReferenceMissing = aiMissingAnswerReferenceEnabled
         )
         val sessionKey = currentPracticeSessionKey() ?: return null
         val bank = currentPracticeSourceBank()
@@ -2132,7 +2133,8 @@ object QuizRepository {
                 question = question,
                 userAnswer = userAnswer,
                 temporaryReferenceAnswer = temporaryAnswer,
-                temporaryReferenceAnswerText = temporaryReferenceAnswerTexts[sessionKey]
+                temporaryReferenceAnswerText = temporaryReferenceAnswerTexts[sessionKey],
+                skipAutoScoreWhenReferenceMissing = aiMissingAnswerReferenceEnabled
             )
             val bank = bankForPracticeIndex(index)
             practiceSessionResults[sessionKey] = result.correct
@@ -4840,7 +4842,8 @@ object QuizRepository {
         question: Question,
         userAnswer: List<String>,
         temporaryReferenceAnswer: List<String>? = null,
-        temporaryReferenceAnswerText: String? = null
+        temporaryReferenceAnswerText: String? = null,
+        skipAutoScoreWhenReferenceMissing: Boolean = false
     ): QuestionCheckResult {
         val structuredBlank = MultiBlankSupport.hasStructuredAnswers(question)
         val normalizedUserAnswer = if (structuredBlank) {
@@ -4894,7 +4897,8 @@ object QuizRepository {
             userBlankAnswers = if (structuredBlank) normalizedUserAnswer else emptyList(),
             correct = correct,
             answerText = answerText,
-            autoScored = isAutoScoredQuestionType(question.type) && hasReferenceAnswer
+            autoScored = isAutoScoredQuestionType(question.type) &&
+                (hasReferenceAnswer || !skipAutoScoreWhenReferenceMissing)
         )
     }
 
