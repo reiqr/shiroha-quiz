@@ -1046,9 +1046,10 @@ fun PracticeScreen(
         val saveSingleQuestionAiAnalysis: () -> Unit = {
             val currentAiState = singleQuestionAiSessions[currentSessionKey] ?: SingleQuestionAiSessionState()
             val analysisDraft = currentAiState.analysis?.analysis.orEmpty().trim()
+            val analysisForStorage = practiceAnalysisForStorage(analysisDraft, displayOptions).trim()
             if (analysisDraft.isBlank()) {
                 updateSingleQuestionAiSession { state -> state.copy(error = "没有可保存的 AI 解析。") }
-            } else if (QuizRepository.updateCurrentPracticeQuestionAnalysis(analysisDraft)) {
+            } else if (QuizRepository.updateCurrentPracticeQuestionAnalysis(analysisForStorage)) {
                 updateSingleQuestionAiSession { state ->
                     state.copy(
                         error = null,
@@ -1488,6 +1489,7 @@ fun PracticeScreen(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = question.analysis.takeIf { it.isNotBlank() }
+                        ?.let { practiceAnalysisForDisplay(it, displayOptions) }
                         ?.let(::formatAnalysisForDisplay)
                         ?.let(LatexDisplayFormatter::format)
                         ?: "暂无解析",
@@ -1498,7 +1500,7 @@ fun PracticeScreen(
                     Spacer(Modifier.height(14.dp))
                     SingleQuestionAiAnalysisPanel(
                         session = singleQuestionAiSession,
-                        currentBankAnalysis = question.analysis,
+                        currentBankAnalysis = practiceAnalysisForDisplay(question.analysis, displayOptions),
                         onAnalyze = {
                             if (singleQuestionAiSession.analysis != null || singleQuestionAiSession.messages.isNotEmpty()) {
                                 showSingleQuestionAiReanalyzeConfirm = true
@@ -3847,8 +3849,79 @@ private fun practiceQuestionForDisplay(
     val originalToDisplay = displayOptions.associate { it.originalKey.trim().uppercase() to it.displayKey }
     return question.copy(
         options = displayOptions.map { Option(key = it.displayKey, text = it.text) },
-        answer = practiceAnswersForDisplay(question.answer, originalToDisplay)
+        answer = practiceAnswersForDisplay(question.answer, originalToDisplay),
+        analysis = practiceAnalysisForDisplay(question.analysis, displayOptions)
     )
+}
+
+private fun practiceAnalysisForDisplay(
+    analysis: String,
+    displayOptions: List<PracticeDisplayOption>
+): String {
+    val originalToDisplay = displayOptions.associate { option ->
+        normalizeAnalysisOptionKey(option.originalKey) to option.displayKey
+    }
+    return remapAnalysisOptionReferences(analysis, originalToDisplay)
+}
+
+private fun practiceAnalysisForStorage(
+    analysis: String,
+    displayOptions: List<PracticeDisplayOption>
+): String {
+    val displayToOriginal = displayOptions.associate { option ->
+        normalizeAnalysisOptionKey(option.displayKey) to option.originalKey
+    }
+    return remapAnalysisOptionReferences(analysis, displayToOriginal)
+}
+
+private fun remapAnalysisOptionReferences(
+    analysis: String,
+    keyMap: Map<String, String>
+): String {
+    if (analysis.isBlank() || keyMap.isEmpty() || keyMap.all { (source, target) -> source == normalizeAnalysisOptionKey(target) }) {
+        return analysis
+    }
+
+    val placeholders = linkedMapOf<String, String>()
+    var placeholderIndex = 0
+    fun mapped(rawKey: String): String {
+        val target = keyMap[normalizeAnalysisOptionKey(rawKey)] ?: return rawKey
+        val token = "\uE000${placeholderIndex++}\uE001"
+        placeholders[token] = target
+        return token
+    }
+
+    var text = analysis
+    text = Regex("(?<![A-Za-z0-9_])([A-GＡ-Ｇ])(\\s*(?:项|选项))").replace(text) { match ->
+        mapped(match.groupValues[1]) + match.groupValues[2]
+    }
+    text = Regex("(选项\\s*)([A-GＡ-Ｇ])(?![A-Za-z0-9_])").replace(text) { match ->
+        match.groupValues[1] + mapped(match.groupValues[2])
+    }
+    text = Regex("([（(]\\s*)([A-GＡ-Ｇ])(\\s*[）)])").replace(text) { match ->
+        match.groupValues[1] + mapped(match.groupValues[2]) + match.groupValues[3]
+    }
+    text = Regex("((?:正确答案|答案|应选|选择|选)\\s*(?:为|是|：|:)?\\s*)([A-GＡ-Ｇ])(?![A-Za-z0-9_])").replace(text) { match ->
+        match.groupValues[1] + mapped(match.groupValues[2])
+    }
+    text = Regex("(?<![A-Za-z0-9_])([A-GＡ-Ｇ])(\\s*(?:项)?\\s*(?:不正确|不符合|正确|错误|符合))").replace(text) { match ->
+        mapped(match.groupValues[1]) + match.groupValues[2]
+    }
+    text = Regex("(?m)(^\\s*)([A-GＡ-Ｇ])(\\s*[.．、:：])").replace(text) { match ->
+        match.groupValues[1] + mapped(match.groupValues[2]) + match.groupValues[3]
+    }
+    placeholders.forEach { (token, target) -> text = text.replace(token, target) }
+    return text
+}
+
+private fun normalizeAnalysisOptionKey(rawKey: String): String {
+    val key = rawKey.trim()
+    if (key.length != 1) return key.uppercase()
+    val char = key[0]
+    return when (char) {
+        in 'Ａ'..'Ｇ' -> ('A'.code + (char.code - 'Ａ'.code)).toChar().toString()
+        else -> char.uppercaseChar().toString()
+    }
 }
 
 private val practiceTypeOrder = listOf(
