@@ -193,6 +193,7 @@ object QuizRepository {
     private const val KEY_PRACTICE_SLASH_ENABLED = "practice_slash_enabled"
     private const val KEY_PRACTICE_QUICK_EDIT_ENABLED = "practice_quick_edit_enabled"
     private const val KEY_PRACTICE_OPTION_SHUFFLE_ENABLED = "practice_option_shuffle_enabled"
+    private const val KEY_PRACTICE_PREFER_UNSEEN_ENABLED = "practice_prefer_unseen_enabled"
     private const val KEY_SCREEN_READER_ASSIST_ENABLED = "screen_reader_assist_enabled"
     private const val KEY_EXAM_AUTO_NEXT_ENABLED = "exam_auto_next_enabled"
     private const val KEY_EXAM_OPTION_SHUFFLE_ENABLED = "exam_option_shuffle_enabled"
@@ -296,6 +297,8 @@ object QuizRepository {
     var practiceQuickEditEnabled by mutableStateOf(false)
         private set
     var practiceOptionShuffleEnabled by mutableStateOf(false)
+        private set
+    var practicePreferUnseenEnabled by mutableStateOf(false)
         private set
     var screenReaderAssistEnabled by mutableStateOf(false)
         private set
@@ -535,6 +538,7 @@ object QuizRepository {
         practiceSlashEnabled = prefs.getBoolean(KEY_PRACTICE_SLASH_ENABLED, false)
         practiceQuickEditEnabled = prefs.getBoolean(KEY_PRACTICE_QUICK_EDIT_ENABLED, false)
         practiceOptionShuffleEnabled = prefs.getBoolean(KEY_PRACTICE_OPTION_SHUFFLE_ENABLED, false)
+        practicePreferUnseenEnabled = prefs.getBoolean(KEY_PRACTICE_PREFER_UNSEEN_ENABLED, false)
         screenReaderAssistEnabled = prefs.getBoolean(KEY_SCREEN_READER_ASSIST_ENABLED, false)
         examAutoNextEnabled = prefs.getBoolean(KEY_EXAM_AUTO_NEXT_ENABLED, false)
         examOptionShuffleEnabled = prefs.getBoolean(KEY_EXAM_OPTION_SHUFFLE_ENABLED, false)
@@ -1155,7 +1159,20 @@ object QuizRepository {
         val filteredItems = rawItems.filter { it.question.type in selectedTypes }
         if (filteredItems.isEmpty()) return false
         val count = questionCount.coerceIn(1, filteredItems.size)
-        val selectedItems = if (randomize) filteredItems.shuffled().take(count) else filteredItems.take(count)
+        val selectedItems = if (randomize) {
+            val randomizedItems = if (practicePreferUnseenEnabled) {
+                val practicedKeys = practicedQuestionKeys()
+                val (unseenItems, seenItems) = filteredItems.partition { item ->
+                    practiceHistoryKey(item.bankId, item.question.id) !in practicedKeys
+                }
+                unseenItems.shuffled() + seenItems.shuffled()
+            } else {
+                filteredItems.shuffled()
+            }
+            randomizedItems.take(count)
+        } else {
+            filteredItems.take(count)
+        }
         practiceQuestions = selectedItems.map { it.question }
         practiceQuestionSessionKeys = buildPracticeSessionKeys(selectedItems)
         practiceSourceLabel = sourceLabel.ifBlank { currentPracticeScopeLabel() }
@@ -1193,6 +1210,19 @@ object QuizRepository {
         practiceSequentialUsesReciteProgress = false
         practiceSequentialNextIndexAfterComplete = null
         return true
+    }
+
+    private fun practiceHistoryKey(bankId: String, questionId: String): String = "$bankId#$questionId"
+
+    private fun practicedQuestionKeys(): Set<String> = buildSet {
+        studyRecords.forEach { record ->
+            record.questionResults.forEach resultLoop@{ result ->
+                val sourceBankId = result.sourceBankId?.takeIf { it.isNotBlank() }
+                    ?: record.bankId?.takeIf { it.isNotBlank() }
+                    ?: return@resultLoop
+                add(practiceHistoryKey(sourceBankId, result.question.id))
+            }
+        }
     }
 
     private fun buildPracticeSessionKeys(items: List<PracticeQuestionSource>): List<String> {
@@ -1740,6 +1770,12 @@ object QuizRepository {
     fun setPracticeOptionShuffleEnabled(context: Context, enabled: Boolean) {
         appContext = context.applicationContext
         practiceOptionShuffleEnabled = enabled
+        persist()
+    }
+
+    fun setPracticePreferUnseenEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        practicePreferUnseenEnabled = enabled
         persist()
     }
 
@@ -5400,6 +5436,7 @@ object QuizRepository {
             .putBoolean(KEY_PRACTICE_SLASH_ENABLED, practiceSlashEnabled)
             .putBoolean(KEY_PRACTICE_QUICK_EDIT_ENABLED, practiceQuickEditEnabled)
             .putBoolean(KEY_PRACTICE_OPTION_SHUFFLE_ENABLED, practiceOptionShuffleEnabled)
+            .putBoolean(KEY_PRACTICE_PREFER_UNSEEN_ENABLED, practicePreferUnseenEnabled)
             .putBoolean(KEY_SCREEN_READER_ASSIST_ENABLED, screenReaderAssistEnabled)
             .putBoolean(KEY_EXAM_AUTO_NEXT_ENABLED, examAutoNextEnabled)
             .putBoolean(KEY_EXAM_OPTION_SHUFFLE_ENABLED, examOptionShuffleEnabled)

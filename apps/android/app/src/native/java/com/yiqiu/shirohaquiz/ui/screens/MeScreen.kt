@@ -844,6 +844,13 @@ fun PracticePreferenceScreen(
             )
             Spacer(Modifier.height(12.dp))
             PreferenceSwitchRow(
+                title = "随机练习优先未做题",
+                desc = "随机组题时优先抽取尚未练习过的题；数量不足时再从已做题中随机补足。",
+                checked = QuizRepository.practicePreferUnseenEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setPracticePreferUnseenEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
                 title = "练习页答题方式切换",
                 desc = "练习页显示答题方式和每组题数设置。",
                 checked = QuizRepository.practiceInlineAnswerSettingsEnabled,
@@ -1009,6 +1016,13 @@ fun PracticePreferenceScreen(
                 desc = "练习时可直接编辑当前题目。",
                 checked = QuizRepository.practiceQuickEditEnabled,
                 onCheckedChange = { enabled -> QuizRepository.setPracticeQuickEditEnabled(context, enabled) }
+            )
+            Spacer(Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                title = "无答案题使用 AI 临时参考",
+                desc = "练习题缺少题库答案时，提交后临时请求 AI 作为本次判题参考；不会写回题库。请求可能耗时并消耗接口额度。",
+                checked = QuizRepository.aiMissingAnswerReferenceEnabled,
+                onCheckedChange = { enabled -> QuizRepository.setAiMissingAnswerReferenceEnabled(context, enabled) }
             )
         }
 
@@ -1307,13 +1321,6 @@ private fun AiSettingsPanel(context: Context) {
             desc = "答题结果显示后或背题模式中，可补解析、连续追问，并由用户确认后保存解析。",
             checked = QuizRepository.aiSingleQuestionAnalysisEnabled,
             onCheckedChange = { enabled -> QuizRepository.setAiSingleQuestionAnalysisEnabled(context, enabled) }
-        )
-        Spacer(Modifier.height(10.dp))
-        PreferenceSwitchRow(
-            title = "无答案题使用 AI 临时参考",
-            desc = "练习题缺少题库答案时，提交后临时请求 AI 作为本次判题参考；不会写回题库。AI 请求可能耗时并消耗接口额度。",
-            checked = QuizRepository.aiMissingAnswerReferenceEnabled,
-            onCheckedChange = { enabled -> QuizRepository.setAiMissingAnswerReferenceEnabled(context, enabled) }
         )
 
         Spacer(Modifier.height(16.dp))
