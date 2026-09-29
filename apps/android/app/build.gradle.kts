@@ -21,15 +21,15 @@ android {
         create("web") {
             dimension = "variant"
             applicationId = "com.yiqiu.shirohaquiz"
-            versionCode = 53
-            versionName = "0.8.7-alpha"
+            versionCode = 54
+            versionName = "0.8.8-alpha"
         }
         create("native") {
             dimension = "variant"
             testInstrumentationRunner = "com.yiqiu.shirohaquiz.state.QuizRepositoryCloudRestoreSafetyInstrumentation"
             applicationId = "com.reqir.shirohaquiz"
-            versionCode = 210
-            versionName = "0.9.11"
+            versionCode = 211
+            versionName = "0.9.12"
         }
     }
 
