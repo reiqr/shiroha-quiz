@@ -26,6 +26,21 @@ jobs:
       - name: Apply update
         run: python3 tools/tmp_apply_native_import_docs_layout.py
 
+      - name: Restore shared Refresh icon import
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('apps/android/app/src/native/java/com/yiqiu/shirohaquiz/ui/screens/ImportScreen.kt')
+          text = path.read_text(encoding='utf-8')
+          refresh_import = 'import androidx.compose.material.icons.rounded.Refresh\n'
+          if refresh_import not in text:
+              anchor = 'import androidx.compose.material.icons.rounded.PlayArrow\n'
+              if anchor not in text:
+                  raise SystemExit('PlayArrow import anchor not found')
+              text = text.replace(anchor, anchor + refresh_import, 1)
+              path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Build native debug
         working-directory: apps/android
         run: bash ./gradlew assembleNativeDebug
