@@ -28,8 +28,8 @@ android {
             dimension = "variant"
             testInstrumentationRunner = "com.yiqiu.shirohaquiz.state.QuizRepositoryCloudRestoreSafetyInstrumentation"
             applicationId = "com.reqir.shirohaquiz"
-            versionCode = 211
-            versionName = "0.9.12"
+            versionCode = 212
+            versionName = "0.9.13"
         }
     }
 
