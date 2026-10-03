@@ -383,7 +383,6 @@ fun ShirohaAppShell() {
                             onOpenPracticePreference = { navigateTo(MainTab.PracticePreference) },
                             onOpenWrongBookPreference = { navigateTo(MainTab.WrongBookPreference) },
                             onOpenAiSettings = { navigateTo(MainTab.AiSettings) },
-                            onOpenDocumentRecognition = { navigateTo(MainTab.DocumentRecognition) },
                             onOpenDataManagement = { navigateTo(MainTab.DataManagement) },
                             onOpenStandardFormat = { navigateTo(MainTab.StandardFormat) },
                             onOpenAbout = { navigateTo(MainTab.About) }

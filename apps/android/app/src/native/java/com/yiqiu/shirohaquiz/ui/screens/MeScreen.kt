@@ -28,7 +28,6 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Article
 import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.FactCheck
 import androidx.compose.material.icons.rounded.FileOpen
@@ -90,7 +89,6 @@ fun MeScreen(
     onOpenPracticePreference: () -> Unit,
     onOpenWrongBookPreference: () -> Unit,
     onOpenAiSettings: () -> Unit,
-    onOpenDocumentRecognition: () -> Unit,
     onOpenDataManagement: () -> Unit,
     onOpenStandardFormat: () -> Unit,
     onOpenAbout: () -> Unit
@@ -185,13 +183,6 @@ fun MeScreen(
                 title = "AI 设置",
                 desc = "接口配置、导入辅助与题目分析。",
                 onClick = onOpenAiSettings
-            )
-            Spacer(Modifier.height(10.dp))
-            FeaturePlanStrip(
-                icon = Icons.Rounded.DocumentScanner,
-                title = "文档识别",
-                desc = "使用在线 OCR 解析 PDF。",
-                onClick = onOpenDocumentRecognition
             )
             Spacer(Modifier.height(10.dp))
             FeaturePlanStrip(

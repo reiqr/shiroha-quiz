@@ -1,5 +1,10 @@
 package com.yiqiu.shirohaquiz.ui.screens
 
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -7,25 +12,95 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Article
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
+import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
+
+private const val XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+private const val TEMPLATE_ASSET = "templates/Shiroha_Quiz_Excel题库导入通用模板.xlsx"
+private const val TEMPLATE_FILE_NAME = "Shiroha_Quiz_Excel题库导入通用模板.xlsx"
+
+private data class LocalDocSpec(
+    val title: String,
+    val desc: String,
+    val assetPath: String
+)
+
+private val LOCAL_IMPORT_DOCS = listOf(
+    LocalDocSpec(
+        title = "标准题库格式示例",
+        desc = "单选、多选、判断、填空、简答等标准写法与完整示例。",
+        assetPath = "docs/standard_format.md"
+    ),
+    LocalDocSpec(
+        title = "题库导入格式支持说明",
+        desc = "查看 TXT、JSON、CSV、XLSX、DOCX 等格式的支持范围。",
+        assetPath = "docs/import_format_support.md"
+    ),
+    LocalDocSpec(
+        title = "题库导入策略与使用指南",
+        desc = "不同来源题库应该使用哪一种导入方式。",
+        assetPath = "docs/import_strategy_guide.md"
+    ),
+    LocalDocSpec(
+        title = "题目导入解析方法说明",
+        desc = "了解题号、题型、答案、解析与复杂文本的识别规则。",
+        assetPath = "docs/import_parser_notes.md"
+    )
+)
 
 @Composable
 fun StandardImportFormatScreen(
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    var openedDoc by remember { mutableStateOf<LocalDocSpec?>(null) }
+    var exportStatus by remember { mutableStateOf<String?>(null) }
+
+    val templateExporter = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(XLSX_MIME)
+    ) { uri ->
+        if (uri != null) {
+            exportStatus = if (copyAssetToUri(context, TEMPLATE_ASSET, uri)) {
+                "Excel 通用模板已保存到所选位置。"
+            } else {
+                "模板保存失败，请重新选择保存位置后再试。"
+            }
+        }
+    }
+
+    val activeDoc = openedDoc
+    if (activeDoc != null) {
+        BackHandler { openedDoc = null }
+        LocalMarkdownDocumentScreen(
+            spec = activeDoc,
+            onBack = { openedDoc = null }
+        )
+        return
+    }
+
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
@@ -35,104 +110,90 @@ fun StandardImportFormatScreen(
         ShirohaHeader(
             kicker = "Format",
             title = "标准导入格式",
-            subtitle = "按这个格式整理题库，识别会更稳定。"
+            subtitle = "常用规则直接看，详细说明与模板均已随 App 离线提供。"
         )
 
-        FormatSection(
-            title = "一、单文件标准格式",
-            body = "每道题建议包含题号、题干、选项、答案和解析。题号可以用 1.、1、（1） 等形式，但同一份题库尽量统一。",
-            sample = """
-1. 下列哪一项是良好学习习惯？
-A. 课前预习
-B. 长期熬夜
-C. 抄写答案
-D. 不做复盘
-答案：A
-解析：课前预习有助于提前了解重点内容。
-            """.trimIndent()
-        )
+        GlassCard {
+            Text(
+                text = "快速说明",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "• 推荐每道题独立成块，并保留清晰题号。\n" +
+                    "• 选择题保留 A. B. C. D. 等选项标记。\n" +
+                    "• 答案单独写成“答案：A / ABC / 正确”等形式。\n" +
+                    "• 有解析时单独写“解析：……”，没有解析可以省略。\n" +
+                    "• 扫描 PDF 请从导入页使用“在线解析 PDF”。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
-        FormatSection(
-            title = "二、多选题格式",
-            body = "多选题答案可以写成 AB、A B、A、B 或 A/B。建议答案集中写在“答案：ACD”这一行。",
-            sample = """
-2. 整理题库时，哪些做法有助于提高识别稳定性？
-A. 保留清晰题号
-B. 把多道题挤在一行
-C. 统一选项格式
-D. 单独列出答案
-答案：ACD
-解析：题号、选项和答案越清晰，导入越稳定。
-            """.trimIndent()
-        )
+        GlassCard {
+            Text(
+                text = "详细文档",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "以下 Markdown 文档保存在 App 本地，不需要访问 GitHub，也不需要联网。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+            LOCAL_IMPORT_DOCS.forEachIndexed { index, spec ->
+                Text(
+                    text = spec.desc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(6.dp))
+                ActionPillButton(
+                    icon = if (index == 0) Icons.Rounded.Article else Icons.Rounded.Description,
+                    text = spec.title,
+                    primary = index == 0,
+                    modifier = Modifier.fillMaxWidth(),
+                    fillWidthContent = true,
+                    onClick = { openedDoc = spec }
+                )
+                if (index != LOCAL_IMPORT_DOCS.lastIndex) {
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
+        }
 
-        FormatSection(
-            title = "三、判断题格式",
-            body = "判断题可使用“正确/错误”“对/错”“√/×”。不建议把答案混在很长的题干中。",
-            sample = """
-3. 题库导入前，统一编号和选项格式可以减少识别错误。（ ）
-答案：正确
-解析：统一格式有利于解析器判断题目边界。
-            """.trimIndent()
-        )
-
-        FormatSection(
-            title = "四、双文件导入格式",
-            body = "题目文件只放题干和选项，答案文件按题号列出答案。题号需要和题目文件对应。",
-            sample = """
-题目文件：
-1. 示例题干一……
-A. 选项一
-B. 选项二
-
-2. 示例题干二……
-A. 选项一
-B. 选项二
-C. 选项三
-
-答案文件：
-1. B
-2. AC
-3. 正确
-            """.trimIndent()
-        )
-
-        FormatSection(
-            title = "五、减少识别错误的建议",
-            body = "尽量避免把多个题目挤在一行；选项前保留 A. B. C. D.；答案区和解析区保持清晰。复杂整卷真题可以先导入，再进入核对页修正。",
-            sample = null
-        )
-
-        FormatSection(
-            title = "六、复杂格式可先用 AI 清洗",
-            body = "如果来源材料包含复制错行、答案集中、解析混排、扫描文本或整卷说明，建议先发给常见 AI / LLM 清洗成标准格式，再导入 App。清洗只负责整理格式，不负责解题。",
-            sample = """
-请把下面的题库文本整理成 Shiroha Quiz 可稳定导入的标准格式。
-
-要求：
-1. 只做格式整理，不要解题，不要改写题意，不要编造题目、选项、答案或解析。
-2. 保留所有题目，按原始顺序输出；如果原文有分卷、章节、题型分区，请保留标题。
-3. 每道题整理成独立题块，推荐格式为：
-题号. 题干
-A. 选项
-B. 选项
-C. 选项
-D. 选项
-答案：A
-解析：原文解析
-
-4. 单选题答案写成：答案：A
-5. 多选题答案写成：答案：ABCD
-6. 判断题答案写成：答案：正确 或 答案：错误
-7. 填空题、简答题答案保留原文，不要拆成选择题答案。
-8. 如果原文没有解析，不要编解析，可以省略解析行，或写：解析：
-9. 如果答案无法从原文确认，写：答案：【待确认】
-10. 最终只输出整理后的题库正文，不要输出说明、分析或 Markdown 代码块。
-
-下面是原始文本：
-【把需要清洗的题库粘贴到这里】
-            """.trimIndent()
-        )
+        GlassCard {
+            Text(
+                text = "Excel 通用模板",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "模板同样内置在 App 中。点击后选择手机中的保存位置即可导出，无需联网下载。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+            ActionPillButton(
+                icon = Icons.Rounded.TableChart,
+                text = "导出 Excel 通用模板",
+                primary = false,
+                modifier = Modifier.fillMaxWidth(),
+                fillWidthContent = true,
+                onClick = { templateExporter.launch(TEMPLATE_FILE_NAME) }
+            )
+            exportStatus?.let { status ->
+                Spacer(Modifier.height(10.dp))
+                NoticeCard(
+                    text = status,
+                    warning = status.contains("失败")
+                )
+            }
+        }
 
         ActionPillButton(
             icon = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -145,34 +206,229 @@ D. 选项
 }
 
 @Composable
-private fun FormatSection(
-    title: String,
-    body: String,
-    sample: String?
+private fun LocalMarkdownDocumentScreen(
+    spec: LocalDocSpec,
+    onBack: () -> Unit
 ) {
-    GlassCard {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold
+    val context = LocalContext.current
+    val documentResult = remember(spec.assetPath) {
+        runCatching {
+            context.assets.open(spec.assetPath).bufferedReader(Charsets.UTF_8).use { it.readText() }
+        }
+    }
+    val documentText = documentResult.getOrNull()
+    val blocks = remember(documentText) {
+        documentText?.let(::parseMarkdown).orEmpty()
+    }
+
+    Column(
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
+    ) {
+        ShirohaHeader(
+            kicker = "Docs",
+            title = spec.title,
+            subtitle = "本地离线文档"
         )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = body,
+
+        if (documentText == null) {
+            NoticeCard(
+                text = "文档读取失败：${documentResult.exceptionOrNull()?.message ?: "未知错误"}",
+                warning = true
+            )
+        } else {
+            GlassCard {
+                SelectionContainer {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        blocks.forEach { block ->
+                            MarkdownBlockView(block)
+                        }
+                    }
+                }
+            }
+        }
+
+        ActionPillButton(
+            icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            text = "返回标准导入格式",
+            primary = false,
+            modifier = Modifier.height(42.dp),
+            onClick = onBack
+        )
+    }
+}
+
+private sealed class MarkdownBlock {
+    data class Heading(val level: Int, val text: String) : MarkdownBlock()
+    data class Paragraph(val text: String) : MarkdownBlock()
+    data class ListItem(val text: String) : MarkdownBlock()
+    data class Code(val text: String) : MarkdownBlock()
+    object Divider : MarkdownBlock()
+}
+
+private fun parseMarkdown(source: String): List<MarkdownBlock> {
+    val lines = source.replace("\r\n", "\n").replace('\r', '\n').lines()
+    val blocks = mutableListOf<MarkdownBlock>()
+    val paragraph = mutableListOf<String>()
+    var index = 0
+    var inCode = false
+    val code = mutableListOf<String>()
+
+    fun flushParagraph() {
+        if (paragraph.isNotEmpty()) {
+            blocks += MarkdownBlock.Paragraph(
+                paragraph.joinToString("\n") { cleanMarkdownInline(it.trim()) }.trim()
+            )
+            paragraph.clear()
+        }
+    }
+
+    fun flushCode() {
+        if (code.isNotEmpty()) {
+            blocks += MarkdownBlock.Code(code.joinToString("\n").trimEnd())
+            code.clear()
+        }
+    }
+
+    while (index < lines.size) {
+        val line = lines[index]
+        val trimmed = line.trim()
+
+        if (trimmed.startsWith("```")) {
+            flushParagraph()
+            if (inCode) {
+                flushCode()
+                inCode = false
+            } else {
+                inCode = true
+            }
+            index += 1
+            continue
+        }
+
+        if (inCode) {
+            code += line
+            index += 1
+            continue
+        }
+
+        if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+            flushParagraph()
+            val table = mutableListOf<String>()
+            while (index < lines.size) {
+                val tableLine = lines[index].trim()
+                if (!tableLine.startsWith("|") || !tableLine.endsWith("|")) break
+                table += tableLine
+                index += 1
+            }
+            blocks += MarkdownBlock.Code(table.joinToString("\n"))
+            continue
+        }
+
+        when {
+            trimmed.isBlank() -> flushParagraph()
+            trimmed.matches(Regex("^-{3,}$")) -> {
+                flushParagraph()
+                blocks += MarkdownBlock.Divider
+            }
+            trimmed.startsWith("### ") -> {
+                flushParagraph()
+                blocks += MarkdownBlock.Heading(3, cleanMarkdownInline(trimmed.removePrefix("### ")))
+            }
+            trimmed.startsWith("## ") -> {
+                flushParagraph()
+                blocks += MarkdownBlock.Heading(2, cleanMarkdownInline(trimmed.removePrefix("## ")))
+            }
+            trimmed.startsWith("# ") -> {
+                flushParagraph()
+                blocks += MarkdownBlock.Heading(1, cleanMarkdownInline(trimmed.removePrefix("# ")))
+            }
+            trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
+                flushParagraph()
+                blocks += MarkdownBlock.ListItem("• ${cleanMarkdownInline(trimmed.drop(2))}")
+            }
+            trimmed.matches(Regex("^\\d+[.)]\\s+.*")) -> {
+                flushParagraph()
+                blocks += MarkdownBlock.ListItem(cleanMarkdownInline(trimmed))
+            }
+            trimmed.startsWith("> ") -> {
+                flushParagraph()
+                blocks += MarkdownBlock.Paragraph("› ${cleanMarkdownInline(trimmed.removePrefix("> "))}")
+            }
+            else -> paragraph += line
+        }
+        index += 1
+    }
+
+    flushParagraph()
+    flushCode()
+    return blocks
+}
+
+private fun cleanMarkdownInline(value: String): String {
+    return value
+        .replace(Regex("!\\[([^]]*)]\\([^)]+\\)"), "$1")
+        .replace(Regex("\\[([^]]+)]\\([^)]+\\)"), "$1")
+        .replace("**", "")
+        .replace("__", "")
+        .replace("`", "")
+        .trim()
+}
+
+@Composable
+private fun MarkdownBlockView(block: MarkdownBlock) {
+    when (block) {
+        is MarkdownBlock.Heading -> Text(
+            text = block.text,
+            style = when (block.level) {
+                1 -> MaterialTheme.typography.headlineSmall
+                2 -> MaterialTheme.typography.titleLarge
+                else -> MaterialTheme.typography.titleMedium
+            },
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        is MarkdownBlock.Paragraph -> Text(
+            text = block.text,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        if (!sample.isNullOrBlank()) {
-            Spacer(Modifier.height(12.dp))
-            GlassCard {
-                Text(
-                    text = sample,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+        is MarkdownBlock.ListItem -> Text(
+            text = block.text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        is MarkdownBlock.Code -> GlassCard {
+            Text(
+                text = block.text,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        MarkdownBlock.Divider -> Text(
+            text = "────────────",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.outline
+        )
+    }
+}
+
+private fun copyAssetToUri(
+    context: Context,
+    assetPath: String,
+    uri: Uri
+): Boolean {
+    return runCatching {
+        val output = context.contentResolver.openOutputStream(uri) ?: return@runCatching false
+        output.use { target ->
+            context.assets.open(assetPath).use { source ->
+                source.copyTo(target)
             }
         }
-    }
+        true
+    }.getOrDefault(false)
 }
