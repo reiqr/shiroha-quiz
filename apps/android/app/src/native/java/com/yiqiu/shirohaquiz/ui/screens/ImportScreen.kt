@@ -1045,40 +1045,17 @@ fun ImportScreen(
                     }
                 )
                 ActionPillButton(
-                    icon = Icons.Rounded.Refresh,
-                    text = "填入示例",
+                    icon = Icons.Rounded.DocumentScanner,
+                    text = "在线解析 PDF",
                     primary = false,
+                    enabled = !isImportBusy,
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp),
                     fillWidthContent = true,
-                    onClick = {
-                        if (!isImportBusy) {
-                            useDualImport = false
-                            selectedFileName = "示例题库"
-                            rawText = sampleImportText()
-                            rawTextEditorExpanded = true
-                            answerTextEditorExpanded = true
-                            importedImages = emptyList()
-                            clearParsedResult()
-                            statusText = "已填入示例题库。"
-                            isStatusWarn = false
-                        }
-                    }
+                    onClick = onOpenDocumentRecognition
                 )
             }
-            Spacer(Modifier.height(10.dp))
-            ActionPillButton(
-                icon = Icons.Rounded.DocumentScanner,
-                text = "在线解析 PDF",
-                primary = false,
-                enabled = !isImportBusy,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                fillWidthContent = true,
-                onClick = onOpenDocumentRecognition
-            )
             Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -4914,27 +4891,6 @@ private fun readImportedText(context: Context, uri: Uri, fileName: String): Text
     return TextImportDecoder.decodeDetailed(bytes, fileName)
 }
 
-private fun sampleImportText(): String = """
-1. 安全帽的主要作用是（A）
-A. 保护头部
-B. 装饰作用
-C. 增加重量
-D. 无实际作用
-答案：A
-解析：安全帽用于减轻坠落物和碰撞对头部造成的伤害。
-
-2. 雨天驾驶时应注意哪些事项（AB）
-A. 降低车速
-B. 加大跟车距离
-C. 急打方向
-D. 紧急制动
-答案：AB
-解析：雨天路滑，应平稳控制车辆并留足安全距离。
-
-3. 国家安全生产方针是“安全第一，预防为主”。（对）
-答案：对
-解析：这是一道基础判断题，答案为正确。
-""".trimIndent()
 
 private fun sampleAnswerText(): String = """
 1. A
