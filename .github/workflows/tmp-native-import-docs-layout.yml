@@ -1,0 +1,48 @@
+name: Temporary native import/docs update
+
+on:
+  push:
+    branches:
+      - feature/native-import-docs-layout-v4
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Apply update
+        run: python3 tools/tmp_apply_native_import_docs_layout.py
+
+      - name: Build native debug
+        working-directory: apps/android
+        run: bash ./gradlew assembleNativeDebug
+
+      - name: Remove temporary migration files
+        run: |
+          rm -f tools/tmp_apply_native_import_docs_layout.py
+          rm -f .github/workflows/tmp-native-import-docs-layout.yml
+
+      - name: Commit verified changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "feat(native): compact import/settings and bundle offline docs"
+          git push origin HEAD:${GITHUB_REF_NAME}
