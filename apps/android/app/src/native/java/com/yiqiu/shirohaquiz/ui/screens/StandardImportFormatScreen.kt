@@ -7,6 +7,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,12 +34,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
@@ -96,7 +114,8 @@ fun StandardImportFormatScreen(
         BackHandler { openedDoc = null }
         LocalMarkdownDocumentScreen(
             spec = activeDoc,
-            onBack = { openedDoc = null }
+            onBack = { openedDoc = null },
+            onOpenDoc = { openedDoc = it }
         )
         return
     }
@@ -208,78 +227,130 @@ fun StandardImportFormatScreen(
 @Composable
 private fun LocalMarkdownDocumentScreen(
     spec: LocalDocSpec,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenDoc: (LocalDocSpec) -> Unit
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val documentResult = remember(spec.assetPath) {
         runCatching {
             context.assets.open(spec.assetPath).bufferedReader(Charsets.UTF_8).use { it.readText() }
         }
     }
     val documentText = documentResult.getOrNull()
-    val blocks = remember(documentText) {
-        documentText?.let(::parseMarkdown).orEmpty()
+    val parsed = remember(documentText) {
+        documentText?.let(::parseMarkdown) ?: ParsedMarkdown(emptyList(), emptyMap())
     }
 
-    Column(
-        modifier = Modifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = ShirohaSpacing.Xl, vertical = ShirohaSpacing.Sm),
-        verticalArrangement = Arrangement.spacedBy(ShirohaSpacing.Lg)
+    fun openMarkdownLink(target: String) {
+        val raw = target.trim()
+        if (raw.isBlank()) return
+        val path = raw.substringBefore('#')
+        val anchor = raw.substringAfter('#', "").ifBlank { null }
+        val linkedDoc = resolveLocalDocSpec(path)
+
+        when {
+            anchor != null && (path.isBlank() || linkedDoc == spec) -> {
+                val blockIndex = parsed.anchors[anchor] ?: return
+                scope.launch {
+                    // item 0 is the document header.
+                    listState.animateScrollToItem(blockIndex + 1)
+                }
+            }
+            linkedDoc != null -> onOpenDoc(linkedDoc)
+            raw.startsWith("https://") || raw.startsWith("http://") -> {
+                runCatching { uriHandler.openUri(raw) }
+            }
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.padding(
+            horizontal = ShirohaSpacing.Xl,
+            vertical = ShirohaSpacing.Sm
+        ),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        ShirohaHeader(
-            kicker = "Docs",
-            title = spec.title,
-            subtitle = "本地离线文档"
-        )
+        item {
+            ShirohaHeader(
+                kicker = "Docs",
+                title = spec.title,
+                subtitle = "本地离线文档"
+            )
+        }
 
         if (documentText == null) {
-            NoticeCard(
-                text = "文档读取失败：${documentResult.exceptionOrNull()?.message ?: "未知错误"}",
-                warning = true
-            )
+            item {
+                NoticeCard(
+                    text = "文档读取失败：${documentResult.exceptionOrNull()?.message ?: "未知错误"}",
+                    warning = true
+                )
+            }
         } else {
-            GlassCard {
-                SelectionContainer {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        blocks.forEach { block ->
-                            MarkdownBlockView(block)
-                        }
-                    }
-                }
+            itemsIndexed(parsed.blocks) { _, block ->
+                MarkdownBlockView(
+                    block = block,
+                    onLink = ::openMarkdownLink
+                )
             }
         }
 
-        ActionPillButton(
-            icon = Icons.AutoMirrored.Rounded.ArrowBack,
-            text = "返回标准导入格式",
-            primary = false,
-            modifier = Modifier.height(42.dp),
-            onClick = onBack
-        )
+        item {
+            Spacer(Modifier.height(6.dp))
+            ActionPillButton(
+                icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                text = "返回标准导入格式",
+                primary = false,
+                modifier = Modifier.height(42.dp),
+                onClick = onBack
+            )
+        }
     }
 }
+
+private data class ParsedMarkdown(
+    val blocks: List<MarkdownBlock>,
+    val anchors: Map<String, Int>
+)
 
 private sealed class MarkdownBlock {
     data class Heading(val level: Int, val text: String) : MarkdownBlock()
     data class Paragraph(val text: String) : MarkdownBlock()
     data class ListItem(val text: String) : MarkdownBlock()
+    data class Quote(val text: String) : MarkdownBlock()
     data class Code(val text: String) : MarkdownBlock()
+    data class Table(
+        val headers: List<String>,
+        val rows: List<List<String>>
+    ) : MarkdownBlock()
     object Divider : MarkdownBlock()
 }
 
-private fun parseMarkdown(source: String): List<MarkdownBlock> {
+private val INLINE_TOKEN = Regex(
+    """(!?\[[^]]*]\([^)]+\)|\*\*[^*]+\*\*|__[^_]+__|`[^`]+`)"""
+)
+
+private val HTML_ANCHOR = Regex(
+    """^<(?:span|a)\s+(?:id|name)=["']([^"']+)["'][^>]*>(?:\s*</(?:span|a)>)?\s*$""",
+    RegexOption.IGNORE_CASE
+)
+
+private fun parseMarkdown(source: String): ParsedMarkdown {
     val lines = source.replace("\r\n", "\n").replace('\r', '\n').lines()
     val blocks = mutableListOf<MarkdownBlock>()
+    val anchors = linkedMapOf<String, Int>()
     val paragraph = mutableListOf<String>()
+    val code = mutableListOf<String>()
     var index = 0
     var inCode = false
-    val code = mutableListOf<String>()
 
     fun flushParagraph() {
         if (paragraph.isNotEmpty()) {
             blocks += MarkdownBlock.Paragraph(
-                paragraph.joinToString("\n") { cleanMarkdownInline(it.trim()) }.trim()
+                paragraph.joinToString("\n") { it.trim() }.trim()
             )
             paragraph.clear()
         }
@@ -314,16 +385,26 @@ private fun parseMarkdown(source: String): List<MarkdownBlock> {
             continue
         }
 
-        if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+        val anchorId = HTML_ANCHOR.matchEntire(trimmed)?.groupValues?.getOrNull(1)
+        if (!anchorId.isNullOrBlank()) {
             flushParagraph()
-            val table = mutableListOf<String>()
+            anchors[anchorId] = blocks.size
+            index += 1
+            continue
+        }
+
+        if (isMarkdownTableStart(lines, index)) {
+            flushParagraph()
+            val headers = splitMarkdownTableRow(lines[index])
+            index += 2 // Skip the header separator row.
+            val rows = mutableListOf<List<String>>()
             while (index < lines.size) {
                 val tableLine = lines[index].trim()
                 if (!tableLine.startsWith("|") || !tableLine.endsWith("|")) break
-                table += tableLine
+                rows += splitMarkdownTableRow(lines[index])
                 index += 1
             }
-            blocks += MarkdownBlock.Code(table.joinToString("\n"))
+            blocks += MarkdownBlock.Table(headers = headers, rows = rows)
             continue
         }
 
@@ -335,27 +416,27 @@ private fun parseMarkdown(source: String): List<MarkdownBlock> {
             }
             trimmed.startsWith("### ") -> {
                 flushParagraph()
-                blocks += MarkdownBlock.Heading(3, cleanMarkdownInline(trimmed.removePrefix("### ")))
+                blocks += MarkdownBlock.Heading(3, plainMarkdownText(trimmed.removePrefix("### ")))
             }
             trimmed.startsWith("## ") -> {
                 flushParagraph()
-                blocks += MarkdownBlock.Heading(2, cleanMarkdownInline(trimmed.removePrefix("## ")))
+                blocks += MarkdownBlock.Heading(2, plainMarkdownText(trimmed.removePrefix("## ")))
             }
             trimmed.startsWith("# ") -> {
                 flushParagraph()
-                blocks += MarkdownBlock.Heading(1, cleanMarkdownInline(trimmed.removePrefix("# ")))
+                blocks += MarkdownBlock.Heading(1, plainMarkdownText(trimmed.removePrefix("# ")))
             }
             trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
                 flushParagraph()
-                blocks += MarkdownBlock.ListItem("• ${cleanMarkdownInline(trimmed.drop(2))}")
+                blocks += MarkdownBlock.ListItem("• ${trimmed.drop(2)}")
             }
             trimmed.matches(Regex("^\\d+[.)]\\s+.*")) -> {
                 flushParagraph()
-                blocks += MarkdownBlock.ListItem(cleanMarkdownInline(trimmed))
+                blocks += MarkdownBlock.ListItem(trimmed)
             }
-            trimmed.startsWith("> ") -> {
+            trimmed.startsWith(">") -> {
                 flushParagraph()
-                blocks += MarkdownBlock.Paragraph("› ${cleanMarkdownInline(trimmed.removePrefix("> "))}")
+                blocks += MarkdownBlock.Quote(trimmed.removePrefix(">").trimStart())
             }
             else -> paragraph += line
         }
@@ -364,21 +445,55 @@ private fun parseMarkdown(source: String): List<MarkdownBlock> {
 
     flushParagraph()
     flushCode()
-    return blocks
+    return ParsedMarkdown(blocks = blocks, anchors = anchors)
 }
 
-private fun cleanMarkdownInline(value: String): String {
+private fun isMarkdownTableStart(lines: List<String>, index: Int): Boolean {
+    if (index + 1 >= lines.size) return false
+    val header = lines[index].trim()
+    val separator = lines[index + 1].trim()
+    if (!header.startsWith("|") || !header.endsWith("|")) return false
+    if (!separator.startsWith("|") || !separator.endsWith("|")) return false
+    val separatorCells = splitMarkdownTableRow(separator)
+    return separatorCells.isNotEmpty() && separatorCells.all { cell ->
+        cell.replace(" ", "").matches(Regex("^:?-{3,}:?$"))
+    }
+}
+
+private fun splitMarkdownTableRow(line: String): List<String> {
+    return line.trim().trim('|').split('|').map { it.trim() }
+}
+
+private fun plainMarkdownText(value: String): String {
     return value
+        .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
         .replace(Regex("!\\[([^]]*)]\\([^)]+\\)"), "$1")
         .replace(Regex("\\[([^]]+)]\\([^)]+\\)"), "$1")
         .replace("**", "")
         .replace("__", "")
         .replace("`", "")
+        .replace(Regex("<[^>]+>"), "")
+        .replace("&nbsp;", " ")
         .trim()
 }
 
+private fun resolveLocalDocSpec(target: String): LocalDocSpec? {
+    if (target.isBlank()) return null
+    val normalized = target.lowercase()
+    return when {
+        "standard_format.md" in normalized || "标准题库格式示例" in target -> LOCAL_IMPORT_DOCS[0]
+        "import_format_support.md" in normalized || "题库导入格式支持说明" in target -> LOCAL_IMPORT_DOCS[1]
+        "import_strategy_guide.md" in normalized || "题库导入策略与使用指南" in target -> LOCAL_IMPORT_DOCS[2]
+        "import_parser_notes.md" in normalized || "题目导入解析方法说明" in target -> LOCAL_IMPORT_DOCS[3]
+        else -> null
+    }
+}
+
 @Composable
-private fun MarkdownBlockView(block: MarkdownBlock) {
+private fun MarkdownBlockView(
+    block: MarkdownBlock,
+    onLink: (String) -> Unit
+) {
     when (block) {
         is MarkdownBlock.Heading -> Text(
             text = block.text,
@@ -390,32 +505,268 @@ private fun MarkdownBlockView(block: MarkdownBlock) {
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
         )
-        is MarkdownBlock.Paragraph -> Text(
-            text = block.text,
+        is MarkdownBlock.Paragraph -> MarkdownInlineText(
+            source = block.text,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            onLink = onLink
         )
-        is MarkdownBlock.ListItem -> Text(
-            text = block.text,
+        is MarkdownBlock.ListItem -> MarkdownInlineText(
+            source = block.text,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            onLink = onLink
         )
-        is MarkdownBlock.Code -> GlassCard {
-            Text(
-                text = block.text,
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurface
+        is MarkdownBlock.Quote -> GlassCard {
+            MarkdownInlineText(
+                source = block.text,
+                style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                onLink = onLink
             )
         }
-        MarkdownBlock.Divider -> Text(
-            text = "────────────",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.outline
+        is MarkdownBlock.Code -> GlassCard {
+            SelectionContainer {
+                Text(
+                    text = block.text,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+        is MarkdownBlock.Table -> MarkdownTableView(block, onLink)
+        MarkdownBlock.Divider -> Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.28f))
         )
     }
 }
+
+@Composable
+private fun MarkdownInlineText(
+    source: String,
+    style: TextStyle,
+    color: Color,
+    onLink: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val linkColor = MaterialTheme.colorScheme.primary
+    val codeBackground = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
+    val annotated = remember(source, linkColor, codeBackground) {
+        buildMarkdownAnnotatedText(
+            source = source,
+            linkColor = linkColor,
+            codeBackground = codeBackground
+        )
+    }
+    ClickableText(
+        text = annotated,
+        modifier = modifier,
+        style = style.copy(color = color),
+        onClick = { offset ->
+            annotated.getStringAnnotations(
+                tag = "markdown-link",
+                start = offset,
+                end = offset
+            ).firstOrNull()?.let { annotation ->
+                onLink(annotation.item)
+            }
+        }
+    )
+}
+
+private fun buildMarkdownAnnotatedText(
+    source: String,
+    linkColor: Color,
+    codeBackground: Color
+): AnnotatedString {
+    val normalized = source
+        .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+        .replace("&nbsp;", " ")
+    return buildAnnotatedString {
+        var cursor = 0
+        INLINE_TOKEN.findAll(normalized).forEach { match ->
+            if (match.range.first > cursor) {
+                appendWithoutHtml(normalized.substring(cursor, match.range.first))
+            }
+            val token = match.value
+            when {
+                token.startsWith("![") -> {
+                    val split = token.indexOf("](")
+                    append(if (split > 2) token.substring(2, split) else "")
+                }
+                token.startsWith("[") -> {
+                    val split = token.indexOf("](")
+                    if (split > 1) {
+                        val label = token.substring(1, split)
+                        val target = token.substring(split + 2, token.length - 1)
+                        pushStringAnnotation("markdown-link", target)
+                        pushStyle(
+                            SpanStyle(
+                                color = linkColor,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        )
+                        append(label)
+                        pop()
+                        pop()
+                    } else {
+                        append(token)
+                    }
+                }
+                token.startsWith("**") && token.endsWith("**") -> {
+                    pushStyle(SpanStyle(fontWeight = FontWeight.SemiBold))
+                    append(token.substring(2, token.length - 2))
+                    pop()
+                }
+                token.startsWith("__") && token.endsWith("__") -> {
+                    pushStyle(SpanStyle(fontWeight = FontWeight.SemiBold))
+                    append(token.substring(2, token.length - 2))
+                    pop()
+                }
+                token.startsWith("`") && token.endsWith("`") -> {
+                    pushStyle(
+                        SpanStyle(
+                            fontFamily = FontFamily.Monospace,
+                            background = codeBackground
+                        )
+                    )
+                    append(token.substring(1, token.length - 1))
+                    pop()
+                }
+                else -> append(token)
+            }
+            cursor = match.range.last + 1
+        }
+        if (cursor < normalized.length) {
+            appendWithoutHtml(normalized.substring(cursor))
+        }
+    }
+}
+
+private fun AnnotatedString.Builder.appendWithoutHtml(value: String) {
+    append(value.replace(Regex("<[^>]+>"), ""))
+}
+
+@Composable
+private fun MarkdownTableView(
+    table: MarkdownBlock.Table,
+    onLink: (String) -> Unit
+) {
+    val columnCount = maxOf(
+        table.headers.size,
+        table.rows.maxOfOrNull { it.size } ?: 0
+    )
+    if (columnCount <= 3) {
+        CompactMarkdownTable(table = table, onLink = onLink)
+    } else {
+        WideMarkdownTable(table = table, columnCount = columnCount, onLink = onLink)
+    }
+}
+
+@Composable
+private fun CompactMarkdownTable(
+    table: MarkdownBlock.Table,
+    onLink: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        table.rows.forEach { row ->
+            GlassCard {
+                table.headers.forEachIndexed { index, header ->
+                    val cell = row.getOrNull(index).orEmpty()
+                    if (cell.isNotBlank()) {
+                        Text(
+                            text = plainMarkdownText(header),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        MarkdownInlineText(
+                            source = cell,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            onLink = onLink
+                        )
+                        if (index != table.headers.lastIndex) {
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WideMarkdownTable(
+    table: MarkdownBlock.Table,
+    columnCount: Int,
+    onLink: (String) -> Unit
+) {
+    val horizontalState = rememberScrollState()
+    GlassCard {
+        Column(
+            modifier = Modifier.horizontalScroll(horizontalState),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            MarkdownTableRow(
+                cells = table.headers,
+                columnCount = columnCount,
+                header = true,
+                onLink = onLink
+            )
+            table.rows.forEach { row ->
+                MarkdownTableRow(
+                    cells = row,
+                    columnCount = columnCount,
+                    header = false,
+                    onLink = onLink
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownTableRow(
+    cells: List<String>,
+    columnCount: Int,
+    header: Boolean,
+    onLink: (String) -> Unit
+) {
+    Row {
+        repeat(columnCount) { index ->
+            val cell = cells.getOrNull(index).orEmpty()
+            if (header) {
+                Text(
+                    text = plainMarkdownText(cell),
+                    modifier = Modifier
+                        .width(142.dp)
+                        .padding(horizontal = 8.dp, vertical = 7.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                MarkdownInlineText(
+                    source = cell,
+                    modifier = Modifier
+                        .width(142.dp)
+                        .padding(horizontal = 8.dp, vertical = 7.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onLink = onLink
+                )
+            }
+        }
+    }
+}
+
 
 private fun copyAssetToUri(
     context: Context,
