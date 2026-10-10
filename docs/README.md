@@ -2,7 +2,7 @@
 
 这里整理当前仍建议阅读的文档入口。主要文档按主题放在独立文件夹中；历史计划和旧方案统一放在 `archive/`，避免和当前主线混在一起。
 
-当前主线为 Web 版与原生 Android Compose 版。原生版已更新到 `v0.9.11-native`，外部回归当前维护 63 个有效 parser 用例（历史编号已使用至 64）。具体功能状态以根目录 [README](../README.md) 和 [CHANGELOG](../CHANGELOG.md) 为准。
+当前主线为 Web 版与原生 Android Compose 版。原生版已更新到 `v0.9.14-native`，外部回归当前维护 63 个有效 parser 用例（历史编号已使用至 64）。具体功能状态以根目录 [README](../README.md) 和 [CHANGELOG](../CHANGELOG.md) 为准。
 
 ## 目录
 
