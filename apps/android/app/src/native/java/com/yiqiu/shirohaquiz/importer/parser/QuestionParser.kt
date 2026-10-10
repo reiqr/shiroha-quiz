@@ -217,9 +217,9 @@ object QuestionParser {
         if (raw.isBlank()) return emptyList()
 
         // 严格限制为选项字母及分隔符，避免把“AB法、A方案、AI”等文本答案拆成字母。
-        if (!Regex("""^[A-Ga-g\s,，、;；/\\]+$""").matches(raw)) return null
+        if (!Regex("""^[A-Ha-h\s,，、;；/\\]+$""").matches(raw)) return null
         val compact = raw.replace(Regex("""[\s,，、;；/\\]+"""), "").uppercase()
-        if (compact.isBlank() || !Regex("""^[A-G]+$""").matches(compact)) return null
+        if (compact.isBlank() || !Regex("""^[A-H]+$""").matches(compact)) return null
 
         val letters = compact.map { it.toString() }
         val normalized = letters.distinct()

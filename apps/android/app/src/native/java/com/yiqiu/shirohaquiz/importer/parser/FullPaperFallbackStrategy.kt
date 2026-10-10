@@ -39,7 +39,7 @@ object FullPaperFallbackStrategy {
     )
 
     private val answerLikeLineRegex = Regex(
-        """^\s*(?:第\s*)?\d{1,4}\s*(?:题)?\s*[.、．:：]?\s*(?:[【\[]\s*(?:答案|解析)\s*[】\]]|(?:答案|解析)\s*[:：]|[A-Ga-g](?:\s|$|[\u4e00-\u9fa5]))""",
+        """^\s*(?:第\s*)?\d{1,4}\s*(?:题)?\s*[.、．:：]?\s*(?:[【\[]\s*(?:答案|解析)\s*[】\]]|(?:答案|解析)\s*[:：]|[A-Ha-h](?:\s|$|[\u4e00-\u9fa5]))""",
         RegexOption.IGNORE_CASE
     )
 
@@ -242,8 +242,8 @@ object FullPaperFallbackStrategy {
         }
         if (line.length >= 40) {
             line = line
-                .replace(Regex("""([^\n\s])([A-Ga-g]\s*[.、．:：)）]\s*)"""), "$1\n$2")
-                .replace(Regex("""\s+([A-Ga-g]\s*[.、．:：)）]\s*)"""), "\n$1")
+                .replace(Regex("""([^\n\s])([A-Ha-h]\s*[.、．:：)）]\s*)"""), "$1\n$2")
+                .replace(Regex("""\s+([A-Ha-h]\s*[.、．:：)）]\s*)"""), "\n$1")
         }
         return line
     }
@@ -298,7 +298,7 @@ object FullPaperFallbackStrategy {
     private fun normalizeFullPaperQuestions(questions: List<Question>): List<Question> {
         val scopedQuestions = assignImplicitSectionCategoriesForFullPaper(questions)
         return scopedQuestions.map { question ->
-            val objectiveAnswer = question.answer.filter { Regex("""^[A-G]$""").matches(it) }
+            val objectiveAnswer = question.answer.filter { Regex("""^[A-H]$""").matches(it) }
             val imageChoiceWithoutTextOptions = question.options.isEmpty() &&
                 QuestionImageMarker.contains(question.question) &&
                 objectiveAnswer.isNotEmpty()

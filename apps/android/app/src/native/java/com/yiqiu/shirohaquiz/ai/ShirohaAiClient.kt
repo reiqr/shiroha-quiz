@@ -640,7 +640,7 @@ object ShirohaAiClient {
                 val key = option.optString("key").trim().uppercase()
                 val text = option.optString("text").trim()
                 when {
-                    !Regex("""^[A-G]$""").matches(key) -> {
+                    !Regex("""^[A-H]$""").matches(key) -> {
                         structuredIssues += "第${index + 1}题存在非法选项键：${key.ifBlank { "空" }}"
                         optionStructureInvalid = true
                     }

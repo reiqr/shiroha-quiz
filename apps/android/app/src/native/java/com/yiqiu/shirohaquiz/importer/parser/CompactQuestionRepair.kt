@@ -17,8 +17,8 @@ object CompactQuestionRepair {
 
     private val inlineAnswerRegex = Regex("""\S\s+(?:[【\[]?\s*(?:答案|正确答案|参考答案|标准答案)\s*[:：])""")
     private val inlineAnalysisRegex = Regex("""\S\s+(?:[【\[]?\s*(?:解析|答案解析|说明)\s*[:：])""")
-    private val punctuatedMarkerRegex = Regex("""([A-Ga-g])\s*[.、．:：)）]""")
-    private val bracketMarkerRegex = Regex("""[\(（\[【〔〖《]\s*([A-Ga-g])\s*[\)）\]】〕〗》]""")
+    private val punctuatedMarkerRegex = Regex("""([A-Ha-h])\s*[.、．:：)）]""")
+    private val bracketMarkerRegex = Regex("""[\(（\[【〔〖《]\s*([A-Ha-h])\s*[\)）\]】〕〗》]""")
 
     /**
      * 紧凑排版只作为兜底候选：必须存在至少两个连续、可解释的选项标记。
@@ -121,7 +121,7 @@ object CompactQuestionRepair {
             val run = mutableListOf(candidates[startIndex])
             var expected = keyIndex(candidates[startIndex].key) + 1
             var cursor = startIndex + 1
-            while (cursor < candidates.size && expected in 1..6) {
+            while (cursor < candidates.size && expected in 1..7) {
                 val candidate = candidates[cursor]
                 val index = keyIndex(candidate.key)
                 if (index == expected) {

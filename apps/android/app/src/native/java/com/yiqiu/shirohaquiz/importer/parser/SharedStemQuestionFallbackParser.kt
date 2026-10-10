@@ -47,7 +47,7 @@ object SharedStemQuestionFallbackParser {
         """^\s*(?:题干|材料|资料|案例|病例|病历摘要|共用题干|共用材料|共用资料|共用病例)\s*[:：]\s*(.*)$"""
     )
 
-    private val optionStartRegex = Regex("""^\s*(?:[A-Ga-g]\s*[.、．:：)）]|[\(（\[【〔〖《]\s*[A-Ga-g]\s*[\)）\]】〕〗》])""")
+    private val optionStartRegex = Regex("""^\s*(?:[A-Ha-h]\s*[.、．:：)）]|[\(（\[【〔〖《]\s*[A-Ha-h]\s*[\)）\]】〕〗》])""")
     private val answerLineRegex = Regex("""^\s*(?:[\[【]\s*)?(?:本题)?(?:答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答)(?:\s*[\]】])?\s*(?:[:：]|为)?""")
     private val analysisLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明)\s*[\]】]\s*)|(?:(?:答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明)\s*[:：]\s*))""")
 

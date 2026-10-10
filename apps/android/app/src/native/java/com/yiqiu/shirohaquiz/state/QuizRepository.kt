@@ -4830,7 +4830,7 @@ object QuizRepository {
         if (expected.isEmpty()) return stem
 
         val match = Regex(
-            """[（(]\s*([A-Ga-g]{1,7}|正确|错误|对|错|是|否|√|×|True|False)\s*[）)]""",
+            """[（(]\s*([A-Ha-h]{1,8}|正确|错误|对|错|是|否|√|×|True|False)\s*[）)]""",
             RegexOption.IGNORE_CASE
         ).findAll(stem).toList().asReversed().firstOrNull { hit ->
             embeddedAnswerToKeys(hit.groupValues[1]) == expected
@@ -4851,7 +4851,7 @@ object QuizRepository {
     private fun answerToObjectiveKeys(raw: String): List<String> {
         val value = raw.trim().uppercase()
         return when {
-            value.matches(Regex("""^[A-G]{1,7}$""")) -> value.map { it.toString() }.distinct().sorted()
+            value.matches(Regex("""^[A-H]{1,8}$""")) -> value.map { it.toString() }.distinct().sorted()
             value in listOf("正确", "对", "是", "√", "TRUE", "T") -> listOf("A")
             value in listOf("错误", "错", "否", "×", "X", "FALSE", "F") -> listOf("B")
             else -> emptyList()

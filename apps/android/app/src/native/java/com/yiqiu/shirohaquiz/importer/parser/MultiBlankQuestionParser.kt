@@ -42,7 +42,7 @@ internal object MultiBlankQuestionParser {
     private val pairedStructureRegex = Regex(
         """(?:一是.{0,80}二是|其一.{0,80}其二|首先.{0,80}其次|第一.{0,80}第二|一个.{0,80}另一个|前者.{0,80}后者|横坐标.{0,80}纵坐标|横向.{0,80}纵向)"""
     )
-    private val objectiveAnswerTokenRegex = Regex("""^[A-Ga-g](?:\s*[,，、;；/\\]?\s*[A-Ga-g]){0,6}$""")
+    private val objectiveAnswerTokenRegex = Regex("""^[A-Ha-h](?:\s*[,，、;；/\\]?\s*[A-Ha-h]){0,7}$""")
     private val likelyUnitOnlyRegex = Regex("""^(?:MPa|kPa|Pa|℃|°C|K|m|cm|mm|km|m/s|km/h|kg|g|mol|s|min|h|%|V|A)$""", RegexOption.IGNORE_CASE)
     private val metadataContextRegex = Regex(
         """(?:以下简称|简称|又称|英文名称?|注册地址|统一社会信用代码|主席令|令第\s*\d+\s*号|征求意见稿|修订版|修订稿|出版社|文件编号|标准编号|附录\s*[A-Z0-9一二三四五六七八九十]+|图表\s*\d+)""",

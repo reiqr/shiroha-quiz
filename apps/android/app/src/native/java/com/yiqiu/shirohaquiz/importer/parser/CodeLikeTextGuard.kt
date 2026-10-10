@@ -23,7 +23,7 @@ internal object CodeLikeTextGuard {
         """^\s*(?:[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*|[A-Za-z_]\w*\s*\[[^\]]+])\s*(?:=|\+=|-=|\*=|/=|%=|:=)\s*.+;?\s*$"""
     )
     private val memberAccessSequenceRegex = Regex(
-        """^\s*[A-Ga-g]\.[A-Za-z_]\w*(?:\([^\r\n]*?\))?(?:\s*[,;]\s*[A-Ga-g]\.[A-Za-z_]\w*(?:\([^\r\n]*?\))?){1,}\s*$"""
+        """^\s*[A-Ha-h]\.[A-Za-z_]\w*(?:\([^\r\n]*?\))?(?:\s*[,;]\s*[A-Ha-h]\.[A-Za-z_]\w*(?:\([^\r\n]*?\))?){1,}\s*$"""
     )
     private val technicalAbbreviationValueRegex = Regex(
         """^[A-Z]{1,5}\s*[:：]\s*[+\-]?(?:\d+(?:\.\d+)?|\.\d+)"""
@@ -102,7 +102,7 @@ internal object CodeLikeTextGuard {
 
         if (after == ',' || after == ';') {
             val rest = tail.substring(afterIndex + 1)
-            if (Regex("""\s*[A-Ga-g]\.[A-Za-z_]\w*""").containsMatchIn(rest)) return true
+            if (Regex("""\s*[A-Ha-h]\.[A-Za-z_]\w*""").containsMatchIn(rest)) return true
         }
         return false
     }
@@ -173,7 +173,7 @@ internal object CodeLikeTextGuard {
 
     private fun isMixedCaseChoiceToken(token: String): Boolean {
         val compact = token.replace(Regex("""[\s,，、;；/\\]+"""), "")
-        if (compact.isBlank() || !Regex("""^[A-Ga-g]+$""").matches(compact)) return false
+        if (compact.isBlank() || !Regex("""^[A-Ha-h]+$""").matches(compact)) return false
         return compact.any { it.isUpperCase() } && compact.any { it.isLowerCase() }
     }
 

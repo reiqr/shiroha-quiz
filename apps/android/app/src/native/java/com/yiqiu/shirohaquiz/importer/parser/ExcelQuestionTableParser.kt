@@ -250,7 +250,7 @@ object ExcelQuestionTableParser {
     private fun parseCombinedOptions(raw: String): List<Option> {
         val text = raw.trim()
         if (text.isBlank()) return emptyList()
-        val markerRegex = Regex("""(?:^|[\n;；\s])([A-Ga-g])\s*[.、．:：)）]\s*""")
+        val markerRegex = Regex("""(?:^|[\n;；\s])([A-Ha-h])\s*[.、．:：)）]\s*""")
         val matches = markerRegex.findAll(text).toList()
         if (matches.isEmpty()) return emptyList()
 
@@ -356,8 +356,8 @@ object ExcelQuestionTableParser {
 
     private fun optionColumnKey(normalizedHeader: String): String? {
         if (normalizedHeader.length > 8) return null
-        val direct = Regex("""^(?:选项)?([a-g])(?:选项|项)?$""").find(normalizedHeader)
-            ?: Regex("""^(?:option|choice)([a-g])$""").find(normalizedHeader)
+        val direct = Regex("""^(?:选项)?([a-h])(?:选项|项)?$""").find(normalizedHeader)
+            ?: Regex("""^(?:option|choice)([a-h])$""").find(normalizedHeader)
         return direct?.groupValues?.get(1)?.uppercase(Locale.ROOT)
     }
 

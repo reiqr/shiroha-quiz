@@ -3778,7 +3778,7 @@ private fun aiConfidenceLabel(confidence: String): String {
 
 private fun formatAnalysisForDisplay(analysis: String): String {
     return analysis.trim()
-        .replace(Regex("\\s*(?=([A-GＡ-Ｇ])项[，,：:])"), "\n")
+        .replace(Regex("\\s*(?=([A-HＡ-Ｈ])项[，,：:])"), "\n")
         .replace(Regex("\n{3,}"), "\n\n")
         .trim()
 }
@@ -3892,22 +3892,22 @@ private fun remapAnalysisOptionReferences(
     }
 
     var text = analysis
-    text = Regex("(?<![A-Za-z0-9_])([A-GＡ-Ｇ])(\\s*(?:项|选项))").replace(text) { match ->
+    text = Regex("(?<![A-Za-z0-9_])([A-HＡ-Ｈ])(\\s*(?:项|选项))").replace(text) { match ->
         mapped(match.groupValues[1]) + match.groupValues[2]
     }
-    text = Regex("(选项\\s*)([A-GＡ-Ｇ])(?![A-Za-z0-9_])").replace(text) { match ->
+    text = Regex("(选项\\s*)([A-HＡ-Ｈ])(?![A-Za-z0-9_])").replace(text) { match ->
         match.groupValues[1] + mapped(match.groupValues[2])
     }
-    text = Regex("([（(]\\s*)([A-GＡ-Ｇ])(\\s*[）)])").replace(text) { match ->
+    text = Regex("([（(]\\s*)([A-HＡ-Ｈ])(\\s*[）)])").replace(text) { match ->
         match.groupValues[1] + mapped(match.groupValues[2]) + match.groupValues[3]
     }
-    text = Regex("((?:正确答案|答案|应选|选择|选)\\s*(?:为|是|：|:)?\\s*)([A-GＡ-Ｇ])(?![A-Za-z0-9_])").replace(text) { match ->
+    text = Regex("((?:正确答案|答案|应选|选择|选)\\s*(?:为|是|：|:)?\\s*)([A-HＡ-Ｈ])(?![A-Za-z0-9_])").replace(text) { match ->
         match.groupValues[1] + mapped(match.groupValues[2])
     }
-    text = Regex("(?<![A-Za-z0-9_])([A-GＡ-Ｇ])(\\s*(?:项)?\\s*(?:不正确|不符合|正确|错误|符合))").replace(text) { match ->
+    text = Regex("(?<![A-Za-z0-9_])([A-HＡ-Ｈ])(\\s*(?:项)?\\s*(?:不正确|不符合|正确|错误|符合))").replace(text) { match ->
         mapped(match.groupValues[1]) + match.groupValues[2]
     }
-    text = Regex("(?m)(^\\s*)([A-GＡ-Ｇ])(\\s*[.．、:：])").replace(text) { match ->
+    text = Regex("(?m)(^\\s*)([A-HＡ-Ｈ])(\\s*[.．、:：])").replace(text) { match ->
         match.groupValues[1] + mapped(match.groupValues[2]) + match.groupValues[3]
     }
     placeholders.forEach { (token, target) -> text = text.replace(token, target) }

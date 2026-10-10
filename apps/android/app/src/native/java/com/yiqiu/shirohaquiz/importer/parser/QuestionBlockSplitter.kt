@@ -65,11 +65,11 @@ object QuestionBlockSplitter {
         RegexOption.IGNORE_CASE
     )
     private val unnumberedObjectiveMarkerRegex = Regex(
-        """[（(]\s*(?:([A-Ga-g]{1,7})|(对|错|正确|错误|√|✓|✔|☑|×|✗|✖|❌|True|False))\s*[)）]""",
+        """[（(]\s*(?:([A-Ha-h]{1,8})|(对|错|正确|错误|√|✓|✔|☑|×|✗|✖|❌|True|False))\s*[)）]""",
         RegexOption.IGNORE_CASE
     )
     private val shortObjectiveAnswerRemainderRegex = Regex(
-        """^\s*(?:[\[【(（]\s*)?(?:[A-Ga-g]{1,7}|对|错|正确|错误|是|否|√|✓|✔|☑|×|✗|✖|❌|True|False)(?:\s*[\]】)）])?\s*[.。]?\s*$""",
+        """^\s*(?:[\[【(（]\s*)?(?:[A-Ha-h]{1,8}|对|错|正确|错误|是|否|√|✓|✔|☑|×|✗|✖|❌|True|False)(?:\s*[\]】)）])?\s*[.。]?\s*$""",
         RegexOption.IGNORE_CASE
     )
     private val inlineAnswerMarkerRegex = Regex("""(?:本题)?(?:答案|正确答案|参考答案|标准答案)\s*(?:[:：]|为)""")
@@ -514,9 +514,9 @@ object QuestionBlockSplitter {
             .split(Regex("""\s+"""))
             .map { it.trim().uppercase() }
             .filter { it.isNotBlank() }
-        if (tokens.size !in 2..7) return false
-        if (tokens.any { !Regex("""^[A-G]$""").matches(it) }) return false
-        val expected = ('A'..'G').take(tokens.size).map { it.toString() }
+        if (tokens.size !in 2..8) return false
+        if (tokens.any { !Regex("""^[A-H]$""").matches(it) }) return false
+        val expected = ('A'..'H').take(tokens.size).map { it.toString() }
         return tokens == expected
     }
 

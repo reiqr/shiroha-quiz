@@ -540,7 +540,7 @@ private fun parseOptions(raw: String): List<Option> {
     return raw.lines().mapNotNull { line ->
         val trimmed = line.trim()
         if (trimmed.isBlank()) return@mapNotNull null
-        val match = Regex("^([A-Ga-g])\\s*[.．、:：]?\\s*(.+)$").find(trimmed)
+        val match = Regex("^([A-Ha-h])\\s*[.．、:：]?\\s*(.+)$").find(trimmed)
         if (match != null) {
             Option(
                 key = match.groupValues[1].uppercase(),

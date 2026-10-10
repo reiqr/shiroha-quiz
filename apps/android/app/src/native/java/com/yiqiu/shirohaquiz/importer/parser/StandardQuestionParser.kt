@@ -8,9 +8,9 @@ import com.yiqiu.shirohaquiz.importer.model.QuestionType
 object StandardQuestionParser {
     private const val answerLabelPattern = "答案|正确答案|参考答案|标准答案|参考要点|参考思路|答题要点|答题思路|作答思路|评分要点|参考作答|答"
     private const val analysisLabelPattern = "答案解析|解题思路|解析思路|解题分析|参考解析|详解|分析|理由|解答|解析|说明"
-    private const val objectiveAnswerValuePattern = "[A-Ga-g]\\s*(?:-|－|–|—|~|～|至|到)\\s*[A-Ga-g]|全选|[A-Ga-g]{1,7}|全部|全部选|以上全选|所有选项|全都选|都选|对|错|正确|错误|是|否|√|×|True|False"
+    private const val objectiveAnswerValuePattern = "[A-Ha-h]\\s*(?:-|－|–|—|~|～|至|到)\\s*[A-Ha-h]|全选|[A-Ha-h]{1,8}|全部|全部选|以上全选|所有选项|全都选|都选|对|错|正确|错误|是|否|√|×|True|False"
     private const val embeddedChoiceLetterPattern =
-        "(?:[A-Ga-g](?:\\s*[,，、;；/\\\\]\\s*[A-Ga-g]){1,6}|[A-Ga-g](?:\\s+[A-Ga-g]){1,6}|[A-Ga-g]{1,7})"
+        "(?:[A-Ha-h](?:\\s*[,，、;；/\\\\]\\s*[A-Ha-h]){1,7}|[A-Ha-h](?:\\s+[A-Ha-h]){1,7}|[A-Ha-h]{1,8})"
     private const val answerSeparatorPattern = """(?:\s*(?:[:：,，、.．;；]|为)\s*|\s+|(?=\s*[\(（]))"""
     private val answerLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$answerLabelPattern)\s*[\]】]\s*)|(?:(?:本题)?(?:$answerLabelPattern)$answerSeparatorPattern))(.+?)\s*$""")
     private val analysisLineRegex = Regex("""^\s*(?:(?:[\[【]\s*(?:$analysisLabelPattern)\s*[\]】]\s*)|(?:(?:$analysisLabelPattern)\s*[:：]\s*))(.*)$""")
@@ -342,9 +342,9 @@ object StandardQuestionParser {
             .split(Regex("""\s+"""))
             .map { it.trim().uppercase() }
             .filter { it.isNotBlank() }
-        if (tokens.size !in 2..7) return null
-        if (tokens.any { !Regex("""^[A-G]$""").matches(it) }) return null
-        val expected = ('A'..'G').take(tokens.size).map { it.toString() }
+        if (tokens.size !in 2..8) return null
+        if (tokens.any { !Regex("""^[A-H]$""").matches(it) }) return null
+        val expected = ('A'..'H').take(tokens.size).map { it.toString() }
         return tokens.takeIf { it == expected }
     }
 
@@ -362,15 +362,15 @@ object StandardQuestionParser {
         forcedType: QuestionType?,
         answerText: String
     ): InferredPlainOptions? {
-        if (stemLines.size !in 5..8) return null
+        if (stemLines.size !in 5..9) return null
         if (!shouldInferPlainOptions(forcedType, answerText)) return null
         val stem = stemLines.first().trim()
         if (!looksLikeChoiceStemNeedingOptions(stem)) return null
         val optionLines = stemLines.drop(1).map { it.trim() }.filter { it.isNotBlank() }
-        if (optionLines.size !in 4..7) return null
+        if (optionLines.size !in 4..8) return null
         if (optionLines.any { !looksLikePlainOptionText(it) }) return null
         if (!looksLikePlainOptionList(optionLines)) return null
-        val keys = ('A'..'G').take(optionLines.size).map { it.toString() }
+        val keys = ('A'..'H').take(optionLines.size).map { it.toString() }
         return InferredPlainOptions(
             stem = listOf(stem),
             options = keys.zip(optionLines).map { (key, value) -> Option(key, value) }
@@ -408,7 +408,7 @@ object StandardQuestionParser {
     }
 
     private fun findLeadingOptionMarker(line: String): OptionMarker? {
-        Regex("""^\s*([A-Ga-g])\s*[.、．:：)）]""").find(line)?.let { match ->
+        Regex("""^\s*([A-Ha-h])\s*[.、．:：)）]""").find(line)?.let { match ->
             val keyGroup = match.groups[1] ?: return@let
             val marker = OptionMarker(
                 key = keyGroup.value.uppercase(),
@@ -421,7 +421,7 @@ object StandardQuestionParser {
             ) return marker
         }
 
-        Regex("""^\s*[\(（\[【〔〖《]\s*([A-Ga-g])\s*[\)）\]】〕〗》]""").find(line)?.let { match ->
+        Regex("""^\s*[\(（\[【〔〖《]\s*([A-Ha-h])\s*[\)）\]】〕〗》]""").find(line)?.let { match ->
             val keyGroup = match.groups[1] ?: return@let
             val marker = OptionMarker(
                 key = keyGroup.value.uppercase(),
@@ -460,7 +460,7 @@ object StandardQuestionParser {
     }
 
     private fun missingPreviousOptionKey(key: String, options: List<Option>): String? {
-        val expected = listOf("A", "B", "C", "D", "E", "F", "G")
+        val expected = listOf("A", "B", "C", "D", "E", "F", "G", "H")
         val index = expected.indexOf(key.uppercase())
         if (index <= 0) return null
         val previous = expected[index - 1]

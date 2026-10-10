@@ -335,9 +335,9 @@ object QuizImportParser {
             .trim('[', ']', '【', '】', '(', ')', '（', '）')
             .trim()
         if (raw.isBlank()) return emptyList()
-        if (!Regex("""^[A-Ga-g\s,，、;；/\\]+$""").matches(raw)) return null
+        if (!Regex("""^[A-Ha-h\s,，、;；/\\]+$""").matches(raw)) return null
         val compact = raw.replace(Regex("""[\s,，、;；/\\]+"""), "").uppercase()
-        if (!Regex("""^[A-G]+$""").matches(compact)) return null
+        if (!Regex("""^[A-H]+$""").matches(compact)) return null
         val letters = compact.map { it.toString() }
         val normalized = letters.distinct()
         if (normalized.size != letters.size) return null
