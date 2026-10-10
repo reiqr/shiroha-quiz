@@ -1,0 +1,15 @@
+{
+  "id": "67_eight_options_h_and_fh",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 3,
+    "typeCounts": { "SINGLE": 1, "MULTIPLE": 2 },
+    "answeredCount": 3,
+    "errorCountMax": 0,
+    "questions": [
+      { "number": "1", "type": "SINGLE", "stemContains": "第八项", "optionCount": 8, "answer": ["H"], "options": { "G": "第七项", "H": "第八项" } },
+      { "number": "2", "type": "MULTIPLE", "stemContains": "第六项和第八项", "optionCount": 8, "answer": ["F", "H"], "options": { "F": "第六项", "H": "第八项" } },
+      { "number": "3", "type": "MULTIPLE", "stemContains": "第六项和第八项", "optionCount": 8, "answer": ["F", "H"], "options": { "F": "第六项", "H": "第八项" } }
+    ]
+  }
+}

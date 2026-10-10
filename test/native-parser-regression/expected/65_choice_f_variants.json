@@ -1,0 +1,15 @@
+{
+  "id": "65_choice_f_variants",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 3,
+    "typeCounts": { "SINGLE": 3 },
+    "answeredCount": 3,
+    "errorCountMax": 0,
+    "questions": [
+      { "number": "1", "type": "SINGLE", "stemContains": "第六项", "optionCount": 6, "answer": ["F"], "options": { "F": "第六项" } },
+      { "number": "2", "type": "SINGLE", "stemContains": "第六项", "optionCount": 6, "answer": ["F"], "options": { "F": "第六项" } },
+      { "number": "3", "type": "SINGLE", "stemContains": "第六项", "optionCount": 6, "answer": ["F"], "options": { "F": "第六项" } }
+    ]
+  }
+}

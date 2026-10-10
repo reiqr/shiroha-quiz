@@ -453,6 +453,48 @@
       "sample": "samples/64_subjective_answer_item_10_guard.txt",
       "expected": "expected/64_subjective_answer_item_10_guard.json",
       "risk": "主观题答案中的 10. 这类分项应保留在同一答案内，不能误切成新题"
+    },
+    {
+      "id": "65_choice_f_variants",
+      "mode": "single",
+      "sample": "samples/65_choice_f_variants.txt",
+      "expected": "expected/65_choice_f_variants.json",
+      "risk": "有 A-F 选项时 F、F.、f 都必须是选项 F，不能被当成 False 或 B"
+    },
+    {
+      "id": "66_judge_f_false_variants",
+      "mode": "single",
+      "sample": "samples/66_judge_f_false_variants.txt",
+      "expected": "expected/66_judge_f_false_variants.json",
+      "risk": "明确判断题的 f、false、False 必须统一为错误，不能被当成选项 F"
+    },
+    {
+      "id": "67_eight_options_h_and_fh",
+      "mode": "single",
+      "sample": "samples/67_eight_options_h_and_fh.txt",
+      "expected": "expected/67_eight_options_h_and_fh.json",
+      "risk": "八选项 A-H 不丢 H，答案 H、FH 和 F,H 均按真实选项识别"
+    },
+    {
+      "id": "68_compact_eight_options",
+      "mode": "single",
+      "sample": "samples/68_compact_eight_options.txt",
+      "expected": "expected/68_compact_eight_options.json",
+      "risk": "紧凑排版 A-H 应拆出八个选项，H 不得并入 G 的文本"
+    },
+    {
+      "id": "69_analysis_parenthesized_g_h_guard",
+      "mode": "single",
+      "sample": "samples/69_analysis_parenthesized_g_h_guard.txt",
+      "expected": "expected/69_analysis_parenthesized_g_h_guard.json",
+      "risk": "解析正文中的 (G)、(H) 不能变成新题、选项或题干答案"
+    },
+    {
+      "id": "70_fullwidth_eight_options_compatibility",
+      "mode": "single",
+      "sample": "samples/70_fullwidth_eight_options_compatibility.txt",
+      "expected": "expected/70_fullwidth_eight_options_compatibility.json",
+      "risk": "全角 Ａ．至 Ｈ． 经过现有文本规范化后应保留八个选项和 H 答案"
     }
   ]
 }

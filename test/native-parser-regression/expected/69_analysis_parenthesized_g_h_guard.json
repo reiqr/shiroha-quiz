@@ -1,0 +1,14 @@
+{
+  "id": "69_analysis_parenthesized_g_h_guard",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 2,
+    "typeCounts": { "SINGLE": 2 },
+    "answeredCount": 2,
+    "errorCountMax": 0,
+    "questions": [
+      { "number": "1", "type": "SINGLE", "stemContains": "第七项是什么", "optionCount": 8, "answer": ["G"], "analysisContains": "(G) 与 (H)", "options": { "G": "第七项", "H": "第八项" } },
+      { "number": "2", "type": "SINGLE", "stemContains": "第八项是什么", "optionCount": 8, "answer": ["H"], "options": { "G": "第七项", "H": "第八项" } }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "70_fullwidth_eight_options_compatibility",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "typeCounts": { "SINGLE": 1 },
+    "answeredCount": 1,
+    "errorCountMax": 0,
+    "questions": [
+      { "number": "1", "type": "SINGLE", "stemContains": "全角选项", "optionCount": 8, "answer": ["H"], "options": { "G": "第七项", "H": "第八项" } }
+    ]
+  }
+}

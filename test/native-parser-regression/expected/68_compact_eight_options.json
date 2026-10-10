@@ -1,0 +1,13 @@
+{
+  "id": "68_compact_eight_options",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 1,
+    "typeCounts": { "SINGLE": 1 },
+    "answeredCount": 1,
+    "errorCountMax": 0,
+    "questions": [
+      { "number": "1", "type": "SINGLE", "stemContains": "紧凑格式", "optionCount": 8, "answer": ["H"], "options": { "G": "第七项", "H": "第八项" } }
+    ]
+  }
+}

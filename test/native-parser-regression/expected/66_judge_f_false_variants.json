@@ -1,0 +1,15 @@
+{
+  "id": "66_judge_f_false_variants",
+  "mode": "single-file",
+  "expected": {
+    "questionCount": 3,
+    "typeCounts": { "JUDGE": 3 },
+    "answeredCount": 3,
+    "errorCountMax": 0,
+    "questions": [
+      { "number": "1", "type": "JUDGE", "stemContains": "六大于八", "answer": ["错误"] },
+      { "number": "2", "type": "JUDGE", "stemContains": "七大于九", "answer": ["错误"] },
+      { "number": "3", "type": "JUDGE", "stemContains": "三大于五", "answer": ["错误"] }
+    ]
+  }
+}
