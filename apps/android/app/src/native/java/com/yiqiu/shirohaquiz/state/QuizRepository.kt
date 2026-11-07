@@ -9,6 +9,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import com.yiqiu.shirohaquiz.importer.model.ClozeItem
+import com.yiqiu.shirohaquiz.importer.model.ClozeSupport
 import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
@@ -1671,6 +1673,16 @@ object QuizRepository {
         updateCurrentPracticeAnswer(listOf(text))
     }
 
+    fun updatePracticeClozeAnswer(index: Int, key: String) {
+        val question = currentPracticeQuestion() ?: return
+        if (question.type != QuestionType.CLOZE || index !in question.clozeItems.indices) return
+        val item = question.clozeItems[index]
+        if (item.options.none { it.key.equals(key, ignoreCase = true) }) return
+        val next = ClozeSupport.padAnswers(selectedAnswer, question.clozeItems.size).toMutableList()
+        next[index] = key.uppercase()
+        updateCurrentPracticeAnswer(next)
+    }
+
     fun updatePracticeBlankAnswer(index: Int, text: String) {
         val question = currentPracticeQuestion() ?: return
         if (!MultiBlankSupport.hasStructuredAnswers(question)) return
@@ -1683,7 +1695,9 @@ object QuizRepository {
 
     private fun updateCurrentPracticeAnswer(answer: List<String>) {
         val question = currentPracticeQuestion()
-        val normalizedAnswer = if (question != null && MultiBlankSupport.hasStructuredAnswers(question)) {
+        val normalizedAnswer = if (question?.type == QuestionType.CLOZE) {
+            ClozeSupport.padAnswers(answer, question.clozeItems.size)
+        } else if (question != null && MultiBlankSupport.hasStructuredAnswers(question)) {
             MultiBlankSupport.padUserAnswers(answer, question.blankAnswers.size)
         } else {
             answer.map { it.trim() }.filter { it.isNotBlank() }
@@ -2491,6 +2505,15 @@ object QuizRepository {
         }
     }
 
+    fun updateExamClozeAnswer(index: Int, key: String) {
+        val question = currentExamQuestion() ?: return
+        if (question.type != QuestionType.CLOZE || index !in question.clozeItems.indices) return
+        if (question.clozeItems[index].options.none { it.key.equals(key, ignoreCase = true) }) return
+        val next = ClozeSupport.padAnswers(examAnswers[question.id].orEmpty(), question.clozeItems.size).toMutableList()
+        next[index] = key.uppercase()
+        examAnswers[question.id] = next
+    }
+
     fun updateExamBlankAnswer(index: Int, text: String) {
         val question = currentExamQuestion() ?: return
         if (!MultiBlankSupport.hasStructuredAnswers(question)) return
@@ -2532,7 +2555,11 @@ object QuizRepository {
                 userBlankAnswers = result.userBlankAnswers,
                 correct = result.correct,
                 answerText = result.answerText,
-                earnedScore = if (result.autoScored) { if (result.correct) maxScore else 0.0 } else null,
+                earnedScore = if (result.autoScored) {
+                    if (question.type == QuestionType.CLOZE && question.clozeItems.isNotEmpty())
+                        maxScore * ClozeSupport.correctCount(question, userAnswer) / question.clozeItems.size
+                    else if (result.correct) maxScore else 0.0
+                } else null,
                 maxScore = if (result.autoScored) maxScore else null,
                 autoScored = result.autoScored,
                 sourceBankId = sourceBank?.id,
@@ -2614,12 +2641,17 @@ object QuizRepository {
     }
 
     fun examTotalScore(): Double = examQuestions.sumOf { question ->
-        if (isAutoScoredQuestionType(question.type)) scoreForExamQuestion(question) else 0.0
+        if (isAutoScoredQuestionType(question.type) &&
+            (question.type != QuestionType.CLOZE || ClozeSupport.hasCompleteReference(question)))
+            scoreForExamQuestion(question) else 0.0
     }
 
     fun examEarnedScore(): Double = examQuestions.sumOf { question ->
         val result = evaluateQuestion(question, examAnswers[question.id].orEmpty())
-        if (result.autoScored && result.correct) scoreForExamQuestion(question) else 0.0
+        if (!result.autoScored) 0.0
+        else if (question.type == QuestionType.CLOZE && question.clozeItems.isNotEmpty())
+            scoreForExamQuestion(question) * ClozeSupport.correctCount(question, examAnswers[question.id].orEmpty()) / question.clozeItems.size
+        else if (result.correct) scoreForExamQuestion(question) else 0.0
     }
 
 
@@ -3247,7 +3279,7 @@ object QuizRepository {
             val type = question.optString("type").trim().lowercase(Locale.ROOT).replace("-", "_").replace(" ", "_")
             require(type in listOf("", "single", "single_choice", "singlechoice", "choice", "radio", "multiple",
                 "multiple_choice", "multiplechoice", "multi", "checkbox", "judge", "judgement", "judgment", "true_false",
-                "truefalse", "boolean", "blank", "fill_blank", "fillblank", "fill_in_blank", "short", "subjective", "essay", "qa", "question_answer")) {
+                "truefalse", "boolean", "cloze", "cloze_test", "clozetest", "blank", "fill_blank", "fillblank", "fill_in_blank", "short", "subjective", "essay", "qa", "question_answer")) {
                 "Unknown question type would fall back to single choice"
             }
         }
@@ -3269,6 +3301,22 @@ object QuizRepository {
                 val value = question.get(key)
                 require(value is String || value is JSONArray) { "Invalid answer" }
                 if (value is JSONArray) for (i in 0 until value.length()) require(value.get(i) is String) { "Invalid answer element" }
+            }
+        }
+        if (question.has("clozeItems")) {
+            require(parseQuestionType(question.optString("type")) == QuestionType.CLOZE) { "Cloze items on non-cloze question" }
+            val items = question.getJSONArray("clozeItems")
+            for (i in 0 until items.length()) {
+                val item = items.getJSONObject(i)
+                validateBackupFields(item, strings = listOf("answer", "analysis"), integers = listOf("number"))
+                require(item.getInt("number") > 0) { "Invalid cloze number" }
+                val opts = item.getJSONArray("options")
+                require(opts.length() >= 2) { "Incomplete cloze options" }
+                for (j in 0 until opts.length()) {
+                    val option = opts.getJSONObject(j)
+                    validateBackupFields(option, strings = listOf("key", "text"))
+                    require(option.optString("key").isNotBlank()) { "Invalid cloze option key" }
+                }
             }
         }
         if (question.has("blankAnswers")) {
@@ -4527,7 +4575,8 @@ object QuizRepository {
     fun objectiveQuestionTypes(): Set<QuestionType> = setOf(
         QuestionType.SINGLE,
         QuestionType.MULTIPLE,
-        QuestionType.JUDGE
+        QuestionType.JUDGE,
+        QuestionType.CLOZE
     )
 
     fun questionTypeCounts(questions: List<Question> = activePracticePoolQuestions()): Map<QuestionType, Int> {
@@ -4863,13 +4912,16 @@ object QuizRepository {
     }
 
     private fun scoreForExamQuestion(question: Question): Double {
-        return question.score ?: examTypeScores[question.type] ?: defaultExamTypeScores()[question.type] ?: 1.0
+        question.score?.let { return it }
+        val unit = examTypeScores[question.type] ?: defaultExamTypeScores()[question.type] ?: 1.0
+        return if (question.type == QuestionType.CLOZE) unit * question.clozeItems.size else unit
     }
 
     private fun defaultExamTypeScores(): Map<QuestionType, Double> = mapOf(
         QuestionType.SINGLE to 1.0,
         QuestionType.MULTIPLE to 2.0,
         QuestionType.JUDGE to 1.0,
+        QuestionType.CLOZE to 1.0,
         QuestionType.BLANK to 2.0,
         QuestionType.SHORT to 5.0
     )
@@ -4882,7 +4934,9 @@ object QuizRepository {
         skipAutoScoreWhenReferenceMissing: Boolean = false
     ): QuestionCheckResult {
         val structuredBlank = MultiBlankSupport.hasStructuredAnswers(question)
-        val normalizedUserAnswer = if (structuredBlank) {
+        val normalizedUserAnswer = if (question.type == QuestionType.CLOZE) {
+            ClozeSupport.padAnswers(userAnswer, question.clozeItems.size)
+        } else if (structuredBlank) {
             MultiBlankSupport.padUserAnswers(userAnswer, question.blankAnswers.size)
         } else if (question.type == QuestionType.SHORT) {
             userAnswer.map(::normalizeJsonAnswerText).filter { it.isNotBlank() }
@@ -4893,12 +4947,16 @@ object QuizRepository {
             ?.map { it.trim() }
             ?.filter { it.isNotBlank() }
             ?: question.answer
-        val hasReferenceAnswer = if (structuredBlank && temporaryReferenceAnswer == null) {
+        val hasReferenceAnswer = if (question.type == QuestionType.CLOZE) {
+            ClozeSupport.hasCompleteReference(question)
+        } else if (structuredBlank && temporaryReferenceAnswer == null) {
             question.blankAnswers.any { group -> group.any { it.isNotBlank() } }
         } else {
             referenceAnswer.isNotEmpty()
         }
-        val answerText = temporaryReferenceAnswerText?.trim()?.takeIf { it.isNotBlank() } ?: if (structuredBlank) {
+        val answerText = if (question.type == QuestionType.CLOZE) {
+            ClozeSupport.answerSummary(question, normalizedUserAnswer)
+        } else temporaryReferenceAnswerText?.trim()?.takeIf { it.isNotBlank() } ?: if (structuredBlank) {
             MultiBlankSupport.expectedAnswerText(question.blankAnswers)
         } else {
             referenceAnswer
@@ -4911,6 +4969,9 @@ object QuizRepository {
             QuestionType.JUDGE -> hasReferenceAnswer &&
                 normalizeJudgeAnswersForCompare(normalizedUserAnswer) == normalizeJudgeAnswersForCompare(referenceAnswer) &&
                 normalizedUserAnswer.isNotEmpty()
+            QuestionType.CLOZE -> hasReferenceAnswer &&
+                ClozeSupport.correctCount(question, normalizedUserAnswer) == question.clozeItems.size &&
+                ClozeSupport.allAnswered(question, normalizedUserAnswer)
             QuestionType.BLANK -> if (!hasReferenceAnswer) {
                 false
             } else if (structuredBlank && temporaryReferenceAnswer == null) {
@@ -4934,7 +4995,7 @@ object QuizRepository {
             correct = correct,
             answerText = answerText,
             autoScored = isAutoScoredQuestionType(question.type) &&
-                (hasReferenceAnswer || !skipAutoScoreWhenReferenceMissing)
+                (hasReferenceAnswer || (question.type != QuestionType.CLOZE && !skipAutoScoreWhenReferenceMissing))
         )
     }
 
@@ -4942,6 +5003,7 @@ object QuizRepository {
         return type == QuestionType.SINGLE ||
             type == QuestionType.MULTIPLE ||
             type == QuestionType.JUDGE ||
+            type == QuestionType.CLOZE ||
             type == QuestionType.BLANK
     }
 
@@ -5885,6 +5947,26 @@ object QuizRepository {
         }
 
         val answers = parseFlexibleAnswer(questionJson, questionType)
+        val clozeItems = buildList {
+            val array = questionJson.optJSONArray("clozeItems") ?: JSONArray()
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                val optionArray = obj.optJSONArray("options") ?: JSONArray()
+                val itemOptions = buildList {
+                    for (j in 0 until optionArray.length()) {
+                        val choice = optionArray.optJSONObject(j) ?: continue
+                        val key = choice.optString("key").trim().uppercase()
+                        if (key.isNotBlank()) add(Option(key, choice.optString("text")))
+                    }
+                }
+                add(ClozeItem(
+                    number = obj.optInt("number", i + 1),
+                    options = itemOptions,
+                    answer = obj.optString("answer").trim().uppercase(),
+                    analysis = obj.optString("analysis")
+                ))
+            }
+        }
 
         val imagesArray = questionJson.optJSONArray("images") ?: JSONArray()
         val images = buildList {
@@ -5923,7 +6005,8 @@ object QuizRepository {
                 type = questionType,
                 question = normalizeJsonMultilineText(questionJson.optString("question")),
                 options = options,
-                answer = answers,
+                answer = if (questionType == QuestionType.CLOZE) clozeItems.map { it.answer } else answers,
+                clozeItems = clozeItems,
                 blankAnswers = parseNestedStringArray(questionJson.optJSONArray("blankAnswers")),
                 analysis = normalizeJsonMultilineText(questionJson.optString("analysis")),
                 category = listOf(
@@ -5975,6 +6058,7 @@ object QuizRepository {
             "single", "single_choice", "singlechoice", "choice", "radio" -> QuestionType.SINGLE
             "multiple", "multiple_choice", "multiplechoice", "multi", "checkbox" -> QuestionType.MULTIPLE
             "judge", "judgement", "judgment", "true_false", "truefalse", "boolean" -> QuestionType.JUDGE
+            "cloze", "cloze_test", "clozetest" -> QuestionType.CLOZE
             "blank", "fill_blank", "fillblank", "fill_in_blank" -> QuestionType.BLANK
             "short", "subjective", "essay", "qa", "question_answer" -> QuestionType.SHORT
             else -> runCatching { QuestionType.valueOf(value.uppercase(Locale.ROOT)) }.getOrDefault(QuestionType.SINGLE)
@@ -6049,6 +6133,21 @@ object QuizRepository {
         val answersArray = JSONArray()
         question.answer.forEach { answersArray.put(it) }
         questionJson.put("answer", answersArray)
+        if (question.clozeItems.isNotEmpty()) {
+            questionJson.put("clozeItems", JSONArray().also { array ->
+                question.clozeItems.forEach { item ->
+                    array.put(JSONObject()
+                        .put("number", item.number)
+                        .put("answer", item.answer)
+                        .put("analysis", item.analysis)
+                        .put("options", JSONArray().also { opts ->
+                            item.options.forEach { option ->
+                                opts.put(JSONObject().put("key", option.key).put("text", option.text))
+                            }
+                        }))
+                }
+            })
+        }
         if (question.blankAnswers.isNotEmpty()) {
             val blankAnswersArray = JSONArray()
             question.blankAnswers.forEach { answers ->

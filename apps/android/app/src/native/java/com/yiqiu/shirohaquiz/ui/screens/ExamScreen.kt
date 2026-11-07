@@ -68,6 +68,7 @@ import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.EmptyStateIllustration
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.MetricGlassCard
+import com.yiqiu.shirohaquiz.ui.components.ClozeAnswerInputs
 import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerInputs
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuizOptionCard
@@ -228,7 +229,7 @@ fun ExamScreen(
         if (examScopeQuestions.isEmpty() || availableExamCount == 0) {
             EmptyStateIllustration(
                 title = "还没有可用于考试的题目",
-                message = "当前考试支持单选题、多选题、判断题和填空题。",
+                message = "当前考试支持单选、多选、判断、完形填空和填空题。",
                 action = { Spacer(Modifier.height(14.dp)) }
             )
             GlassCard {
@@ -862,6 +863,15 @@ private fun ActiveExamPanel(
         Spacer(Modifier.height(22.dp))
 
         when (examQuestion.type) {
+            QuestionType.CLOZE -> {
+                ClozeAnswerInputs(
+                    question = examQuestion,
+                    values = QuizRepository.examAnswers[examQuestion.id].orEmpty(),
+                    enabled = !QuizRepository.examFinished,
+                    showCorrect = QuizRepository.examFinished,
+                    onAnswer = QuizRepository::updateExamClozeAnswer
+                )
+            }
             QuestionType.SINGLE,
             QuestionType.MULTIPLE,
             QuestionType.JUDGE -> {
@@ -1422,6 +1432,7 @@ private val examTypeOrder = listOf(
     QuestionType.SINGLE,
     QuestionType.MULTIPLE,
     QuestionType.JUDGE,
+    QuestionType.CLOZE,
     QuestionType.BLANK
 )
 
@@ -1435,6 +1446,7 @@ private fun defaultTypeScore(type: QuestionType): Double = when (type) {
     QuestionType.SINGLE -> 1.0
     QuestionType.MULTIPLE -> 2.0
     QuestionType.JUDGE -> 1.0
+    QuestionType.CLOZE -> 1.0
     QuestionType.BLANK -> 2.0
     QuestionType.SHORT -> 5.0
 }
@@ -1458,6 +1470,7 @@ private fun typeLabel(type: QuestionType): String = when (type) {
     QuestionType.SINGLE -> "单选题"
     QuestionType.MULTIPLE -> "多选题"
     QuestionType.JUDGE -> "判断题"
+    QuestionType.CLOZE -> "完形填空"
     QuestionType.BLANK -> "填空题"
     QuestionType.SHORT -> "简答题"
 }

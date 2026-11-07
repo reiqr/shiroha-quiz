@@ -528,7 +528,7 @@ object StandardQuestionParser {
             QuestionType.JUDGE -> {
                 AnswerTokenParser.parseJudgeAnswer(answerText)
             }
-            QuestionType.BLANK, QuestionType.SHORT -> AnswerTokenParser.parseTextAnswer(answerText)
+            QuestionType.BLANK, QuestionType.SHORT, QuestionType.CLOZE -> AnswerTokenParser.parseTextAnswer(answerText)
         }
     }
 }

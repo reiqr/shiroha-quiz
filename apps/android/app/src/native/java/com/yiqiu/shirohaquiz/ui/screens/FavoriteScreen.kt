@@ -463,6 +463,7 @@ private fun typeLabel(type: QuestionType): String = when (type) {
     QuestionType.SINGLE -> "单选题"
     QuestionType.MULTIPLE -> "多选题"
     QuestionType.JUDGE -> "判断题"
+    QuestionType.CLOZE -> "完形填空"
     QuestionType.BLANK -> "填空题"
     QuestionType.SHORT -> "简答题"
 }

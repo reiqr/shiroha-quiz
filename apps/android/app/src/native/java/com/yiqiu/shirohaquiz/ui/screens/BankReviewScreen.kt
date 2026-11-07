@@ -58,6 +58,7 @@ import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.ui.components.EmptyStateIllustration
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
+import com.yiqiu.shirohaquiz.ui.components.ClozeAnswerEditor
 import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerEditor
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
@@ -447,7 +448,7 @@ fun BankReviewScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    QuestionType.values().forEach { type ->
+                    QuestionType.values().filter { it != QuestionType.CLOZE || question.type == QuestionType.CLOZE }.forEach { type ->
                         ReviewTypeChip(
                             text = typeLabel(type),
                             selected = question.type == type,
@@ -491,7 +492,7 @@ fun BankReviewScreen(
                 }
             }
 
-            GlassCard {
+            if (question.type != QuestionType.CLOZE) GlassCard {
                 Text(
                     text = "选项",
                     style = MaterialTheme.typography.titleLarge,
@@ -581,7 +582,9 @@ fun BankReviewScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 val detectedBlankCount = MultiBlankSupport.countExplicitBlanks(question.question)
-                if (question.type == QuestionType.BLANK && question.blankAnswers.isNotEmpty()) {
+                if (question.type == QuestionType.CLOZE) {
+                    ClozeAnswerEditor(question = question, onChange = { editableQuestions[safeIndex] = it })
+                } else if (question.type == QuestionType.BLANK && question.blankAnswers.isNotEmpty()) {
                     MultiBlankAnswerEditor(
                         blankAnswers = question.blankAnswers,
                         detectedBlankCount = detectedBlankCount,
@@ -899,14 +902,16 @@ private fun normalizeAfterTypeChange(question: Question, type: QuestionType): Qu
             type = type,
             options = if (question.options.isEmpty()) defaultJudgeOptions() else question.options,
             answer = normalizeJudgeAnswer(question.answer),
-            blankAnswers = emptyList()
+            blankAnswers = emptyList(),
+            clozeItems = emptyList()
         )
 
         QuestionType.SINGLE,
-        QuestionType.MULTIPLE -> question.copy(type = type, blankAnswers = emptyList())
+        QuestionType.MULTIPLE -> question.copy(type = type, blankAnswers = emptyList(), clozeItems = emptyList())
 
-        QuestionType.BLANK -> question.copy(type = type)
-        QuestionType.SHORT -> question.copy(type = type, blankAnswers = emptyList())
+        QuestionType.CLOZE -> question.copy(type = type, options = emptyList(), blankAnswers = emptyList())
+        QuestionType.BLANK -> question.copy(type = type, clozeItems = emptyList())
+        QuestionType.SHORT -> question.copy(type = type, blankAnswers = emptyList(), clozeItems = emptyList())
     }
 }
 
@@ -935,7 +940,7 @@ private fun parseReviewAnswer(text: String, type: QuestionType): List<String> {
     val clean = if (type == QuestionType.SHORT) normalizeReviewMultilineText(text) else text.trim()
     if (clean.isBlank()) return emptyList()
 
-    if (type == QuestionType.BLANK || type == QuestionType.SHORT) return listOf(clean)
+    if (type == QuestionType.BLANK || type == QuestionType.CLOZE || type == QuestionType.SHORT) return listOf(clean)
 
     if (type == QuestionType.JUDGE) {
         normalizeJudgeAnswer(listOf(clean)).takeIf { it.isNotEmpty() }?.let { return it }
@@ -986,6 +991,9 @@ private fun answerInputText(question: Question): String {
 }
 
 private fun answerDisplayText(question: Question): String {
+    if (question.type == QuestionType.CLOZE) {
+        return com.yiqiu.shirohaquiz.importer.model.ClozeSupport.answerSummary(question)
+    }
     if (MultiBlankSupport.hasStructuredAnswers(question)) {
         return MultiBlankSupport.expectedAnswerText(question.blankAnswers)
     }
@@ -997,6 +1005,7 @@ private fun typeLabel(type: QuestionType): String = when (type) {
     QuestionType.SINGLE -> "单选题"
     QuestionType.MULTIPLE -> "多选题"
     QuestionType.JUDGE -> "判断题"
+    QuestionType.CLOZE -> "完形填空"
     QuestionType.BLANK -> "填空题"
     QuestionType.SHORT -> "简答题"
 }

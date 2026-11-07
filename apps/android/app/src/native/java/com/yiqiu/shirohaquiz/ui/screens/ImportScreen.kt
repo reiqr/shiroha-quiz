@@ -103,6 +103,7 @@ import com.yiqiu.shirohaquiz.document.DocumentImportDraft
 import com.yiqiu.shirohaquiz.importer.model.ImportDiagnostics
 import com.yiqiu.shirohaquiz.importer.model.ImportResult
 import com.yiqiu.shirohaquiz.importer.model.ImportWarning
+import com.yiqiu.shirohaquiz.importer.model.ClozeSupport
 import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
@@ -122,6 +123,7 @@ import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.LoadingIllustration
+import com.yiqiu.shirohaquiz.ui.components.ClozeAnswerEditor
 import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerEditor
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
@@ -3727,7 +3729,7 @@ private fun ReviewQuestionEditorContent(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                QuestionType.values().forEach { type ->
+                QuestionType.values().filter { it != QuestionType.CLOZE || question.type == QuestionType.CLOZE }.forEach { type ->
                     ReviewTypeChip(
                         text = typeLabel(type),
                         selected = question.type == type,
@@ -3773,7 +3775,7 @@ private fun ReviewQuestionEditorContent(
             }
         }
 
-        GlassCard {
+        if (question.type != QuestionType.CLOZE) GlassCard {
             Text(
                 text = "选项",
                 style = MaterialTheme.typography.titleLarge,
@@ -3849,7 +3851,8 @@ private fun ReviewQuestionEditorContent(
                                 type = QuestionType.JUDGE,
                                 options = defaultJudgeOptions(),
                                 answer = if (question.answer.isEmpty()) listOf("A") else question.answer,
-                                blankAnswers = emptyList()
+                                blankAnswers = emptyList(),
+                                clozeItems = emptyList()
                             )
                         )
                     }
@@ -3871,7 +3874,9 @@ private fun ReviewQuestionEditorContent(
             )
             Spacer(Modifier.height(8.dp))
             val detectedBlankCount = MultiBlankSupport.countExplicitBlanks(question.question)
-            if (question.type == QuestionType.BLANK && question.blankAnswers.isNotEmpty()) {
+            if (question.type == QuestionType.CLOZE) {
+                ClozeAnswerEditor(question = question, onChange = onQuestionChange)
+            } else if (question.type == QuestionType.BLANK && question.blankAnswers.isNotEmpty()) {
                 MultiBlankAnswerEditor(
                     blankAnswers = question.blankAnswers,
                     detectedBlankCount = detectedBlankCount,
@@ -4364,6 +4369,8 @@ private fun suggestedTypeLabel(type: String): String = when (type.lowercase()) {
 }
 
 private fun applyAiReviewSuggestion(question: Question, suggestion: AiReviewSuggestion): Question {
+    // 复合题必须逐空校验，普通单题 AI 建议不能覆盖其答案结构。
+    if (question.type == QuestionType.CLOZE) return question
     var next = question
     suggestion.suggestedType?.let { typeText ->
         suggestedQuestionType(typeText)?.let { targetType ->
@@ -4724,12 +4731,14 @@ private fun normalizeAfterTypeChange(question: Question, type: QuestionType): Qu
             type = type,
             options = if (question.options.isEmpty()) defaultJudgeOptions() else question.options,
             answer = normalizeJudgeAnswer(question.answer),
-            blankAnswers = emptyList()
+            blankAnswers = emptyList(),
+            clozeItems = emptyList()
         )
         QuestionType.SINGLE,
-        QuestionType.MULTIPLE -> question.copy(type = type, blankAnswers = emptyList())
-        QuestionType.BLANK -> question.copy(type = type)
-        QuestionType.SHORT -> question.copy(type = type, blankAnswers = emptyList())
+        QuestionType.MULTIPLE -> question.copy(type = type, blankAnswers = emptyList(), clozeItems = emptyList())
+        QuestionType.CLOZE -> question.copy(type = type, options = emptyList(), blankAnswers = emptyList())
+        QuestionType.BLANK -> question.copy(type = type, clozeItems = emptyList())
+        QuestionType.SHORT -> question.copy(type = type, blankAnswers = emptyList(), clozeItems = emptyList())
     }
 }
 
@@ -4810,6 +4819,7 @@ private fun answerInputText(question: Question): String {
 }
 
 private fun answerDisplayText(question: Question): String {
+    if (question.type == QuestionType.CLOZE) return ClozeSupport.answerSummary(question)
     if (MultiBlankSupport.hasStructuredAnswers(question)) {
         return MultiBlankSupport.expectedAnswerText(question.blankAnswers)
     }
@@ -4821,6 +4831,7 @@ private fun typeLabel(type: QuestionType): String = when (type) {
     QuestionType.SINGLE -> "单选题"
     QuestionType.MULTIPLE -> "多选题"
     QuestionType.JUDGE -> "判断题"
+    QuestionType.CLOZE -> "完形填空"
     QuestionType.BLANK -> "填空题"
     QuestionType.SHORT -> "简答题"
 }

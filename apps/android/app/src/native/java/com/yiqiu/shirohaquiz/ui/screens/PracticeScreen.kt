@@ -94,6 +94,7 @@ import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.ai.AiSingleQuestionConversationMessage
 import com.yiqiu.shirohaquiz.ai.AiSingleQuestionAnalysis
 import com.yiqiu.shirohaquiz.ai.ShirohaAiClient
+import com.yiqiu.shirohaquiz.importer.model.ClozeSupport
 import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.parser.AnswerTokenParser
 import com.yiqiu.shirohaquiz.importer.model.Option
@@ -106,6 +107,7 @@ import com.yiqiu.shirohaquiz.ui.components.AiAnalysisFillPanel
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
 import com.yiqiu.shirohaquiz.ui.components.IllustrationHeroCard
 import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerEditor
+import com.yiqiu.shirohaquiz.ui.components.ClozeAnswerInputs
 import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerInputs
 import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuizOptionCard
@@ -694,7 +696,8 @@ fun PracticeScreen(
             ?.let { state -> optionCorrectAnswersForDisplay(question.copy(answer = state.referenceAnswer)) }
             ?: optionCorrectAnswersForDisplay(question)
         val hasLocalReferenceAnswer = practiceQuestionHasUsableReferenceAnswer(question)
-        val shouldUseMissingAnswerAi = QuizRepository.aiMissingAnswerReferenceEnabled && !hasLocalReferenceAnswer
+        val shouldUseMissingAnswerAi = question.type != QuestionType.CLOZE &&
+            QuizRepository.aiMissingAnswerReferenceEnabled && !hasLocalReferenceAnswer
         val finishCurrentPracticeSubmission: (List<String>?, String?) -> QuestionCheckResult? = { temporaryAnswer, temporaryAnswerText ->
             val autoNextQuestionId = currentSessionKey
             val autoNextIndex = QuizRepository.practiceIndex
@@ -898,7 +901,7 @@ fun PracticeScreen(
         val isPracticeComplete = !isReciteMode &&
             practiceQuestions.isNotEmpty() &&
             if (isBatchPractice) QuizRepository.isAllPracticeBatchGroupsSubmitted() else QuizRepository.practiceAnsweredCount() >= practiceQuestions.size
-        val canShowSingleQuestionAiAnalysis = QuizRepository.aiSingleQuestionAnalysisEnabled && (isReciteMode || effectiveResult != null)
+        val canShowSingleQuestionAiAnalysis = question.type != QuestionType.CLOZE && QuizRepository.aiSingleQuestionAnalysisEnabled && (isReciteMode || effectiveResult != null)
         val singleQuestionAiSession = singleQuestionAiSessions[currentSessionKey] ?: SingleQuestionAiSessionState()
         var showSingleQuestionAiReanalyzeConfirm by remember(currentSessionKey) { mutableStateOf(false) }
         var showSingleQuestionAiSaveConfirm by remember(currentSessionKey) { mutableStateOf(false) }
@@ -1151,7 +1154,7 @@ fun PracticeScreen(
                     favorited = isCurrentQuestionFavorited,
                     onClick = { QuizRepository.toggleCurrentPracticeFavorite(context) }
                 )
-                if (QuizRepository.practiceQuickEditEnabled) {
+                if (QuizRepository.practiceQuickEditEnabled && question.type != QuestionType.CLOZE) {
                     QuickEditQuestionIconButton(onClick = onOpenQuickEdit)
                 }
                 if (QuizRepository.canSlashCurrentPracticeQuestion()) {
@@ -1190,6 +1193,15 @@ fun PracticeScreen(
             Spacer(Modifier.height(18.dp))
 
             when (question.type) {
+                QuestionType.CLOZE -> {
+                    ClozeAnswerInputs(
+                        question = question,
+                        values = displayedSelection,
+                        enabled = !isSubmitted && !isBatchSubmitted && !isReciteMode,
+                        showCorrect = isSubmitted || isBatchSubmitted || isReciteMode,
+                        onAnswer = QuizRepository::updatePracticeClozeAnswer
+                    )
+                }
                 QuestionType.SINGLE,
                 QuestionType.MULTIPLE,
                 QuestionType.JUDGE -> {
@@ -1453,6 +1465,7 @@ fun PracticeScreen(
                     QuestionType.MULTIPLE -> practiceAnswersForDisplay(question.answer, displayAnswerMap)
                         .joinToString(" / ")
                         .ifBlank { "未识别答案" }
+                    QuestionType.CLOZE -> effectiveResult?.answerText ?: ClozeSupport.answerSummary(question)
                     QuestionType.BLANK -> effectiveResult?.answerText ?: if (MultiBlankSupport.hasStructuredAnswers(question)) {
                         MultiBlankSupport.expectedAnswerText(question.blankAnswers)
                     } else {
@@ -3397,7 +3410,9 @@ private fun resolvePracticeQuestionCount(
 }
 
 private fun practiceQuestionHasUsableReferenceAnswer(question: Question): Boolean {
-    return if (question.type == QuestionType.BLANK && MultiBlankSupport.hasStructuredAnswers(question)) {
+    return if (question.type == QuestionType.CLOZE) {
+        ClozeSupport.hasCompleteReference(question)
+    } else if (question.type == QuestionType.BLANK && MultiBlankSupport.hasStructuredAnswers(question)) {
         question.blankAnswers.any { group -> group.any { it.isNotBlank() } }
     } else {
         question.answer.any { it.isNotBlank() }
@@ -3422,6 +3437,7 @@ private fun practiceTemporaryAiReferenceAnswer(
                 ?: AnswerTokenParser.parseObjectiveAnswers(raw, listOf("A", "B")).takeIf { it.size == 1 }
                 ?: emptyList()
         }
+        QuestionType.CLOZE -> emptyList()
         QuestionType.BLANK -> {
             if (MultiBlankSupport.hasStructuredAnswers(question)) emptyList() else listOf(raw)
         }
@@ -3919,7 +3935,7 @@ private fun normalizeAnalysisOptionKey(rawKey: String): String {
     if (key.length != 1) return key.uppercase()
     val char = key[0]
     return when (char) {
-        in 'Ａ'..'Ｇ' -> ('A'.code + (char.code - 'Ａ'.code)).toChar().toString()
+        in 'Ａ'..'Ｈ' -> ('A'.code + (char.code - 'Ａ'.code)).toChar().toString()
         else -> char.uppercaseChar().toString()
     }
 }
@@ -3928,6 +3944,7 @@ private val practiceTypeOrder = listOf(
     QuestionType.SINGLE,
     QuestionType.MULTIPLE,
     QuestionType.JUDGE,
+    QuestionType.CLOZE,
     QuestionType.BLANK,
     QuestionType.SHORT
 )
@@ -3987,6 +4004,7 @@ private fun parseQuickEditAnswer(raw: String, type: QuestionType, options: List<
             tokens
         }
         QuestionType.BLANK,
+        QuestionType.CLOZE,
         QuestionType.SHORT -> listOf(trimmed)
     }
 }
@@ -4006,6 +4024,7 @@ private fun compactTypeLabel(type: QuestionType): String = when (type) {
     QuestionType.SINGLE -> "单选"
     QuestionType.MULTIPLE -> "多选"
     QuestionType.JUDGE -> "判断"
+    QuestionType.CLOZE -> "完形"
     QuestionType.BLANK -> "填空"
     QuestionType.SHORT -> "简答"
 }
@@ -4014,6 +4033,7 @@ private fun typeLabel(type: QuestionType): String = when (type) {
     QuestionType.SINGLE -> "单选题"
     QuestionType.MULTIPLE -> "多选题"
     QuestionType.JUDGE -> "判断题"
+    QuestionType.CLOZE -> "完形填空"
     QuestionType.BLANK -> "填空题"
     QuestionType.SHORT -> "简答题"
 }

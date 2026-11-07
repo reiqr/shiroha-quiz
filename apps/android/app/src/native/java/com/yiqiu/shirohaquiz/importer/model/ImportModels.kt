@@ -10,6 +10,7 @@ data class Question(
     val options: List<Option> = emptyList(),
     val answer: List<String> = emptyList(),
     val blankAnswers: List<List<String>> = emptyList(),
+    val clozeItems: List<ClozeItem> = emptyList(),
     val analysis: String = "",
     val category: String = "",
     val images: List<QuestionImage> = emptyList(),
@@ -25,6 +26,14 @@ data class Question(
     val reviewStatus: String = "approved",
     val aiConfidence: Double? = null,
     val warnings: List<String> = emptyList()
+)
+
+/** 每个完形填空空位拥有独立的选项、答案和可选解析。 */
+data class ClozeItem(
+    val number: Int,
+    val options: List<Option>,
+    val answer: String = "",
+    val analysis: String = ""
 )
 
 data class Option(
@@ -46,6 +55,7 @@ enum class QuestionType {
     SINGLE,
     MULTIPLE,
     JUDGE,
+    CLOZE,
     BLANK,
     SHORT
 }

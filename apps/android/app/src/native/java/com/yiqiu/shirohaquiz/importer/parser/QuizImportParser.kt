@@ -16,12 +16,13 @@ object QuizImportParser {
     )
     fun parseStandardText(raw: String): ImportResult {
         val normalized = QuestionTextNormalizer.normalize(raw)
+        val cloze = ClozeQuestionParser.extract(normalized)
         val candidates = mutableListOf<Candidate>()
-        val hasAnswerSection = AnswerSectionParser.hasAnswerSection(normalized)
+        val hasAnswerSection = AnswerSectionParser.hasAnswerSection(cloze.remainingText)
         // Keep the full text here: QuestionBlockSplitter can skip the answer
         // section and resume later real questions. Pre-splitting would silently
         // drop questions that appear after a mid-paper answer section.
-        val questionArea = normalized
+        val questionArea = cloze.remainingText
 
         val rewrittenQuestionArea = SharedStemQuestionFallbackParser.rewrite(questionArea)
         val primaryQuestions = QuestionParser.parseStandardFirst(rewrittenQuestionArea ?: questionArea)
@@ -48,14 +49,14 @@ object QuizImportParser {
         }
         candidates += primaryCandidate
 
-        val tableCandidate = ExcelQuestionTableParser.parse(normalized)
+        val tableCandidate = ExcelQuestionTableParser.parse(questionArea)
             .takeIf { it.isNotEmpty() }
             ?.let { buildCandidate("Excel/CSV 表格题库解析", it) }
             ?.also { candidates += it }
 
         // 整卷兜底是否需要启动，必须依据答案合并前的题目结构判断。
-        val fullPaperCandidate = if (FullPaperFallbackStrategy.shouldTry(normalized, primaryQuestions)) {
-            FullPaperFallbackStrategy.parse(normalized)
+        val fullPaperCandidate = if (FullPaperFallbackStrategy.shouldTry(questionArea, primaryQuestions)) {
+            FullPaperFallbackStrategy.parse(questionArea)
                 .takeIf { it.isNotEmpty() }
                 ?.let { buildCandidate("整卷真题复杂兜底解析", it) }
                 ?.also { candidates += it }
@@ -63,12 +64,21 @@ object QuizImportParser {
             null
         }
 
-        val best = chooseBestCandidate(
-            normalized = normalized,
+        val normalBest = chooseBestCandidate(
+            normalized = questionArea,
             primaryCandidate = primaryCandidate,
             tableCandidate = tableCandidate,
             fullPaperCandidate = fullPaperCandidate
         )
+        val best = if (cloze.questions.isNotEmpty()) {
+            buildCandidate(
+                name = "${normalBest.name} + 英语完形填空复合题",
+                questions = mergeClozeInSourceOrder(normalized, cloze.questions, normalBest.questions),
+                extraWarnings = normalBest.warnings.filterNot { warning ->
+                    warning.message == "未识别到任何题目"
+                }
+            ).also { candidates += it }
+        } else normalBest
 
         return buildResult(
             normalized = normalized,
@@ -80,27 +90,29 @@ object QuizImportParser {
     fun parseDualText(questionText: String, answerText: String): ImportResult {
         val normalizedQuestion = QuestionTextNormalizer.normalize(questionText)
         val normalizedAnswer = QuestionTextNormalizer.normalize(answerText)
+        val cloze = ClozeQuestionParser.extract(normalizedQuestion, normalizedAnswer)
+        val questionArea = cloze.remainingText
         val questionCandidates = mutableListOf<Candidate>()
 
-        val rewrittenQuestion = SharedStemQuestionFallbackParser.rewrite(normalizedQuestion)
+        val rewrittenQuestion = SharedStemQuestionFallbackParser.rewrite(questionArea)
         val primaryQuestionCandidate = buildCandidate(
             name = buildPrimaryStrategyName(
                 hasSharedStemRewrite = rewrittenQuestion != null,
                 hasAnswerSection = false
             ),
-            questions = QuestionParser.parseStandardFirst(rewrittenQuestion ?: normalizedQuestion)
+            questions = QuestionParser.parseStandardFirst(rewrittenQuestion ?: questionArea)
         )
         questionCandidates += primaryQuestionCandidate
 
-        val tableQuestionCandidate = ExcelQuestionTableParser.parse(normalizedQuestion)
+        val tableQuestionCandidate = ExcelQuestionTableParser.parse(questionArea)
             .takeIf { it.isNotEmpty() }
             ?.let { buildCandidate("Excel/CSV 表格题目解析", it) }
             ?.also { questionCandidates += it }
 
         val fullPaperQuestionCandidate = if (
-            FullPaperFallbackStrategy.shouldTry(normalizedQuestion, primaryQuestionCandidate.questions)
+            FullPaperFallbackStrategy.shouldTry(questionArea, primaryQuestionCandidate.questions)
         ) {
-            FullPaperFallbackStrategy.parse(normalizedQuestion)
+            FullPaperFallbackStrategy.parse(questionArea)
                 .takeIf { it.isNotEmpty() }
                 ?.let { buildCandidate("整卷真题复杂题目兜底解析", it) }
                 ?.also { questionCandidates += it }
@@ -149,19 +161,40 @@ object QuizImportParser {
         val mergedPrimaryCandidate = mergeQuestionCandidate(primaryQuestionCandidate) ?: primaryQuestionCandidate
         val mergedTableCandidate = mergeQuestionCandidate(tableQuestionCandidate)
         val mergedFullPaperCandidate = mergeQuestionCandidate(fullPaperQuestionCandidate)
-        val best = chooseBestCandidate(
-            normalized = normalizedQuestion,
+        val normalBest = chooseBestCandidate(
+            normalized = questionArea,
             primaryCandidate = mergedPrimaryCandidate,
             tableCandidate = mergedTableCandidate,
             fullPaperCandidate = mergedFullPaperCandidate
         )
-        val diagnosticCandidates = questionCandidates + mergedCandidates
+        val best = if (cloze.questions.isNotEmpty()) buildCandidate(
+            name = "${normalBest.name} + 双文件英语完形填空",
+            questions = mergeClozeInSourceOrder(normalizedQuestion, cloze.questions, normalBest.questions)
+        ) else normalBest
+        val diagnosticCandidates = questionCandidates + mergedCandidates +
+            (if (cloze.questions.isNotEmpty()) listOf(best) else emptyList())
 
         return buildResult(
             normalized = normalizedQuestion + "\n" + normalizedAnswer,
             candidates = diagnosticCandidates,
             best = best
         )
+    }
+
+    /** 混排时按原文出现顺序安置复合题，不把后面的完形填空强行放到题库开头。 */
+    private fun mergeClozeInSourceOrder(
+        original: String,
+        cloze: List<Question>,
+        regular: List<Question>
+    ): List<Question> {
+        return (cloze + regular).withIndex().sortedWith(
+            compareBy<IndexedValue<Question>> { indexed ->
+                val question = indexed.value
+                val anchor = if (question.type == QuestionType.CLOZE) question.category.trim()
+                    else question.question.trim().lineSequence().firstOrNull().orEmpty().take(24)
+                original.indexOf(anchor).takeIf { anchor.isNotBlank() && it >= 0 } ?: Int.MAX_VALUE
+            }.thenBy { it.index }
+        ).map { it.value }
     }
 
     private fun buildPrimaryStrategyName(
@@ -437,7 +470,10 @@ object QuizImportParser {
         questions: List<Question>
     ): ImportWarning? {
         val parsedNumbers = questions
-            .mapNotNull { it.number.substringBefore('-').trim().toIntOrNull() }
+            .flatMap { question ->
+                if (question.type == QuestionType.CLOZE) question.clozeItems.map { it.number }
+                else listOfNotNull(question.number.substringBefore('-').trim().toIntOrNull())
+            }
             .filter { it > 0 }
         val parsedMax = parsedNumbers.maxOrNull() ?: return null
         val parsedSet = parsedNumbers.toSet()
@@ -460,7 +496,7 @@ object QuizImportParser {
 
     private fun buildDiagnosticNotes(best: Candidate, candidates: List<Candidate>): List<String> {
         val typeSummary = best.questions.groupingBy { it.type }.eachCount()
-        val typeNote = "题型分布：单选${typeSummary[QuestionType.SINGLE] ?: 0} / 多选${typeSummary[QuestionType.MULTIPLE] ?: 0} / 判断${typeSummary[QuestionType.JUDGE] ?: 0} / 填空${typeSummary[QuestionType.BLANK] ?: 0} / 简答${typeSummary[QuestionType.SHORT] ?: 0}"
+        val typeNote = "题型分布：单选${typeSummary[QuestionType.SINGLE] ?: 0} / 多选${typeSummary[QuestionType.MULTIPLE] ?: 0} / 判断${typeSummary[QuestionType.JUDGE] ?: 0} / 填空${typeSummary[QuestionType.BLANK] ?: 0} / 完形${typeSummary[QuestionType.CLOZE] ?: 0} / 简答${typeSummary[QuestionType.SHORT] ?: 0}"
         val candidateNotes = candidates
             .distinctBy { it.name }
             .sortedByDescending { it.score }

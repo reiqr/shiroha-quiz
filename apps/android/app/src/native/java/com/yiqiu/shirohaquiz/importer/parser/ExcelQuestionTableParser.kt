@@ -316,7 +316,7 @@ object ExcelQuestionTableParser {
             QuestionType.JUDGE -> {
                 AnswerTokenParser.parseJudgeAnswer(raw)
             }
-            QuestionType.BLANK, QuestionType.SHORT -> AnswerTokenParser.parseTextAnswer(raw)
+            QuestionType.BLANK, QuestionType.SHORT, QuestionType.CLOZE -> AnswerTokenParser.parseTextAnswer(raw)
         }
     }
 

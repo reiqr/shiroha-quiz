@@ -697,6 +697,7 @@ object ShirohaAiClient {
                 QuestionType.JUDGE -> {
                     AnswerTokenParser.parseJudgeAnswer(rawAnswers.joinToString(" "))
                 }
+                QuestionType.CLOZE -> rawAnswers.map { it.trim() }.filter { it.isNotBlank() }
                 QuestionType.BLANK -> {
                     if (blankAnswers.isNotEmpty()) {
                         MultiBlankSupport.compatibilityAnswer(blankAnswers)

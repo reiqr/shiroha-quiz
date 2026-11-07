@@ -39,6 +39,16 @@ object ImportValidator {
                     if (question.answer.any { !isValidJudgeAnswer(it) }) warnings += ImportWarning(WarningLevel.WARNING, question.number, "判断题答案不是标准对/错标记")
                 }
 
+                QuestionType.CLOZE -> {
+                    if (question.clozeItems.size < 2) warnings += ImportWarning(WarningLevel.ERROR, question.number, "完形填空缺少有效空位")
+                    question.clozeItems.forEach { item ->
+                        val keys = item.options.map { it.key.uppercase() }
+                        if (!keys.containsAll(listOf("A", "B", "C", "D")) || keys.size != keys.distinct().size || item.options.any { it.text.isBlank() }) warnings += ImportWarning(WarningLevel.ERROR, question.number, "第${item.number}空选项不完整")
+                        if (item.answer.isBlank()) warnings += ImportWarning(WarningLevel.WARNING, question.number, "第${item.number}空缺少答案")
+                        else if (item.answer.uppercase() !in keys) warnings += ImportWarning(WarningLevel.ERROR, question.number, "第${item.number}空答案不在选项内")
+                    }
+                }
+
                 QuestionType.BLANK -> {
                     if (MultiBlankSupport.hasStructuredAnswers(question)) {
                         val detectedCount = MultiBlankSupport.countExplicitBlanks(question.question)
