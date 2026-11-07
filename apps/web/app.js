@@ -1212,6 +1212,8 @@ function normalizeQuestion(q,i=0){
   }
   const normalizedQuestion={id:q.id||makeId('q',i),type,number:q.number||i+1,volume:q.volume||'',group:q.group||'',question:questionText,options,answer,analysis:analysisText,category:q.category||q.topic||q.group||'',images:structuredImages,score:Number(q.score||0)||undefined,subject:q.subject||'',grade:q.grade||'',difficulty:q.difficulty||'',knowledgePoints:Array.isArray(q.knowledgePoints)?q.knowledgePoints:[],tags:Array.isArray(q.tags)?q.tags:[],source:q.source||'',sourceFileId:q.sourceFileId||'',version:Number(q.version||1)||1,reviewStatus:q.reviewStatus||'approved',aiConfidence:q.aiConfidence==null?null:Number(q.aiConfidence),warnings:Array.isArray(q.warnings)?q.warnings:[],normalized:normalizeText(questionText)};
   if(Array.isArray(q.blankAnswers))normalizedQuestion.blankAnswers=cloneBlankAnswersV58914(blankAnswersV58914);
+  // 原生手写批注：Web 不渲染，但导入/导出时原样透传，避免经 Web 中转丢失。
+  if(Array.isArray(q.inkStrokes)&&q.inkStrokes.length)normalizedQuestion.inkStrokes=q.inkStrokes;
   if(Array.isArray(recruitmentOptionsV58915)&&recruitmentOptionsV58915.length>=2){
     normalizedQuestion.options=recruitmentOptionsV58915.map(o=>({key:normalizeOptionKey(o.key),text:String(o.text||'').trim()})).filter(o=>o.text);
     normalizedQuestion.answer=normalizeAnswer(normalizedQuestion.answer,normalizedQuestion.options,normalizedQuestion.type);
