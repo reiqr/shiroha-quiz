@@ -11,6 +11,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import com.yiqiu.shirohaquiz.importer.model.ClozeItem
 import com.yiqiu.shirohaquiz.importer.model.ClozeSupport
+import com.yiqiu.shirohaquiz.importer.model.InkStroke
+import com.yiqiu.shirohaquiz.importer.model.InkPoint
+import com.yiqiu.shirohaquiz.importer.model.InkGeometry
 import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
@@ -230,6 +233,7 @@ object QuizRepository {
     private const val KEY_CARD_ANIMATION_ENABLED = "card_animation_enabled"
     private const val KEY_SHIROHA_MODE_ENABLED = "shiroha_mode_enabled"
     private const val KEY_TABLET_SIDE_NAVIGATION_ENABLED = "tablet_side_navigation_enabled"
+    private const val KEY_PHONE_INK_ANNOTATIONS_ENABLED = "phone_ink_annotations_enabled"
     private const val KEY_QUESTION_ID_INTEGRITY_MIGRATION_VERSION = "question_id_integrity_migration_version"
     private const val QUESTION_ID_INTEGRITY_MIGRATION_VERSION = 1
     private const val KEY_QUESTION_FONT_SIZE_MODE = "question_font_size_mode"
@@ -361,6 +365,8 @@ object QuizRepository {
     var shirohaModeEnabled by mutableStateOf(false)
         private set
     var tabletSideNavigationEnabled by mutableStateOf(false)
+        private set
+    var phoneInkAnnotationsEnabled by mutableStateOf(false)
         private set
     var questionFontSizeMode by mutableStateOf("standard")
         private set
@@ -603,6 +609,7 @@ object QuizRepository {
         cardAnimationEnabled = prefs.getBoolean(KEY_CARD_ANIMATION_ENABLED, true)
         shirohaModeEnabled = prefs.getBoolean(KEY_SHIROHA_MODE_ENABLED, false)
         tabletSideNavigationEnabled = prefs.getBoolean(KEY_TABLET_SIDE_NAVIGATION_ENABLED, false)
+        phoneInkAnnotationsEnabled = prefs.getBoolean(KEY_PHONE_INK_ANNOTATIONS_ENABLED, false)
         questionFontSizeMode = normalizeReadingSizeMode(prefs.getString(KEY_QUESTION_FONT_SIZE_MODE, "standard"))
         optionFontSizeMode = normalizeReadingSizeMode(prefs.getString(KEY_OPTION_FONT_SIZE_MODE, "standard"))
         compactOptionsEnabled = prefs.getBoolean(KEY_COMPACT_OPTIONS_ENABLED, false)
@@ -1273,6 +1280,57 @@ object QuizRepository {
             includeMastered = true,
             sourceLabel = "今日复习"
         )
+    }
+
+    /** Persist pen annotations without resetting the practice/exam session or its answers. */
+    fun saveQuestionInkAnnotations(question: Question, strokes: List<InkStroke>, fromExam: Boolean): Boolean {
+        if (!InkGeometry.withinLimits(strokes)) return false
+        val bank = if (fromExam) {
+            bankForExamQuestion(question)
+        } else if (practiceQuestions.getOrNull(practiceIndex)?.id == question.id) {
+            bankForPracticeIndex(practiceIndex)
+        } else {
+            bankForPracticeQuestion(question)
+        }
+        val bankId = bank?.id ?: return false
+        val bankIndex = banks.indexOfFirst { it.id == bankId }
+        if (bankIndex < 0) return false
+        val questionIndex = banks[bankIndex].questions.indexOfFirst { it.id == question.id }
+        if (questionIndex < 0) return false
+        val updated = banks[bankIndex].questions[questionIndex].copy(inkStrokes = strokes)
+        banks[bankIndex] = banks[bankIndex].copy(
+            questions = banks[bankIndex].questions.toMutableList().also { it[questionIndex] = updated }
+        )
+        practiceQuestions = practiceQuestions.mapIndexed { index, existing ->
+            val sourceId = practiceSessionKeyAt(index)?.let { practiceQuestionBankIds[it] }
+            if (existing.id == question.id && (sourceId == null || sourceId == bankId)) updated else existing
+        }
+        examQuestions = examQuestions.map { existing ->
+            val sourceId = examQuestionBankIds[existing.id]
+            if (existing.id == question.id && (sourceId == null || sourceId == bankId)) updated else existing
+        }
+        for (index in wrongBook.indices) {
+            val entry = wrongBook[index]
+            if (entry.bankId == bankId && entry.question.id == question.id) {
+                wrongBook[index] = entry.copy(question = updated)
+            }
+        }
+        for (index in favoriteQuestions.indices) {
+            val entry = favoriteQuestions[index]
+            if (entry.bankId == bankId && entry.question.id == question.id) {
+                favoriteQuestions[index] = entry.copy(question = updated)
+            }
+        }
+        // Ink edits are debounced by the controller; do not block the UI thread on disk I/O.
+        return runCatching {
+            val context = appContext ?: return false
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putString(KEY_BANKS, banksToJson(banks))
+                .putString(KEY_WRONG_BOOK, wrongBookToJson(wrongBook))
+                .putString(KEY_FAVORITE_QUESTIONS, favoriteQuestionsToJson(favoriteQuestions))
+                .apply()
+            true
+        }.getOrDefault(false)
     }
 
     fun updateCurrentPracticeQuestion(updated: Question): Boolean {
@@ -1979,6 +2037,12 @@ object QuizRepository {
     fun setTabletSideNavigationEnabled(context: Context, enabled: Boolean) {
         appContext = context.applicationContext
         tabletSideNavigationEnabled = enabled
+        persist()
+    }
+
+    fun setPhoneInkAnnotationsEnabled(context: Context, enabled: Boolean) {
+        appContext = context.applicationContext
+        phoneInkAnnotationsEnabled = enabled
         persist()
     }
 
@@ -3319,6 +3383,8 @@ object QuizRepository {
                 }
             }
         }
+        // Handwriting is optional metadata. Corrupt/oversized ink must never make the entire
+        // bank restore fail: parseQuestion filters it and records an import warning.
         if (question.has("blankAnswers")) {
             val blanks = question.getJSONArray("blankAnswers")
             require(blanks.length() == 0 || parseQuestionType(question.optString("type")) == QuestionType.BLANK) {
@@ -5531,6 +5597,7 @@ object QuizRepository {
             .putBoolean(KEY_CARD_ANIMATION_ENABLED, cardAnimationEnabled)
             .putBoolean(KEY_SHIROHA_MODE_ENABLED, shirohaModeEnabled)
             .putBoolean(KEY_TABLET_SIDE_NAVIGATION_ENABLED, tabletSideNavigationEnabled)
+            .putBoolean(KEY_PHONE_INK_ANNOTATIONS_ENABLED, phoneInkAnnotationsEnabled)
             .putString(KEY_QUESTION_FONT_SIZE_MODE, questionFontSizeMode)
             .putString(KEY_OPTION_FONT_SIZE_MODE, optionFontSizeMode)
             .putBoolean(KEY_COMPACT_OPTIONS_ENABLED, compactOptionsEnabled)
@@ -5998,6 +6065,12 @@ object QuizRepository {
             }
         }
 
+        val rawInk = questionJson.optJSONArray("inkStrokes")
+        val cleanInk = parseInkStrokes(rawInk)
+        val inkWarning = if (questionJson.has("inkStrokes") &&
+            (rawInk == null || cleanInk.size != rawInk.length())) {
+            listOf("部分无效或超限手写批注已跳过，题目及答案已正常导入")
+        } else emptyList()
         return sanitizeQuestion(
             Question(
                 id = questionJson.optString("id"),
@@ -6008,6 +6081,7 @@ object QuizRepository {
                 answer = if (questionType == QuestionType.CLOZE) clozeItems.map { it.answer } else answers,
                 clozeItems = clozeItems,
                 blankAnswers = parseNestedStringArray(questionJson.optJSONArray("blankAnswers")),
+                inkStrokes = cleanInk,
                 analysis = normalizeJsonMultilineText(questionJson.optString("analysis")),
                 category = listOf(
                     questionJson.optString("category"),
@@ -6026,7 +6100,7 @@ object QuizRepository {
                 version = questionJson.optInt("version", 1),
                 reviewStatus = questionJson.optString("reviewStatus", "approved"),
                 aiConfidence = parseNullableFiniteDouble(questionJson, "aiConfidence"),
-                warnings = parseStringArray(questionJson.optJSONArray("warnings"))
+                warnings = (parseStringArray(questionJson.optJSONArray("warnings")) + inkWarning).distinct()
             )
         )
     }
@@ -6084,6 +6158,38 @@ object QuizRepository {
         }
     }
 
+    private fun parseInkStrokes(array: JSONArray?): List<InkStroke> {
+        if (array == null) return emptyList()
+        var totalPoints = 0
+        return buildList {
+            for (index in 0 until minOf(array.length(), InkGeometry.MAX_STROKES)) {
+                val item = array.optJSONObject(index) ?: continue
+                val pointsJson = item.optJSONArray("points") ?: continue
+                if (pointsJson.length() !in 1..InkGeometry.MAX_POINTS_PER_STROKE) continue
+                if (totalPoints + pointsJson.length() > InkGeometry.MAX_TOTAL_POINTS) continue
+                val points = buildList {
+                    for (pointIndex in 0 until pointsJson.length()) {
+                        val coords = pointsJson.optJSONArray(pointIndex) ?: continue
+                        if (coords.length() != 2) continue
+                        add(InkPoint(coords.optDouble(0).toFloat(), coords.optDouble(1).toFloat()))
+                    }
+                }
+                val stroke = InkStroke(
+                    tool = item.optString("tool", "pen"),
+                    argb = item.optLong("argb", 0xFF2855B1L),
+                    widthDp = item.optDouble("widthDp", 2.6).toFloat(),
+                    points = points,
+                    anchor = item.optString("anchor", ""),
+                    referenceHeightDp = item.optDouble("referenceHeightDp", 0.0).toFloat()
+                )
+                if (InkGeometry.isValid(stroke)) {
+                    add(stroke)
+                    totalPoints += points.size
+                }
+            }
+        }
+    }
+
     private fun parseNestedStringArray(array: JSONArray?): List<List<String>> {
         if (array == null) return emptyList()
         return buildList {
@@ -6133,6 +6239,29 @@ object QuizRepository {
         val answersArray = JSONArray()
         question.answer.forEach { answersArray.put(it) }
         questionJson.put("answer", answersArray)
+        if (question.inkStrokes.isNotEmpty()) {
+            val ink = JSONArray()
+            question.inkStrokes.forEach { stroke ->
+                val points = JSONArray()
+                stroke.points.forEach { point ->
+                    points.put(JSONArray()
+                        .put(kotlin.math.round(point.x * 1000f) / 1000.0)
+                        .put(kotlin.math.round(point.yDp * 4f) / 4.0))
+                }
+                ink.put(JSONObject()
+                    .put("tool", stroke.tool)
+                    .put("argb", stroke.argb)
+                    .put("widthDp", stroke.widthDp.toDouble())
+                    .put("points", points)
+                    .also { item ->
+                        if (stroke.anchor.isNotEmpty()) {
+                            item.put("anchor", stroke.anchor)
+                            item.put("referenceHeightDp", stroke.referenceHeightDp.toDouble())
+                        }
+                    })
+            }
+            questionJson.put("inkStrokes", ink)
+        }
         if (question.clozeItems.isNotEmpty()) {
             questionJson.put("clozeItems", JSONArray().also { array ->
                 question.clozeItems.forEach { item ->

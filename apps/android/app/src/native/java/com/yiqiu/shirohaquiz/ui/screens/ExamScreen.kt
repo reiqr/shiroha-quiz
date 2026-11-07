@@ -3,6 +3,7 @@ package com.yiqiu.shirohaquiz.ui.screens
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import com.yiqiu.shirohaquiz.ui.components.shirohaNoRippleClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +53,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -67,6 +69,10 @@ import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.components.ActionPillButton
 import com.yiqiu.shirohaquiz.ui.components.EmptyStateIllustration
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
+import com.yiqiu.shirohaquiz.ui.components.QuestionInkToolbar
+import com.yiqiu.shirohaquiz.ui.components.rememberQuestionInkController
+import com.yiqiu.shirohaquiz.ui.components.questionInkLayer
+import com.yiqiu.shirohaquiz.ui.components.questionLegacyInkLayer
 import com.yiqiu.shirohaquiz.ui.components.MetricGlassCard
 import com.yiqiu.shirohaquiz.ui.components.ClozeAnswerInputs
 import com.yiqiu.shirohaquiz.ui.components.MultiBlankAnswerInputs
@@ -811,7 +817,15 @@ private fun ActiveExamPanel(
         }
     }
 
-    val questionCardModifier = if (QuizRepository.swipeNavigationEnabled) {
+    val showInkOnDevice = LocalConfiguration.current.smallestScreenWidthDp >= 600 ||
+        QuizRepository.phoneInkAnnotationsEnabled
+    val questionInk = rememberQuestionInkController(examQuestion) { strokes ->
+        QuizRepository.saveQuestionInkAnnotations(examQuestion, strokes, fromExam = true)
+    }
+    LaunchedEffect(showInkOnDevice, questionInk) {
+        if (!showInkOnDevice) questionInk.changeEnabled(false)
+    }
+    val questionCardModifier = if (QuizRepository.swipeNavigationEnabled && !questionInk.enabled) {
         Modifier.questionSwipeNavigation(
             onSwipeLeft = { QuizRepository.nextExamQuestion() },
             onSwipeRight = { QuizRepository.previousExamQuestion() }
@@ -820,7 +834,8 @@ private fun ActiveExamPanel(
         Modifier
     }
 
-    GlassCard(modifier = questionCardModifier) {
+    QuestionInkToolbar(questionInk, showForDevice = showInkOnDevice)
+    GlassCard(modifier = questionCardModifier.questionLegacyInkLayer(questionInk)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -850,6 +865,7 @@ private fun ActiveExamPanel(
         Spacer(Modifier.height(18.dp))
         Text(
             text = LatexDisplayFormatter.format(examQuestion.question),
+            modifier = Modifier.questionInkLayer(questionInk, "stem"),
             style = MaterialTheme.typography.titleLarge.copy(
                 fontSize = QuizRepository.questionFontSizeSp().sp,
                 lineHeight = QuizRepository.questionLineHeightSp().sp
@@ -858,12 +874,15 @@ private fun ActiveExamPanel(
         )
         if (examQuestion.images.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
+            Box(modifier = Modifier.fillMaxWidth().questionInkLayer(questionInk, "images")) {
             QuestionImagesBlock(examQuestion.images, maxPreviewHeight = 360.dp, showMeta = true)
+            }
         }
         Spacer(Modifier.height(22.dp))
 
         when (examQuestion.type) {
             QuestionType.CLOZE -> {
+                Box(modifier = Modifier.fillMaxWidth().questionInkLayer(questionInk, "cloze")) {
                 ClozeAnswerInputs(
                     question = examQuestion,
                     values = QuizRepository.examAnswers[examQuestion.id].orEmpty(),
@@ -871,12 +890,14 @@ private fun ActiveExamPanel(
                     showCorrect = QuizRepository.examFinished,
                     onAnswer = QuizRepository::updateExamClozeAnswer
                 )
+                }
             }
             QuestionType.SINGLE,
             QuestionType.MULTIPLE,
             QuestionType.JUDGE -> {
                 val currentAnswer = QuizRepository.examAnswers[examQuestion.id].orEmpty()
                 displayOptions.forEach { option ->
+                    Box(modifier = Modifier.fillMaxWidth().questionInkLayer(questionInk, "option:${option.originalKey}")) {
                     QuizOptionCard(
                         label = option.displayKey,
                         text = option.text,
@@ -905,6 +926,7 @@ private fun ActiveExamPanel(
                             }
                         }
                     )
+                    }
                     Spacer(Modifier.height(if (QuizRepository.compactOptionsEnabled) 8.dp else 10.dp))
                 }
             }
@@ -939,6 +961,16 @@ private fun ActiveExamPanel(
             }
         }
 
+        if (showInkOnDevice && (questionInk.enabled || questionInk.strokes.any { it.anchor == "scratch" || it.anchor.isEmpty() })) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("手写草稿区", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = questionInk::cycleScratchHeight) { Text("高度 ${questionInk.scratchHeightDp}dp · 调整") }
+            }
+            Box(modifier = Modifier.fillMaxWidth().height(questionInk.scratchHeightDp.dp)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                .questionInkLayer(questionInk, "scratch"))
+        }
         Spacer(Modifier.height(14.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),

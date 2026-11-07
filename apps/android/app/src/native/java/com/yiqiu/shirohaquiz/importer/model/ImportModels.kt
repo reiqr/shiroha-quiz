@@ -25,7 +25,8 @@ data class Question(
     val version: Int = 1,
     val reviewStatus: String = "approved",
     val aiConfidence: Double? = null,
-    val warnings: List<String> = emptyList()
+    val warnings: List<String> = emptyList(),
+    val inkStrokes: List<InkStroke> = emptyList()
 )
 
 /** 每个完形填空空位拥有独立的选项、答案和可选解析。 */
