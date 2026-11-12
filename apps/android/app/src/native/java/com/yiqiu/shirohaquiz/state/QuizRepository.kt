@@ -877,6 +877,19 @@ object QuizRepository {
                 }
             }
         }
+        for (i in favoriteQuestions.indices.reversed()) {
+            val entry = favoriteQuestions[i]
+            if (entry.bankId != bankId) continue
+            val updatedQuestion = questionById[entry.question.id]
+            if (updatedQuestion == null) {
+                favoriteQuestions.removeAt(i)
+            } else {
+                favoriteQuestions[i] = entry.copy(
+                    bankName = banks[bankIndex].name,
+                    question = updatedQuestion
+                )
+            }
+        }
         val validQuestionKeys = cleanQuestions.map(::questionKey).toSet()
         slashedQuestions.removeAll { it.bankId == bankId && it.questionKey !in validQuestionKeys }
         val bankProgressKey = "BANK:$bankId"

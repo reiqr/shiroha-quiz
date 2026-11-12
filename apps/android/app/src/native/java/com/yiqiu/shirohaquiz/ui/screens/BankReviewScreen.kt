@@ -1,5 +1,8 @@
 package com.yiqiu.shirohaquiz.ui.screens
 
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import com.yiqiu.shirohaquiz.ui.components.shirohaNoRippleClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Done
@@ -34,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yiqiu.shirohaquiz.R
+import com.yiqiu.shirohaquiz.importer.assets.QuestionImportAssetExtractor
 import com.yiqiu.shirohaquiz.importer.model.MultiBlankSupport
 import com.yiqiu.shirohaquiz.importer.model.Option
 import com.yiqiu.shirohaquiz.importer.model.Question
@@ -68,6 +75,9 @@ import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
+import java.io.File
+import java.io.ByteArrayOutputStream
+import java.util.UUID
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -113,6 +123,76 @@ fun BankReviewScreen(
     var showDeleteLastOptionConfirm by rememberSaveable(bank.id) { mutableStateOf(false) }
     var showDeleteQuestionConfirm by rememberSaveable(bank.id) { mutableStateOf(false) }
     var showInsertQuestionMenu by rememberSaveable(bank.id) { mutableStateOf(false) }
+    var imageError by remember(bank.id) { mutableStateOf<String?>(null) }
+    val stagedImageDir = remember(bank.id) {
+        File(context.filesDir, "review_images/${UUID.randomUUID()}").apply { mkdirs() }
+    }
+    val stagedImagePaths = remember(bank.id) { mutableSetOf<String>() }
+    var savedImages by remember(bank.id) { mutableStateOf(false) }
+    DisposableEffect(bank.id) {
+        onDispose {
+            if (!savedImages) stagedImagePaths.forEach { File(it).delete() }
+            stagedImageDir.delete()
+        }
+    }
+    fun saveReview() {
+        imageError = null
+        val saved = runCatching {
+            QuizRepository.replaceBankQuestions(context, bank.id, editableQuestions.toList())
+        }.getOrElse {
+            imageError = "保存失败：${it.message ?: "请稍后重试"}"
+            false
+        }
+        if (!saved) {
+            if (imageError == null) imageError = "题库已不存在，未保存本次修改。"
+            return
+        }
+        val usedPaths = editableQuestions.flatMap { it.images }.map { it.localPath }.toSet()
+        stagedImagePaths.filterNot { it in usedPaths }.forEach { File(it).delete() }
+        savedImages = true
+        onBack()
+    }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        val targetIndex = currentIndex
+        val targetId = editableQuestions.getOrNull(targetIndex)?.id
+        if (targetId == null) return@rememberLauncherForActivityResult
+        val added = mutableListOf<com.yiqiu.shirohaquiz.importer.model.QuestionImage>()
+        for (uri in uris) {
+            try {
+                val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                    ?: "image"
+                val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
+                    val output = ByteArrayOutputStream()
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        require(output.size() + count <= 15_000_000) { "单张图片不能超过 15 MB" }
+                        output.write(buffer, 0, count)
+                    }
+                    output.toByteArray()
+                } ?: error("图片无法读取")
+                require(bytes.isNotEmpty()) { "图片内容为空" }
+                val image = QuestionImportAssetExtractor.saveQuestionImage(
+                    stagedImageDir, name, stagedImagePaths.size + 1, bytes
+                )
+                if (image.width == null || image.height == null) {
+                    File(image.localPath).delete()
+                    error("不是有效图片")
+                }
+                stagedImagePaths += image.localPath
+                added += image
+            } catch (error: Exception) {
+                imageError = "${uri.lastPathSegment ?: "图片"} 添加失败：${error.message ?: "文件无法读取"}"
+            }
+        }
+        val index = editableQuestions.indexOfFirst { it.id == targetId }
+        if (index >= 0 && added.isNotEmpty()) {
+            val target = editableQuestions[index]
+            editableQuestions[index] = target.copy(images = (target.images + added).mapIndexed { i, image -> image.copy(order = i) })
+        }
+    }
     val filter = bankReviewFilterFromName(filterName)
 
     val allIndices = editableQuestions.indices.toList()
@@ -241,8 +321,7 @@ fun BankReviewScreen(
                     text = "保存并返回",
                     primary = true,
                     onClick = {
-                        QuizRepository.replaceBankQuestions(context, bank.id, editableQuestions)
-                        onBack()
+                        saveReview()
                     }
                 )
             }
@@ -308,8 +387,7 @@ fun BankReviewScreen(
                         text = "保存返回",
                         primary = true,
                         onClick = {
-                            QuizRepository.replaceBankQuestions(context, bank.id, editableQuestions)
-                            onBack()
+                            saveReview()
                         }
                     )
                 }
@@ -471,25 +549,54 @@ fun BankReviewScreen(
                 )
             }
 
-            if (question.images.isNotEmpty()) {
-                GlassCard {
+            GlassCard {
                     Text(
                         text = "题目图片",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(8.dp))
-                    NoticeCard("图片来自原题库资源。请确认图片是否属于本题。", warning = false)
-                    Spacer(Modifier.height(12.dp))
-                    QuestionImagesBlock(question.images, maxPreviewHeight = 360.dp, showMeta = true)
+                    NoticeCard("图片绑定整道题。保存返回后才会写入题库。", warning = false)
                     Spacer(Modifier.height(12.dp))
                     ActionPillButton(
-                        icon = Icons.Rounded.Delete,
-                        text = "移除本题图片",
+                        icon = Icons.Rounded.Add,
+                        text = "添加图片",
                         primary = false,
-                        onClick = { showRemoveImagesConfirm = true }
+                        onClick = { imagePicker.launch(arrayOf("image/*")) }
                     )
-                }
+                    imageError?.let {
+                        Spacer(Modifier.height(8.dp))
+                        NoticeCard(it, warning = true)
+                    }
+                    if (question.images.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        question.images.forEachIndexed { imageIndex, image ->
+                            QuestionImagesBlock(listOf(image), maxPreviewHeight = 360.dp, showMeta = true)
+                            Spacer(Modifier.height(6.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (imageIndex > 0) ReviewCompactButton(Icons.Rounded.ArrowUpward, "上移") {
+                                    val reordered = question.images.toMutableList()
+                                    java.util.Collections.swap(reordered, imageIndex, imageIndex - 1)
+                                    editableQuestions[safeIndex] = question.copy(images = reordered.mapIndexed { i, item -> item.copy(order = i) })
+                                }
+                                if (imageIndex < question.images.lastIndex) ReviewCompactButton(Icons.Rounded.ArrowDownward, "下移") {
+                                    val reordered = question.images.toMutableList()
+                                    java.util.Collections.swap(reordered, imageIndex, imageIndex + 1)
+                                    editableQuestions[safeIndex] = question.copy(images = reordered.mapIndexed { i, item -> item.copy(order = i) })
+                                }
+                                ReviewCompactButton(Icons.Rounded.Delete, "移除") {
+                                    editableQuestions[safeIndex] = question.copy(images = question.images.filterIndexed { i, _ -> i != imageIndex })
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        ActionPillButton(
+                            icon = Icons.Rounded.Delete,
+                            text = "移除本题图片",
+                            primary = false,
+                            onClick = { showRemoveImagesConfirm = true }
+                        )
+                    }
             }
 
             if (question.type != QuestionType.CLOZE) GlassCard {
