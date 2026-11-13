@@ -202,7 +202,7 @@ const cases = [
       await h.start(); await h.reveal();
       await h.generate(analysis('OLD_FOLLOW_SESSION_ANALYSIS'));
       await h.followInput(); await h.page.locator(SEL.input).fill('OLD_PENDING_FOLLOW');
-      const pending = h.mock.enqueue('follow', 'STALE_FOLLOW_REPLY', { hold: true });
+      const pending = h.mock.enqueue('follow', { reply: 'STALE_FOLLOW_REPLY', revisedAnalysis: 'STALE_FOLLOW_REPLY_ANALYSIS', confidence: 'HIGH', needsReview: false, warning: '' }, { hold: true });
       await h.page.locator(SEL.send).click(); await h.waitCall(pending);
       await h.page.locator('#p-exit').click(); await h.start(); await h.reveal();
       await h.generate(analysis('FRESH_FOLLOW_SESSION_ANALYSIS'));
@@ -222,7 +222,7 @@ const cases = [
       const history = await h.page.locator(SEL.chat).textContent();
       await h.followInput();
       await h.page.locator(SEL.input).fill('CANCELLED_FOLLOW_DRAFT');
-      const pending = h.mock.enqueue('follow', 'MUST_NOT_APPEAR_AFTER_STOP', { hold: true });
+      const pending = h.mock.enqueue('follow', { reply: 'MUST_NOT_APPEAR_AFTER_STOP', revisedAnalysis: 'MUST_NOT_APPEAR_AFTER_STOP_ANALYSIS', confidence: 'HIGH', needsReview: false, warning: '' }, { hold: true });
       await h.page.locator(SEL.send).click(); await h.waitCall(pending);
       await h.page.locator(SEL.stop).click();
       await h.idle();
@@ -383,7 +383,11 @@ const cases = [
       assert.equal(current.question.analysis, FORMULA_ANALYSIS);
       assert.equal(current.practice.answered, 1);
       const call = await h.follow('FORMULA_FOLLOW_QUESTION', 'FORMULA_FOLLOW_REPLY');
-      assert(call.body.messages.some(message => message.role === 'assistant' && message.content === FORMULA_ANALYSIS), 'Saved formula/rich field invalidated or corrupted the existing AI session.');
+      const userMessage = call.body.messages.find(message => message.role === 'user');
+      const followPayload = JSON.parse(userMessage.content);
+      assert.equal(followPayload.initialAnalysis, FORMULA_ANALYSIS, 'Saved formula was corrupted in the follow-up initial analysis.');
+      assert.equal(followPayload.currentAnalysisDraft, FORMULA_ANALYSIS, 'Saved formula was corrupted in the follow-up current draft.');
+      assert.equal(followPayload.question.localAnalysis, FORMULA_ANALYSIS, 'Saved formula was corrupted in the follow-up question payload.');
       assertPayload(call, 'SAFE_Q1', ['SAFE_Q2']);
     },
   },

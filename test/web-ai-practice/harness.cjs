@@ -227,6 +227,8 @@ async function setup(browser, url, keys, { configured = true, rich = false, igno
     }
   }, { keys, initial: fixture({ configured, rich }), key: FAKE_KEY, ignoreAbort });
 
+  let lastAnalysisText = '';
+  let lastConfidence = 'HIGH';
   const harness = {
     page, context, mock, blocked, pageErrors, timeout, keys,
     get bridgeUsed() { return bridgeUsed; },
@@ -274,6 +276,10 @@ async function setup(browser, url, keys, { configured = true, rich = false, igno
       await harness.idle();
     },
     async generate(result, { regenerate = false, status = 200, raw = false, visibleText } = {}) {
+      if (status === 200 && !raw && result && typeof result === 'object') {
+        lastAnalysisText = String(result.analysis || '');
+        lastConfidence = String(result.confidence || 'HIGH');
+      }
       const entry = mock.enqueue('analysis', result, { status, raw });
       await page.locator(regenerate ? SEL.regenerate : SEL.open).click();
       const call = await harness.waitCall(entry);
@@ -288,7 +294,10 @@ async function setup(browser, url, keys, { configured = true, rich = false, igno
     async follow(text, reply) {
       await harness.followInput();
       await page.locator(SEL.input).fill(text);
-      const entry = mock.enqueue('follow', reply);
+      const content = typeof reply === 'string'
+        ? { reply, revisedAnalysis: lastAnalysisText || reply, confidence: lastConfidence, needsReview: false, warning: '' }
+        : reply;
+      const entry = mock.enqueue('follow', content);
       await page.locator(SEL.send).click();
       const call = await harness.waitCall(entry);
       await page.waitForFunction(({ selector, reply: value }) => document.querySelector(selector)?.textContent.includes(value), { selector: SEL.chat, reply }, { timeout });
