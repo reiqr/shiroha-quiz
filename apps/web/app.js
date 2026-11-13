@@ -1742,13 +1742,15 @@ async function extractXlsxSheetsV49(file){
     if(!target.startsWith('xl/'))target='xl/'+target.replace(/^\.\//,'');
     const xml=await get(target);
     if(!xml)continue;
-    sheets.push({sheetName:name,rows:parseXlsxSheetRowsV49(xml,sharedStrings)});
+    const imageResult=await extractXlsxRowImagesV49(buf,entries,target,xml);
+    sheets.push({sheetName:name,rows:parseXlsxSheetRowsV49(xml,sharedStrings),imagesByRow:imageResult.imagesByRow,imageWarnings:imageResult.warnings});
   }
   if(!sheets.length){
     const fallback=entries.filter(e=>/^xl\/worksheets\/sheet\d+\.xml$/.test(e.name));
     for(const e of fallback){
       const xml=await unzipEntry(buf,e);
-      sheets.push({sheetName:e.name.split('/').pop().replace(/\.xml$/,''),rows:parseXlsxSheetRowsV49(xml,sharedStrings)});
+      const imageResult=await extractXlsxRowImagesV49(buf,entries,e.name,xml);
+      sheets.push({sheetName:e.name.split('/').pop().replace(/\.xml$/,''),rows:parseXlsxSheetRowsV49(xml,sharedStrings),imagesByRow:imageResult.imagesByRow,imageWarnings:imageResult.warnings});
     }
   }
   return sheets;
@@ -1781,9 +1783,94 @@ function parseXlsxSheetRowsV49(xml,sharedStrings=[]){
       const idx=ref?xlsxColToIndexV49(ref):row.length;
       row[idx]=xlsxCellValueV49(attrs,body,sharedStrings);
     }
-    if(row.some(x=>String(x||'').trim()))rows.push(row.map(x=>normalizeTableCellTextV49(x||'')));
+    if(row.some(x=>String(x||'').trim())){
+      const parsed=row.map(x=>normalizeTableCellTextV49(x||''));
+      parsed.sourceRow=Number((rowXml.match(/<row\b[^>]*\br="(\d+)"/)||[])[1])||rows.length+1;
+      rows.push(parsed);
+    }
   }
   return rows;
+}
+function resolveXlsxPartV49(base,target){
+  target=String(target||'').replace(/\\/g,'/');
+  if(!target||/^[a-z]+:/i.test(target)||target.startsWith('//'))return '';
+  const parts=(target.startsWith('/')?target.slice(1):base.slice(0,base.lastIndexOf('/')+1)+target).split('/');
+  const clean=[];
+  for(const part of parts){if(!part||part==='.')continue;if(part==='..'){if(!clean.length)return '';clean.pop()}else clean.push(part)}
+  const path=clean.join('/');
+  return path.startsWith('xl/')?path:'';
+}
+function xlsxRelationshipsV49(xml){
+  const out={};let match;const re=/<Relationship\b[^>]*>/g;
+  while((match=re.exec(String(xml||'')))){
+    const tag=match[0];const id=(tag.match(/\bId="([^"]+)"/)||[])[1];
+    if(!id||/\bTargetMode="External"/i.test(tag))continue;
+    out[id]={type:(tag.match(/\bType="([^"]+)"/)||[])[1]||'',target:decodeXml((tag.match(/\bTarget="([^"]+)"/)||[])[1]||'')};
+  }
+  return out;
+}
+function xlsxImageSignatureValidV49(bytes,mime){
+  if(mime==='image/png')return bytes.length>=8&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10;
+  if(mime==='image/jpeg')return bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+  if(mime==='image/webp')return bytes.length>=12&&String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';
+  return false;
+}
+async function verifyXlsxImageV49(bytes,mime){
+  if(!xlsxImageSignatureValidV49(bytes,mime))throw new Error('图片格式或内容损坏');
+  if(typeof Image==='undefined'||typeof URL==='undefined'||typeof Blob==='undefined')return;
+  const url=URL.createObjectURL(new Blob([bytes],{type:mime}));
+  try{
+    await new Promise((resolve,reject)=>{
+      const image=new Image();
+      image.onload=resolve;
+      image.onerror=()=>reject(new Error('图片无法解码'));
+      image.src=url;
+    });
+  }finally{URL.revokeObjectURL(url)}
+}
+async function extractXlsxRowImagesV49(buf,entries,sheetPath,sheetXml){
+  const imagesByRow=new Map(),warnings=[];
+  const entryMap=new Map(entries.map(entry=>[entry.name,entry]));
+  const relPath=sheetPath.replace(/([^/]+)$/,'_rels/$1.rels');
+  const sheetRels=xlsxRelationshipsV49(entryMap.has(relPath)?await unzipEntry(buf,entryMap.get(relPath)):'');
+  const drawingIds=[...String(sheetXml||'').matchAll(/<(?:[\w]+:)?drawing\b[^>]*\br:id="([^"]+)"[^>]*\/?\s*>/g)].map(match=>match[1]);
+  let totalImageBytes=0,imageCount=0;
+  for(const drawingId of drawingIds){
+    const relation=sheetRels[drawingId];
+    if(!relation||!/\/drawing$/i.test(relation.type))continue;
+    const drawingPath=resolveXlsxPartV49(sheetPath,relation.target);
+    if(!drawingPath||!entryMap.has(drawingPath))continue;
+    const drawingXml=await unzipEntry(buf,entryMap.get(drawingPath));
+    const drawingRelPath=drawingPath.replace(/([^/]+)$/,'_rels/$1.rels');
+    const mediaRels=xlsxRelationshipsV49(entryMap.has(drawingRelPath)?await unzipEntry(buf,entryMap.get(drawingRelPath)):'');
+    const anchors=String(drawingXml||'').match(/<(?:[\w]+:)?(?:oneCellAnchor|twoCellAnchor)\b[\s\S]*?<\/(?:[\w]+:)?(?:oneCellAnchor|twoCellAnchor)>/g)||[];
+    for(const anchor of anchors){
+      const row=Number((anchor.match(/<(?:[\w]+:)?from>\s*(?:[\s\S]*?)<(?:[\w]+:)?row>(\d+)<\/(?:[\w]+:)?row>/)||[])[1])+1;
+      const toRow=(anchor.match(/<(?:[\w]+:)?to>\s*(?:[\s\S]*?)<(?:[\w]+:)?row>(\d+)<\/(?:[\w]+:)?row>/)||[])[1];
+      const embed=(anchor.match(/<(?:[\w]+:)?blip\b[^>]*\br:embed="([^"]+)"/)||[])[1];
+      if(!embed){warnings.push(`第 ${row||'?'} 行：图片未内嵌或使用外部链接，请手动核对`);continue}
+      if(!Number.isSafeInteger(row)||row<1||toRow!=null&&Number(toRow)+1>row){warnings.push(`第 ${row||'?'} 行：图片跨行或锚点无效，请手动核对`);continue}
+      const media=mediaRels[embed];
+      const path=media&&/\/image$/i.test(media.type)?resolveXlsxPartV49(drawingPath,media.target):'';
+      const mime=/\.png$/i.test(path)?'image/png':/\.jpe?g$/i.test(path)?'image/jpeg':/\.webp$/i.test(path)?'image/webp':'';
+      if(!mime||!path.startsWith('xl/media/')||!entryMap.has(path)){warnings.push(`第 ${row} 行：图片资源缺失或格式不支持`);continue}
+      const entry=entryMap.get(path);
+      if(entry.uncompSize>10*1024*1024||imageCount>=80||totalImageBytes+entry.uncompSize>50*1024*1024){warnings.push(`第 ${row} 行：图片超过导入限制`);continue}
+      try{
+        const bytes=await unzipEntryBytes(buf,entry);
+        if(bytes.length>10*1024*1024||totalImageBytes+bytes.length>50*1024*1024)throw new Error('图片超过导入限制');
+        await verifyXlsxImageV49(bytes,mime);
+        const markdown=await makeOptimizedDocxImageMarkdown(bytes,mime,imageCount+1,path);
+        const dataUrl=(markdown.match(/\((data:image\/(?:png|jpeg|webp);base64,[^)]+)\)/i)||[])[1];
+        if(!dataUrl)throw new Error('图片无法解码');
+        const image={id:makeId('xlsx-img',imageCount),sourceName:path.split('/').pop(),localPath:dataUrl,dataUrl,order:imageCount+1,sizeBytes:dataUriSizeBytesV83(dataUrl)};
+        if(!imagesByRow.has(row))imagesByRow.set(row,[]);
+        imagesByRow.get(row).push(image);
+        imageCount++;totalImageBytes+=bytes.length;
+      }catch(error){warnings.push(`第 ${row} 行：图片读取失败（${error.message||'文件损坏'}）`)}
+    }
+  }
+  return {imagesByRow,warnings};
 }
 function xlsxColToIndexV49(col){let n=0;for(const ch of String(col||'')){n=n*26+(ch.charCodeAt(0)-64)}return Math.max(0,n-1)}
 function xlsxCellValueV49(attrs,body,sharedStrings){
@@ -1804,10 +1891,11 @@ function tableSheetsToQuestionsV49(sheets,fileName){
   const questions=[];const warnings=[];const sheetSummary=[];
   for(const sheet of (sheets||[])){
     const rows=(sheet.rows||[]).filter(r=>(r||[]).some(c=>String(c||'').trim()));
+    (sheet.imageWarnings||[]).forEach(w=>warnings.push(`${sheet.sheetName||'Sheet'}：${w}`));
     sheetSummary.push({sheetName:sheet.sheetName||'Sheet',rows:rows.length});
     if(!rows.length)continue;
     const hasTableHeader=findTableHeaderRowV49(rows)>=0;
-    const parsed=parseTableRowsWithHeaderV49(rows,sheet.sheetName||'');
+    const parsed=parseTableRowsWithHeaderV49(rows,sheet.sheetName||'',sheet.imagesByRow);
     if(parsed.questions.length)questions.push(...parsed.questions);
     else if(!hasTableHeader){
       const text=rows.map(r=>r.map(c=>String(c||'').trim()).filter(Boolean).join('\n')).filter(Boolean).join('\n');
@@ -1815,25 +1903,35 @@ function tableSheetsToQuestionsV49(sheets,fileName){
       if(fallback.length)questions.push(...fallback);
       else warnings.push(`${sheet.sheetName||'Sheet'}：未识别到有效题目`);
     } else warnings.push(`${sheet.sheetName||'Sheet'}：表头已识别，但没有填写题目数据`);
+    if(sheet.imagesByRow)for(const row of sheet.imagesByRow.keys()){
+      if(!parsed.consumedRows?.has(row))warnings.push(`${sheet.sheetName||'Sheet'}：第 ${row} 行图片未能对应有效题目，请人工核对`);
+    }
   }
   const normalized=questions.map((q,i)=>normalizeQuestion(q,i)).filter(q=>q.question);
   const stats=countTypes(normalized);
   return {questions:normalized,warnings,sheets:sheetSummary,report:`解析策略：Excel/CSV 表格题库解析；来源：${fileName||'表格文件'}；识别 ${normalized.length} 题（单选${stats.single||0}、多选${(stats.multiple||0)+(stats.multi||0)}、判断${stats.judge||0}、填空${stats.blank||0}、简答${stats.short||0}）。`};
 }
-function parseTableRowsWithHeaderV49(rows,sheetName=''){
+function parseTableRowsWithHeaderV49(rows,sheetName='',imagesByRow=null){
   const headerIndex=findTableHeaderRowV49(rows);
-  if(headerIndex<0)return {questions:[]};
+  if(headerIndex<0)return {questions:[],consumedRows:new Set()};
   let map=buildTableHeaderMapV49(rows[headerIndex]);
-  const questions=[];
+  const questions=[],consumedRows=new Set();
   for(let r=headerIndex+1;r<rows.length;r++){
     const row=rows[r]||[];
     if(!row.some(c=>String(c||'').trim()))continue;
     const nextMap=buildTableHeaderMapV49(row);
     if(nextMap.score>=map.score&&nextMap.question!=null){map=nextMap;continue;}
     const q=tableRowToQuestionV49(row,map,questions.length,sheetName);
-    if(q&&q.question)questions.push(q);
+    if(q&&q.question){
+      const sourceRow=row.sourceRow;
+      if(imagesByRow&&imagesByRow.has(sourceRow)){
+        q.images=imagesByRow.get(sourceRow).map((image,i)=>({...image,order:i+1}));
+        consumedRows.add(sourceRow);
+      }
+      questions.push(q);
+    }
   }
-  return {questions};
+  return {questions,consumedRows};
 }
 function findTableHeaderRowV49(rows){
   let best=-1,bestScore=0;

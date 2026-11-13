@@ -178,7 +178,15 @@ object TextImportDecoder {
         )
     }
 
-    private fun decodeXlsxFromEntries(entries: List<RawZipEntry>): String? {
+    internal fun decodeXlsxWithMarkers(
+        bytes: ByteArray,
+        markersBySheetRow: Map<String, Map<Int, List<String>>>
+    ): String? = readZipEntriesResult(bytes).getOrNull()?.let { decodeXlsxFromEntries(it, markersBySheetRow) }
+
+    private fun decodeXlsxFromEntries(
+        entries: List<RawZipEntry>,
+        markersBySheetRow: Map<String, Map<Int, List<String>>> = emptyMap()
+    ): String? {
         val sharedStrings = entries.firstOrNull { it.name == "xl/sharedStrings.xml" }
             ?.bytes
             ?.toString(Charsets.UTF_8)
@@ -193,7 +201,10 @@ object TextImportDecoder {
 
         return sheets
             .mapNotNull { entry ->
-                extractSpreadsheetRows(entry.bytes.toString(Charsets.UTF_8), sharedStrings)
+                extractSpreadsheetRows(
+                    entry.bytes.toString(Charsets.UTF_8), sharedStrings,
+                    markersBySheetRow[entry.name].orEmpty()
+                )
                     .takeIf { it.isNotBlank() }
             }
             .joinToString("\n\n")
@@ -515,10 +526,19 @@ object TextImportDecoder {
             .toList()
     }
 
-    private fun extractSpreadsheetRows(xml: String, sharedStrings: List<String>): String {
+    private fun extractSpreadsheetRows(
+        xml: String,
+        sharedStrings: List<String>,
+        markersByRow: Map<Int, List<String>> = emptyMap()
+    ): String {
+        var stemColumn: Int? = null
+        var headerRowNumber: Int? = null
+        var seenRows = 0
         val rows = Regex("""<(?:[A-Za-z0-9_]+:)?row\b[\s\S]*?</(?:[A-Za-z0-9_]+:)?row>""")
             .findAll(xml)
             .mapNotNull { rowMatch ->
+                seenRows += 1
+                val rowNumber = extractAttribute(rowMatch.value, "r")?.toIntOrNull() ?: seenRows
                 val cells = linkedMapOf<Int, String>()
                 var nextColumn = 0
                 Regex("""<(?:[A-Za-z0-9_]+:)?c\b[^>]*/>|<(?:[A-Za-z0-9_]+:)?c\b[\s\S]*?</(?:[A-Za-z0-9_]+:)?c>""").findAll(rowMatch.value).forEach { cellMatch ->
@@ -532,6 +552,19 @@ object TextImportDecoder {
                             .replace('\r', '\n')
                             .replace("\n", "\\n")
                     }
+                }
+                if (stemColumn == null || cells.values.any { it.trim() in setOf("题干", "题目", "题目内容", "问题") }) {
+                    val candidate = cells.entries.firstOrNull { (_, text) ->
+                        text.trim().lowercase(Locale.ROOT) in setOf("题干", "题目", "题目内容", "问题", "question", "stem", "title")
+                    }?.key
+                    if (candidate != null && cells.values.any { it.trim() in setOf("答案", "正确答案", "参考答案", "题型", "类型", "解析") }) {
+                        stemColumn = candidate
+                        headerRowNumber = rowNumber
+                    }
+                }
+                val stem = stemColumn
+                if (stem != null && rowNumber != headerRowNumber && cells[stem]?.isNotBlank() == true && markersByRow[rowNumber]?.isNotEmpty() == true) {
+                    cells[stem] = cells.getValue(stem) + " " + markersByRow.getValue(rowNumber).joinToString(" ")
                 }
                 if (cells.isEmpty()) {
                     null

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.yiqiu.shirohaquiz.importer.model.QuestionImage
+import com.yiqiu.shirohaquiz.importer.parser.ExcelQuestionTableParser
 import com.yiqiu.shirohaquiz.importer.parser.QuestionTextNormalizer
 import com.yiqiu.shirohaquiz.importer.parser.TextImportDecoder
 import com.yiqiu.shirohaquiz.util.SafeZipReader
@@ -11,6 +12,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.charset.Charset
 import java.util.Locale
+import java.util.UUID
 import java.util.zip.ZipInputStream
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -24,7 +26,8 @@ import kotlin.math.roundToInt
 object QuestionImportAssetExtractor {
     data class ImportedContent(
         val text: String,
-        val images: List<ExtractedImportImage> = emptyList()
+        val images: List<ExtractedImportImage> = emptyList(),
+        val warnings: List<String> = emptyList()
     )
 
     sealed class DecodeResult {
@@ -57,9 +60,124 @@ object QuestionImportAssetExtractor {
         val lowerName = fileName.lowercase(Locale.ROOT)
         return if (lowerName.endsWith(".docx") || (looksLikeDocx(bytes) && !lowerName.endsWith(".xlsx"))) {
             decodeDocxWithImagesDetailed(context, bytes, fileName)
+        } else if (lowerName.endsWith(".xlsx")) {
+            decodeXlsxWithImagesDetailed(context, bytes, fileName)
         } else {
             TextImportDecoder.decodeDetailed(bytes, fileName).toImportedContentResult()
         }
+    }
+
+    private fun decodeXlsxWithImagesDetailed(context: Context, bytes: ByteArray, fileName: String): DecodeResult {
+        val textFallback = { TextImportDecoder.decodeDetailed(bytes, fileName).toImportedContentResult() }
+        val entries = runCatching { readZipEntries(bytes) }.getOrElse { return textFallback() }
+        val byPath = entries.associateBy { it.name }
+        val markersBySheetRow = mutableMapOf<String, MutableMap<Int, MutableList<String>>>()
+        val extracted = mutableListOf<ExtractedImportImage>()
+        val locations = mutableMapOf<String, String>()
+        val warnings = mutableListOf<String>()
+        val sessionDir = File(context.filesDir, "question_assets/import_${UUID.randomUUID()}").apply { mkdirs() }
+
+        entries.filter { it.name.matches(Regex("""xl/worksheets/sheet\d+\.xml""")) }.forEach { sheet ->
+            val sheetXml = sheet.bytes.toString(Charsets.UTF_8)
+            val sheetName = sheet.name.substringAfterLast('/')
+            val sheetRelsPath = sheet.name.replaceAfterLast('/', "_rels/$sheetName.rels")
+            val sheetRels = parseXlsxRelationships(byPath[sheetRelsPath]?.bytes?.toString(Charsets.UTF_8).orEmpty())
+            val drawingIds = Regex("""<(?:\w+:)?drawing\b[^>]*\br:id="([^"]+)"""")
+                .findAll(sheetXml).map { it.groupValues[1] }.toList()
+            drawingIds.forEach drawingLoop@ { drawingId ->
+                val relation = sheetRels[drawingId] ?: return@drawingLoop
+                if (!relation.first.endsWith("/drawing")) return@drawingLoop
+                val drawingPath = resolveXlsxPart(sheet.name, relation.second) ?: return@drawingLoop
+                val drawingXml = byPath[drawingPath]?.bytes?.toString(Charsets.UTF_8) ?: return@drawingLoop
+                val drawingName = drawingPath.substringAfterLast('/')
+                val drawingRelsPath = drawingPath.replaceAfterLast('/', "_rels/$drawingName.rels")
+                val mediaRels = parseXlsxRelationships(byPath[drawingRelsPath]?.bytes?.toString(Charsets.UTF_8).orEmpty())
+                val anchors = Regex("""<(?:\w+:)?(?:oneCellAnchor|twoCellAnchor)\b[\s\S]*?</(?:\w+:)?(?:oneCellAnchor|twoCellAnchor)>""")
+                    .findAll(drawingXml)
+                anchors.forEach anchorLoop@ { match ->
+                    val anchor = match.value
+                    val row = Regex("""<(?:\w+:)?from>\s*[\s\S]*?<(?:\w+:)?row>(\d+)</(?:\w+:)?row>""")
+                        .find(anchor)?.groupValues?.get(1)?.toIntOrNull()?.plus(1)
+                    val lastRow = Regex("""<(?:\w+:)?to>\s*[\s\S]*?<(?:\w+:)?row>(\d+)</(?:\w+:)?row>""")
+                        .find(anchor)?.groupValues?.get(1)?.toIntOrNull()?.plus(1)
+                    val location = "$sheetName 第 ${row ?: "?"} 行"
+                    val embed = Regex("""<(?:\w+:)?blip\b[^>]*\br:embed="([^"]+)"""")
+                        .find(anchor)?.groupValues?.get(1)
+                    if (embed == null) {
+                        warnings += "$location：图片未内嵌或使用外部链接，需人工核对"
+                        return@anchorLoop
+                    }
+                    if (row == null || row < 1 || (lastRow != null && lastRow > row)) {
+                        warnings += "$location：图片锚点跨行或无效，需人工核对"
+                        return@anchorLoop
+                    }
+                    val mediaRel = mediaRels[embed]
+                    val mediaPath = mediaRel?.takeIf { it.first.endsWith("/image") }
+                        ?.let { resolveXlsxPart(drawingPath, it.second) }
+                    val media = mediaPath?.takeIf { it.startsWith("xl/media/") }?.let(byPath::get)
+                    if (media == null || !media.name.lowercase(Locale.ROOT).matches(Regex(""".*\.(png|jpe?g|webp)"""))) {
+                        warnings += "$location：图片资源缺失或格式不支持"
+                        return@anchorLoop
+                    }
+                    val marker = QuestionImageMarker.canonical("img_${(extracted.size + 1).toString().padStart(4, '0')}")
+                    val image = runCatching {
+                        saveQuestionImage(sessionDir, File(media.name).name, extracted.size + 1, media.bytes)
+                    }.getOrNull()
+                    if (image?.width == null || image.height == null) {
+                        image?.localPath?.let { File(it).delete() }
+                        warnings += "$location：图片无法解码"
+                        return@anchorLoop
+                    }
+                    extracted += ExtractedImportImage(marker, image)
+                    locations[marker] = location
+                    markersBySheetRow.getOrPut(sheet.name) { mutableMapOf() }
+                        .getOrPut(row) { mutableListOf() }.add(marker)
+                }
+            }
+        }
+        if (extracted.isEmpty()) {
+            sessionDir.delete()
+            return when (val fallback = textFallback()) {
+                is DecodeResult.Success -> fallback.copy(content = fallback.content.copy(warnings = warnings))
+                is DecodeResult.Failure -> fallback
+            }
+        }
+        val text = TextImportDecoder.decodeXlsxWithMarkers(bytes, markersBySheetRow) ?: run {
+            extracted.forEach { File(it.image.localPath).delete() }
+            sessionDir.delete()
+            return textFallback()
+        }
+        val parsedQuestions = ExcelQuestionTableParser.parse(text)
+        val attached = extracted.filter { image -> parsedQuestions.any { it.question.contains(image.marker) } }
+        extracted.filterNot { it in attached }.forEach {
+            File(it.image.localPath).delete()
+            warnings += "${locations[it.marker]}：图片未能对应标准表格题目，需人工核对"
+        }
+        if (attached.isEmpty()) sessionDir.delete()
+        return DecodeResult.Success(ImportedContent(text, attached, warnings))
+    }
+
+    private fun parseXlsxRelationships(xml: String): Map<String, Pair<String, String>> =
+        Regex("""<Relationship\b[^>]*>""").findAll(xml).mapNotNull { match ->
+            val attrs = Regex("""\b([A-Za-z]+)="([^"]*)"""").findAll(match.value)
+                .associate { it.groupValues[1] to it.groupValues[2] }
+            val id = attrs["Id"] ?: return@mapNotNull null
+            if (attrs["TargetMode"].equals("External", ignoreCase = true)) return@mapNotNull null
+            id to ((attrs["Type"].orEmpty()) to (attrs["Target"].orEmpty()))
+        }.toMap()
+
+    private fun resolveXlsxPart(base: String, target: String): String? {
+        if (target.isBlank() || target.contains(':') || target.startsWith("//")) return null
+        val raw = if (target.startsWith('/')) target.removePrefix("/") else base.substringBeforeLast('/') + "/" + target
+        val parts = mutableListOf<String>()
+        raw.replace('\\', '/').split('/').forEach { part ->
+            when (part) {
+                "", "." -> Unit
+                ".." -> if (parts.isEmpty()) return null else parts.removeAt(parts.lastIndex)
+                else -> parts += part
+            }
+        }
+        return parts.joinToString("/").takeIf { it.startsWith("xl/") }
     }
 
     private fun decodeDocxWithImagesDetailed(context: Context, bytes: ByteArray, fileName: String): DecodeResult {

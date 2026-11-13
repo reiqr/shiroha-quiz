@@ -628,7 +628,11 @@ fun ImportScreen(
                         } else {
                             "已读取：$selectedFileName。"
                         }
-                        isStatusWarn = false
+                        if (content.warnings.isNotEmpty()) {
+                            statusText += " ${content.warnings.take(3).joinToString("；")}" +
+                                if (content.warnings.size > 3) "；另有 ${content.warnings.size - 3} 条图片提示" else ""
+                        }
+                        isStatusWarn = content.warnings.isNotEmpty()
                     }
                 }
                 is QuestionImportAssetExtractor.DecodeResult.Failure -> {
