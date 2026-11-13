@@ -7506,12 +7506,24 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
 .cloze-item-v391{padding:14px;border:1px solid var(--line,#dce5ef);border-radius:16px;background:var(--panel-soft,#f7faff)}
 .cloze-item-v391>.options{margin-top:10px}
 .cloze-edit-fields-v391{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.practice-unanswered-priority-v391{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.practice-unanswered-priority-v391 input{width:auto;margin:0}
+.edit-images-v391{margin:14px 0;padding:14px;border:1px solid var(--line,#dce5ef);border-radius:16px;background:var(--panel-soft,#f7faff)}
+.edit-image-pick-v391{display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border-radius:12px;cursor:pointer;white-space:nowrap}
+.edit-image-list-v391{display:grid;gap:10px;margin-top:12px}
+.edit-image-row-v391{display:flex;align-items:center;gap:12px;min-width:0;padding:8px;border:1px solid var(--line,#dce5ef);border-radius:12px;background:var(--card,#fff)}
+.edit-image-row-v391 img{width:68px;height:68px;object-fit:contain;flex:none}
+.edit-image-row-v391>span{min-width:0;overflow-wrap:anywhere;flex:1}
+.edit-image-row-v391 .row-actions{flex:none}
+#edit-insert-actions-v391{margin:12px 0}
 .multi-blank-record-v58914{display:grid;gap:4px;min-width:140px}
 .multi-blank-record-v58914 span{display:block;white-space:normal}
 @media (max-width:720px){
   .multi-blank-answer-item-v58914{grid-template-columns:1fr;gap:6px}
   .multi-blank-edit-fields-v58914{grid-template-columns:1fr}
   .multi-blank-editor-head-v58914,.multi-blank-edit-head-v58914{align-items:stretch;flex-direction:column}
+  .edit-image-row-v391{flex-wrap:wrap}
+  .edit-image-row-v391 .row-actions{width:100%}
   .multi-blank-comparison-row-v58914{grid-template-columns:1fr;gap:4px}
 }
 /* SHIROHA_WEB_V58_9_14_MULTI_BLANK_SYNC_END */

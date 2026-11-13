@@ -302,9 +302,10 @@ C. 判断题
           </div>
           <div id="practice-scope-summary-v8916" class="practice-scope-summary-v8916"></div>
           <div class="form-grid">
-            <label>题型<select id="practice-type"><option value="all">全部</option><option value="single">单选</option><option value="multiple">多选</option><option value="multi">多选兼容</option><option value="judge">判断</option><option value="blank">填空</option><option value="short">简答</option></select></label>
+            <label>题型<select id="practice-type"><option value="all">全部</option><option value="single">单选</option><option value="multiple">多选</option><option value="multi">多选兼容</option><option value="judge">判断</option><option value="blank">填空</option><option value="short">简答</option><option value="cloze">完形填空</option></select></label>
             <label>来源<select id="practice-source"><option value="all">全部题目</option><option value="wrong">仅错题本</option><option value="favorite">仅收藏题</option></select></label>
             <label>顺序<select id="practice-order"><option value="sequence">顺序</option><option value="random">随机</option></select></label>
+            <label class="practice-unanswered-priority-v391"><input id="practice-unanswered-priority-v391" type="checkbox">随机练习优先未做题</label>
             <label class="practice-start-field-v58916">练习起点<select id="practice-start-mode-v58916"><option value="from_start">从头开始</option><option value="continue">继续上次</option><option value="custom">自选题号</option></select></label>
             <label class="limit-field-v60 practice-range-field-v58916"><span id="practice-range-label-v58916">题量</span><div id="practice-limit-control-v58916" class="limit-control-v60"><select id="practice-limit"><option value="custom" selected>自定义</option><option value="50">50题</option><option value="100">100题</option><option value="half">一半</option><option value="all">全部</option></select><input id="practice-custom-count" type="number" value="20" min="1" inputmode="numeric" aria-label="自定义练习题量" /></div><input id="practice-number-range-v58916" class="practice-number-range-v58916" type="text" inputmode="text" placeholder="如：1,3,5-10,20" aria-label="自选练习题号" title="按当前题型、来源筛选后的顺序编号；一级分组按汇总顺序计算" hidden /></label>
             <div class="settings-action-cell web-settings-action-cell">
@@ -447,9 +448,11 @@ C. 判断题
       <button id="edit-enable-multi-blank-btn-v58914" class="ghost hidden" type="button">启用多空答案</button>
       <label>题干<textarea id="edit-question" class="small-area" placeholder="题干"></textarea></label>
       <label>选项<textarea id="edit-options" class="small-area" placeholder="每行一个选项，例如：&#10;A. 选项一&#10;B. 选项二"></textarea></label>
+      <div id="edit-images-v391" class="edit-images-v391"><div class="multi-blank-editor-head-v58914"><div><b>题目图片</b><p class="muted">图片绑定整道题；保存回题库后才写入本地数据。</p></div><label class="ghost edit-image-pick-v391">添加图片<input id="edit-image-file-v391" type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/gif" multiple hidden></label></div><div id="edit-image-list-v391" class="edit-image-list-v391"></div></div>
       <div id="edit-cloze-wrap-v391" class="multi-blank-editor-v58914 hidden"><div class="multi-blank-editor-head-v58914"><div><b>完形填空逐空选项</b><p class="muted">每个空位分别填写选项、答案和解析；空位顺序与题干保持一致。</p></div><button id="edit-cloze-add-v391" class="ghost" type="button">增加空位</button></div><div id="edit-cloze-items-v391"></div></div>
       <label>解析<textarea id="edit-analysis" class="small-area" placeholder="解析，可空"></textarea></label>
       <div id="edit-status" class="notice">等待保存。</div>
+      <div id="edit-insert-actions-v391" class="row-actions hidden"><button id="edit-insert-before-v391" class="ghost" type="button">在当前题前插入</button><button id="edit-insert-after-v391" class="ghost" type="button">在当前题后插入</button></div>
       <div class="actions"><button id="edit-save-btn" class="primary">保存修改</button><button id="edit-delete-btn" class="danger">删除本题</button></div>
     </div>
   </div>
