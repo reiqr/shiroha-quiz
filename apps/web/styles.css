@@ -7502,6 +7502,10 @@ body.practice-focus.practice-rail-collapsed-v34 #practice-card > .practice-side-
 .multi-blank-edit-fields-v58914 input{width:100%;min-width:0}
 .multi-blank-comparison-v58914{display:grid;gap:7px;margin-top:10px}
 .multi-blank-comparison-row-v58914{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);gap:10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.62)}
+.cloze-list-v391{display:grid;gap:14px;margin-top:14px}
+.cloze-item-v391{padding:14px;border:1px solid var(--line,#dce5ef);border-radius:16px;background:var(--panel-soft,#f7faff)}
+.cloze-item-v391>.options{margin-top:10px}
+.cloze-edit-fields-v391{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .multi-blank-record-v58914{display:grid;gap:4px;min-width:140px}
 .multi-blank-record-v58914 span{display:block;white-space:normal}
 @media (max-width:720px){
