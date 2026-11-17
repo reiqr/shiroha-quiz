@@ -164,7 +164,7 @@ $('#active-bank-select').onchange=e=>{setPracticeBankScopeV8916(e.target.value,t
 $('#load-sample-btn').onclick=loadSample;$('#import-file').onchange=readImportFile;$('#parse-import-btn').onclick=parseImport;$('#confirm-import-btn').onclick=confirmImport;const findReplaceBtnV51=$('#find-replace-import-btn');if(findReplaceBtnV51)findReplaceBtnV51.onclick=openImportFindReplaceV51;const dualConfirmBtn=$('#dual-confirm-import-btn');if(dualConfirmBtn)dualConfirmBtn.onclick=confirmImport;const importTextAreaV49=$('#import-text');if(importTextAreaV49)importTextAreaV49.addEventListener('input',()=>{if(importTextAreaV49.dataset.tableImportV49==='1'){tableImportResultV49=null;delete importTextAreaV49.dataset.tableImportV49;}importSourceMetaV376={name:'手动文本',size:new Blob([importTextAreaV49.value||'']).size,type:'text'};syncAiImportActionV99();});const ocrStartBtn=$('#ocr-start-btn');if(ocrStartBtn)ocrStartBtn.onclick=startPdfOcrImport;const ocrUseBtn=$('#ocr-use-text-btn');if(ocrUseBtn)ocrUseBtn.onclick=applyOcrTextToImport;const ocrCopyBtn=$('#ocr-copy-btn');if(ocrCopyBtn)ocrCopyBtn.onclick=copyOcrText;const ocrDocxBtn=$('#ocr-download-docx-btn');if(ocrDocxBtn)ocrDocxBtn.onclick=downloadOcrDocx;$('#clear-import-btn').onclick=()=>{cancelAiImportRequestV99(true);cancelAiPreviewRequestV991(true);closeAiImportPanelV99();closeAiPreviewPanelV991();resetAiSuggestionsV991();$('#import-text').value='';if($('#import-text'))delete $('#import-text').dataset.tableImportV49;tableImportResultV49=null;importCache=[];importSelected.clear();importDiagnostics=null;importSourceMetaV376={name:'',size:0,type:''};resetOcrImportState();renderImportPreview([]);syncAiImportActionV99()};
 $('#dual-question-file').onchange=e=>readDualFile(e,'question');$('#dual-answer-file').onchange=e=>readDualFile(e,'answer');$('#parse-dual-import-btn').onclick=parseDualImport;$('#clear-dual-import-btn').onclick=()=>{cancelAiPreviewRequestV991(true);resetAiSuggestionsV991();$('#dual-question-text').value='';$('#dual-answer-text').value='';importCache=[];importSelected.clear();importDiagnostics=null;importSourceMetaV376={name:'',size:0,type:''};renderImportPreview([])};$('#dual-load-sample-btn').onclick=loadDualSample;$('#revalidate-import-btn').onclick=()=>renderImportPreview(importCache);
 $('#edit-close-btn').onclick=closeEditModal;$('#edit-save-btn').onclick=saveEditQuestion;$('#edit-delete-btn').onclick=deleteEditQuestion;const pf=$('#import-preview-filter');if(pf)pf.onchange=e=>{importPreviewFilter=e.target.value;renderImportPreview(importCache)};const bid=$('#batch-delete-import-btn');if(bid)bid.onclick=batchDeleteImportSelected;const cis=$('#clear-import-selection-btn');if(cis)cis.onclick=()=>{importSelected.clear();renderImportPreview(importCache)};
-$('#dedupe-btn').onclick=dedupeActiveBank;$('#rename-bank-btn').onclick=renameActiveBank;$('#duplicate-bank-btn').onclick=duplicateActiveBank;$('#new-empty-bank-btn').onclick=newEmptyBank;$('#merge-bank-btn').onclick=mergeBankIntoActive;$('#bank-sort-mode').onchange=renderBankList;$('#start-practice-btn').onclick=startPractice;$('#reset-practice-btn').onclick=()=>{resetAiSinglePracticeV613();exitPracticeFocus();$('#practice-card').innerHTML='<div class="empty">选择条件后点击“开始练习”。</div>';practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};$('#practice-progress').textContent='0 / 0';syncPracticeStartUiV58916(true)};
+$('#dedupe-btn').onclick=dedupeActiveBank;$('#rename-bank-btn').onclick=renameActiveBank;$('#duplicate-bank-btn').onclick=duplicateActiveBank;$('#new-empty-bank-btn').onclick=newEmptyBank;$('#merge-bank-btn').onclick=mergeBankIntoActive;$('#bank-sort-mode').onchange=renderBankList;$('#start-practice-btn').onclick=startPractice;$('#reset-practice-btn').onclick=()=>{resetAiSinglePracticeV613();exitPracticeFocus();resetStudyPracticeForm();$('#practice-card').innerHTML='<div class="empty">选择条件后点击“开始练习”。</div>';practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};$('#practice-progress').textContent='0 / 0';syncPracticeStartUiV58916(true)};
 $('#start-exam-btn').onclick=startExam;$('#submit-exam-btn').onclick=()=>submitExam(false);$('#clear-wrong-btn').onclick=()=>{if(confirm('确定清空当前题库错题本？')){state.wrongBook[activeBank().id]=[];saveSilent();renderAll()}};
 $('#clear-records-btn').onclick=()=>{if(confirm('确定清空全部练习与考试记录？')){state.records=[];saveSilent();renderAll()}};$('#export-records-btn').onclick=exportRecords;$('#record-mode-filter').onchange=renderRecords;const recordDetailFilterV385=$('#record-detail-filter-v385');if(recordDetailFilterV385)recordDetailFilterV385.onchange=renderRecords;$('#record-limit').onchange=renderRecords;$('#record-refresh-btn').onclick=renderRecords;$('#wrong-status-filter').onchange=renderWrongBook;$('#wrong-sort-mode').onchange=renderWrongBook;$('#practice-wrong-btn').onclick=startWrongPractice;const practiceFavBtnV596=$('#practice-favorites-btn-v596');if(practiceFavBtnV596)practiceFavBtnV596.onclick=()=>switchPracticeSourceV27('favorite');const clearFavBtnV596=$('#clear-favorites-btn-v596');if(clearFavBtnV596)clearFavBtnV596.onclick=clearCurrentFavoritesV596;const exportJsonBtn=$('#export-json-btn');if(exportJsonBtn)exportJsonBtn.onclick=exportCurrentBank;const exportAllBtn=$('#export-all-btn');if(exportAllBtn)exportAllBtn.onclick=exportAll;const importBackupQuickBtnV598=$('#import-backup-quick-btn-v598');if(importBackupQuickBtnV598)importBackupQuickBtnV598.onclick=()=>{backupImportModeV23=$('#settings-backup-mode-v23')?.value||'overwrite';$('#backup-json-file-v23')?.click()};$('#reset-data-btn').onclick=resetData;bindLimitControlsV60();bindPracticeStartControlsV58916();bindAiImportEventsV99();
 }
@@ -187,6 +187,77 @@ function setImportBankNameFromFile(fileName){
 }
 
 function saveSilent(){localStorage.setItem(KEY,serializeState())}
+function studyPreferences(){
+  const raw=state.settings?.webStudy||{};
+  const result={};
+  for(const key of ['autoSubmit','autoNext','nextRequiresResult','rememberPractice','shufflePractice','rememberExam','shuffleExam'])result[key]=raw[key]===true;
+  return {...result,lastPractice:raw.lastPractice||null,lastExam:raw.lastExam||null};
+}
+function saveStudyPreferences(next){
+  const previous=state.settings.webStudy;
+  state.settings.webStudy=next;
+  try{saveSilent();return true}catch(error){
+    if(previous===undefined)delete state.settings.webStudy;else state.settings.webStudy=previous;
+    toast('设置未保存：'+importSaveFailureTextV5911(error,'保存'),'danger');return false;
+  }
+}
+function studyConfigFields(mode){
+  return mode==='practice'?['practice-type','practice-source','practice-order','practice-unanswered-priority-v391','practice-limit','practice-custom-count']:
+    ['exam-name','exam-count','exam-minutes','exam-pass-score','score-single','score-multiple','score-judge','score-blank','score-short','exam-type','exam-order'];
+}
+function rememberStudyConfig(mode){
+  const prefs=studyPreferences();
+  if(!prefs[mode==='practice'?'rememberPractice':'rememberExam'])return;
+  const values={};
+  for(const id of studyConfigFields(mode)){const el=$('#'+id);if(el)values[id]=el.type==='checkbox'?el.checked:el.value}
+  saveStudyPreferences({...prefs,[mode==='practice'?'lastPractice':'lastExam']:values});
+}
+function restoreStudyConfigs(){
+  const prefs=studyPreferences();
+  for(const mode of ['practice','exam']){
+    const values=prefs[mode==='practice'?'lastPractice':'lastExam'];
+    if(!prefs[mode==='practice'?'rememberPractice':'rememberExam']||!values)continue;
+    for(const id of studyConfigFields(mode)){
+      const el=$('#'+id),value=values[id];if(!el||value===undefined)continue;
+      if(el.type==='checkbox')el.checked=value===true;
+      else if(el.tagName!=='SELECT'||[...el.options].some(option=>option.value===String(value)))el.value=String(value);
+    }
+  }
+  syncLimitControlV60('practice');syncPracticeStartUiV58916(true);
+}
+function ensureStudyPreferencesUi(){
+  if(!$('#study-preferences')){
+    const actions=$('#settings .settings-main-actions-v611');if(!actions)return;
+    const groups=[['练习设置',[
+      ['autoSubmit','选择后立即判题','仅单选、判断题生效，其他题型仍需提交。'],
+      ['autoNext','答对后自动下一题','判对后稍作停留再切题；答错、看答案或最后一题停留。'],
+      ['nextRequiresResult','限制练习下一题','提交答案或查看答案后才能向后续题目跳转。'],
+      ['rememberPractice','记住上次练习设置','记住题型、来源、顺序和题量，不改变现有练习进度。'],
+      ['shufflePractice','练习打乱选项','仅单选、多选；下次开始练习生效，原题和记录不变。']
+    ]],['考试设置',[
+      ['rememberExam','记住上次考试设置','记住题量、时长、分值和抽题方式等配置。'],
+      ['shuffleExam','考试打乱选项','仅单选、多选；下次开始考试生效，原题和记录不变。']
+    ]]];
+    actions.insertAdjacentHTML('beforebegin',`<div id="study-preferences">${groups.map(([title,rows])=>`<div class="data-tools-v23"><h3>${title}</h3>${rows.map(([key,title,desc])=>`<label class="check-line-v23"><input type="checkbox" data-study-setting="${key}" /><span><b>${title}</b><br><span class="muted">${desc}</span></span></label>`).join('')}</div>`).join('')}</div>`);
+    $$('#study-preferences [data-study-setting]').forEach(el=>el.onchange=()=>{
+      const prefs=studyPreferences(),key=el.dataset.studySetting;
+      const saved=saveStudyPreferences({...prefs,[key]:el.checked});
+      if(saved){toast('设置已保存。','ok');if(typeof cancelPracticeAutoNext==='function')cancelPracticeAutoNext()}
+      syncStudyPreferencesUi();
+    });
+  }
+  syncStudyPreferencesUi();
+}
+function syncStudyPreferencesUi(){
+  const prefs=studyPreferences();
+  $$('#study-preferences [data-study-setting]').forEach(el=>el.checked=prefs[el.dataset.studySetting]);
+}
+function resetStudyPracticeForm(){
+  const defaults={'practice-type':'all','practice-source':'all','practice-order':'sequence','practice-start-mode-v58916':'from_start','practice-limit':'custom','practice-custom-count':'20','practice-number-range-v58916':''};
+  for(const [id,value] of Object.entries(defaults)){const el=$('#'+id);if(el)el.value=value}
+  const priority=$('#practice-unanswered-priority-v391');if(priority)priority.checked=false;
+  syncLimitControlV60('practice');
+}
 
 /* SHIROHA_WEB_ISSUE_99_AI_IMPORT_START */
 function defaultAiConfigV99(){return {provider:'ollama',endpoint:AI_PROVIDER_PRESETS_V99.ollama.endpoint,model:'',timeoutSeconds:120,rememberKey:false}}
@@ -7910,6 +7981,7 @@ function exportAll(){exportAllBackupV23()}
 */
 function setupEnhancedDataToolsV23(){
   injectDataToolsStyleV23();
+  ensureStudyPreferencesUi();restoreStudyConfigs();
   ensureBackupFileInputV23();
   ensureBankManageExportPanelV23();
   ensureSettingsBackupPanelV23();
@@ -8354,6 +8426,7 @@ function startPractice(scopeOverrideV8916){
   if(!practice.items.length){$('#practice-card').innerHTML='<div class="empty">当前条件下没有题目。</div>';showNotice('无法开始练习','当前筛选条件下没有题目。','warn');return}
   if(practice.items.length>200&&(limit==='all'||limit==='half'||limit==='custom'||Number(limit)>200||selection.startMode===PRACTICE_START_CUSTOM_V58916)){const msg=practice.items.length>500?`本轮将练习 ${practice.items.length} 道题，题量很大，手机 WebView 可能明显卡顿，建议减少题量或使用电脑端。是否继续？`:`本轮将练习 ${practice.items.length} 道题，手机 WebView 可能出现轻微卡顿，是否继续？`;if(!confirm(msg)){practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0,details:[],answerState:{}};return}}
   const startText=selection.startMode===PRACTICE_START_CONTINUE_V58916?` · 从第 ${selection.startIndex+1} 题继续`:selection.startMode===PRACTICE_START_CUSTOM_V58916?' · 自选题号':'';
+  rememberStudyConfig('practice');
   enterPracticeFocus();prewarmMathJaxV56();showNotice('练习开始',`${practice.scopeName}${startText} · 本轮共 ${practice.items.length} 道题。`,'ok');renderPracticeQuestion();
 }
 function renderPracticeQuestion(done=false){
@@ -9277,6 +9350,7 @@ function startExam(){
   const scope=practiceScopeV8916();const scopeLabel=practiceScopeLabelV8916(scope);const scopeSummary=practiceScopeSummaryV8916(scope);
   exam={name:($('#exam-name').value||'模拟考试').trim(),passScore:Number($('#exam-pass-score').value)||0,items:filteredExamItemsV113($('#exam-type').value,$('#exam-order').value,count),answers:{},start:Date.now(),deadline:0,timer:null,submitted:false,scopeType:scope.type===PRACTICE_SCOPE_GROUP_V8916?'GROUP':'BANK',scopeName:scopeLabel,scopeSummary};
   if(!exam.items.length){$('#exam-card').innerHTML='<div class="empty">当前考试范围下没有题目。</div>';return}
+  rememberStudyConfig('exam');
   const min=Number($('#exam-minutes').value)||0;
   if(min>0){exam.deadline=Date.now()+min*60000;clearInterval(exam.timer);exam.timer=setInterval(updateTimer,1000);updateTimer()}else $('#exam-timer').textContent='不限时';
   $('#submit-exam-btn').disabled=false;
