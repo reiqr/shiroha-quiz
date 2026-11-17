@@ -73,7 +73,7 @@ fun AiAnalysisFillPanel(
                 val modelName = QuizRepository.aiModelName
                 val draftQuestion = question.copy(analysis = currentAnalysis.trim())
                 when {
-                    apiBaseUrl.isBlank() || apiKey.isBlank() || modelName.isBlank() -> {
+                    !QuizRepository.isAiConfigured() -> {
                         errorText = "请先在 我的 → AI 设置 中配置接口。"
                     }
                     draftQuestion.answer.isEmpty() -> {

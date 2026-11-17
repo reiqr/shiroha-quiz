@@ -19,6 +19,15 @@ class RepositoryAiKeyTest {
     @Before fun initialize() { QuizRepository.resetForTesting(); preferences.edit().clear().commit(); QuizRepository.init(context) }
     @After fun reset() { QuizRepository.resetForTesting() }
 
+    @Test fun localModelWithoutKeyRemainsConfiguredAfterReload() {
+        assertTrue(QuizRepository.setAiInterfaceConfig(context, "custom", "http://192.168.1.10:11434/v1", "", "local-model"))
+        assertTrue(QuizRepository.isAiConfigured())
+        QuizRepository.resetForTesting()
+        QuizRepository.init(context)
+        assertTrue(QuizRepository.isAiConfigured())
+        assertEquals("", QuizRepository.aiApiKey)
+    }
+
     @Test fun savingAndOrdinaryPersistenceNeverWritesPlaintextKey() {
         QuizRepository.setAiInterfaceConfig(context, "DeepSeek", "https://example.com/v1", "test-only-ai-key", "model")
         assertEquals("test-only-ai-key", QuizRepository.aiApiKey)

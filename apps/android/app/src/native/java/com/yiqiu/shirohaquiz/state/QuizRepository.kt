@@ -2198,7 +2198,7 @@ object QuizRepository {
     }
 
     fun isAiConfigured(): Boolean {
-        return aiApiBaseUrl.isNotBlank() && aiApiKey.isNotBlank() && aiModelName.isNotBlank()
+        return com.yiqiu.shirohaquiz.ai.AiEndpointPolicy.isConfigured(aiApiBaseUrl, aiApiKey, aiModelName)
     }
 
     fun submitPracticeQuestion(

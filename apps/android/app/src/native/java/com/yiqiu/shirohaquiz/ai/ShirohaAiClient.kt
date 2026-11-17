@@ -8,14 +8,11 @@ import com.yiqiu.shirohaquiz.importer.parser.AnswerTokenParser
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
-import java.net.URL
 import java.net.UnknownHostException
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 
 private const val DEFAULT_AI_TIMEOUT_SECONDS = 60
 
@@ -332,18 +329,9 @@ object ShirohaAiClient {
         timeoutSeconds: Int,
         maxTokens: Int? = null
     ): String {
-        val endpoint = normalizeChatEndpoint(apiBaseUrl)
+        val endpoint = AiEndpointPolicy.endpoint(apiBaseUrl)
         val timeoutMillis = timeoutSeconds.coerceIn(15, 180) * 1000
-        val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = timeoutMillis.coerceAtMost(30000)
-            readTimeout = timeoutMillis
-            doOutput = true
-            useCaches = false
-            setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("Authorization", "Bearer ${apiKey.trim()}")
-        }
+        val client = AiEndpointPolicy.client(endpoint, timeoutMillis.toLong())
 
         return try {
             val body = JSONObject()
@@ -357,16 +345,11 @@ object ShirohaAiClient {
                 )
             if (maxTokens != null) body.put("max_tokens", maxTokens)
 
-            OutputStreamWriter(connection.outputStream, Charsets.UTF_8).use { writer ->
-                writer.write(body.toString())
-            }
-
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val responseText = if (stream != null) {
-                BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { it.readText() }
-            } else {
-                ""
+            val request = AiEndpointPolicy.request(endpoint, apiKey)
+                .post(body.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+                .build()
+            val (code, responseText) = client.newCall(request).execute().use {
+                it.code to it.body?.string().orEmpty()
             }
 
             if (code !in 200..299) {
@@ -388,28 +371,18 @@ object ShirohaAiClient {
         } catch (error: SocketTimeoutException) {
             throw IllegalStateException("AI 请求超时，请检查网络或适当调大超时秒数。", error)
         } catch (error: UnknownHostException) {
-            throw IllegalStateException("无法连接 AI 接口域名，请检查 API 地址或网络。", error)
+            throw IllegalStateException("无法连接 AI 接口域名：${error.message.orEmpty()}。请检查地址或网络；HTTP 仅支持回环或内网。", error)
         } catch (error: IOException) {
             throw IllegalStateException("AI 网络请求失败：${error.message ?: "请检查接口地址和网络"}", error)
         } catch (error: JSONException) {
             throw IllegalStateException("AI 接口返回格式无法解析，请确认接口是否兼容 OpenAI chat/completions。", error)
-        } finally {
-            connection.disconnect()
         }
     }
 
     private fun validateConfig(apiBaseUrl: String, apiKey: String, modelName: String) {
         checkAiInput(apiBaseUrl.trim().isNotBlank()) { "请先填写 API 地址。" }
-        checkAiInput(apiKey.trim().isNotBlank()) { "请先填写 API Key。" }
+        checkAiInput(!AiEndpointPolicy.requiresApiKey(apiBaseUrl) || apiKey.trim().isNotBlank()) { "请先填写 API Key；HTTP 内网模型可留空。" }
         checkAiInput(modelName.trim().isNotBlank()) { "请先填写模型名称。" }
-    }
-
-    private fun normalizeChatEndpoint(apiBaseUrl: String): String {
-        val clean = apiBaseUrl.trim().trimEnd('/')
-        checkAiInput(clean.startsWith("https://")) {
-            "API 地址必须以 https:// 开头，不支持明文 HTTP。"
-        }
-        return if (clean.endsWith("/chat/completions")) clean else "$clean/chat/completions"
     }
 
     private inline fun checkAiInput(condition: Boolean, message: () -> String) {
@@ -419,6 +392,7 @@ object ShirohaAiClient {
     private fun formatHttpError(code: Int, responseText: String): String {
         val apiMessage = extractApiErrorMessage(responseText)
         val hint = when (code) {
+            in 300..399 -> "接口重定向已阻止，请直接填写最终的 HTTPS 或内网接口地址"
             400 -> "请求格式或模型参数不被接口接受"
             401, 403 -> "API Key 无效、余额不足或无权限"
             404 -> "API 地址或模型路径不正确"

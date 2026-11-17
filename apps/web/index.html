@@ -366,13 +366,14 @@ C. 判断题
           </div>
           <div class="ai-settings-intro-v99">
             <b>配置用于题库辅助整理的 OpenAI-compatible 服务</b>
-            <p>支持本地 Ollama、LM Studio 和自定义兼容接口。普通解析仍是默认主线，AI 结果必须进入预览并由人工核对后才能导入。</p>
+            <p>支持本地 Ollama、LM Studio 和自定义兼容接口。HTTP 内网服务为明文传输，仅用于可信网络；内网域名请选择“内网本地模型”。普通解析仍是默认主线，AI 结果必须进入预览并由人工核对后才能导入。</p>
           </div>
           <div class="ai-settings-grid-v99">
             <label>服务类型
               <select id="ai-provider-v99">
                 <option value="ollama">Ollama（本地）</option>
                 <option value="lmstudio">LM Studio（本地）</option>
+                <option value="local">内网本地模型（含内网域名）</option>
                 <option value="custom">自定义 OpenAI-compatible</option>
               </select>
             </label>

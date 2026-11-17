@@ -1196,6 +1196,7 @@ private fun AiSettingsPanel(context: Context) {
             onValueChange = { apiBaseUrl = it },
             label = { Text("API 地址") },
             placeholder = { Text("https://api.example.com/v1") },
+            supportingText = { Text("支持 HTTP 回环 / 内网模型；HTTP 明文传输，请仅在可信网络使用。手机的 127.0.0.1 指向手机自身。") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -1203,7 +1204,7 @@ private fun AiSettingsPanel(context: Context) {
         OutlinedTextField(
             value = apiKey,
             onValueChange = { apiKey = it },
-            label = { Text("API Key") },
+            label = { Text("API Key（HTTP 内网模型可留空）") },
             placeholder = { Text("sk-...") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
@@ -1238,8 +1239,8 @@ private fun AiSettingsPanel(context: Context) {
             TextButton(
                 enabled = !isTestingConnection,
                 onClick = {
-                    if (apiBaseUrl.isBlank() || apiKey.isBlank() || modelName.isBlank()) {
-                        statusText = "请先填写 API 地址、API Key 和模型名称。"
+                    if (apiBaseUrl.isBlank() || modelName.isBlank()) {
+                        statusText = "请先填写 API 地址和模型名称。"
                         statusWarning = true
                         return@TextButton
                     }

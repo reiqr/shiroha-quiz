@@ -16,7 +16,7 @@ const AI_IMPORT_MAX_CHARS_V99=50000;
 const AI_PREVIEW_MAX_ITEMS_V991=200;
 const AI_REVIEW_DEFAULT_BATCH_V991=20;
 const AI_ANALYSIS_DEFAULT_BATCH_V991=10;
-const AI_PROVIDER_PRESETS_V99={ollama:{label:'Ollama',endpoint:'http://127.0.0.1:11434/v1/chat/completions'},lmstudio:{label:'LM Studio',endpoint:'http://127.0.0.1:1234/v1/chat/completions'},custom:{label:'自定义接口',endpoint:''}};
+const AI_PROVIDER_PRESETS_V99={ollama:{label:'Ollama',endpoint:'http://127.0.0.1:11434/v1/chat/completions'},lmstudio:{label:'LM Studio',endpoint:'http://127.0.0.1:1234/v1/chat/completions'},local:{label:'内网本地模型',endpoint:''},custom:{label:'自定义接口',endpoint:''}};
 const TYPE_LABEL={single:'单选题',multiple:'多选题',multi:'多选题',judge:'判断题',cloze:'完形填空',blank:'填空题',short:'简答题',short_answer:'简答题'};
 const state=loadState();
 let importCache=[];let tableImportResultV49=null;let importWarnings=[];let importReport='';let importDiagnostics=null;let importPreviewFilter='priority';let importSelected=new Set();let importSourceMetaV376={name:'',size:0,type:''};let bankEditSessionV45=null;let practiceEditSessionV120=null;let exportBankSelectedV23=new Set();let backupImportModeV23='merge';let ocrImportState={file:null,text:'',pages:[],running:false};let practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0};let exam={items:[],answers:{},start:0,timer:null,deadline:0,submitted:false};let editBlankGroupsV58914=[];let editMultiBlankEnabledV58914=false;let editClozeItemsV391=[];let editQuestionImagesV391=[];let editImageSourceImagesV391=[];let editImagesChangedV391=false;let editImageSessionTokenV391=0;let importCommitBusyV5911=false;let aiImportRequestV99={running:false,controller:null};let aiImportSilentCancelV99=false;let aiConnectionStateV99='idle';let aiDiagnosticsVisibleV375=false;let aiLastDiagnosticV375=null;let aiPreviewRequestV991={running:false,mode:'',cancelled:false,controller:null};let aiPreviewPanelModeV991='review';let aiReviewSuggestionsV991=new Map();let aiAnalysisSuggestionsV991=new Map();let aiImportTextSelectionV992={start:0,end:0,text:''};let webdavRuntimeV378={busy:false,action:'',backups:[],latestFile:'',status:'',statusKind:'',diagnostic:null,pendingRestore:null,formLoaded:false};
@@ -223,14 +223,41 @@ function normalizeAiEndpointV99(value,provider){
   let url;
   try{url=new URL(text)}catch(_){throw new Error('接口地址格式不正确，请填写完整的 http:// 或 https:// 地址。')}
   if(!/^https?:$/.test(url.protocol))throw new Error('接口地址只支持 http:// 或 https://。');
+  if(url.username||url.password)throw new Error('接口地址不能包含用户名或密码。');
+  if(url.protocol==='http:'&&!aiAddressSpaceV140(url.toString(),provider))throw new Error('HTTP 仅支持回环或内网模型。内网域名请选择“内网本地模型”，公网服务请使用 HTTPS。');
   const path=url.pathname.replace(/\/+$/,'');
   if(!path||path==='/')url.pathname='/v1/chat/completions';
   else if(/\/v1$/i.test(path))url.pathname=path+'/chat/completions';
   url.hash='';
   return url.toString().replace(/\/$/,'');
 }
-function isLocalAiEndpointV99(endpoint){
-  try{const host=new URL(endpoint).hostname.toLowerCase();return host==='localhost'||host==='127.0.0.1'||host==='::1'||host==='[::1]'}catch(_){return false}
+function aiAddressSpaceV140(endpoint,provider){
+  try{
+    const host=new URL(endpoint).hostname.toLowerCase().replace(/^\[|\]$/g,'').replace(/\.$/,'');
+    if(host==='localhost'||host.endsWith('.localhost')||host==='::1')return 'loopback';
+    if(/^\d+\.\d+\.\d+\.\d+$/.test(host)){
+      const p=host.split('.').map(Number);
+      if(p[0]===127)return 'loopback';
+      return p[0]===10||(p[0]===172&&p[1]>=16&&p[1]<=31)||(p[0]===192&&p[1]===168)?'local':null;
+    }
+    if(host.includes(':')){
+      const mapped=host.match(/^::ffff:([a-f0-9]{1,4}):([a-f0-9]{1,4})$/);
+      if(mapped){const n=parseInt(mapped[1],16),m=parseInt(mapped[2],16);return aiAddressSpaceV140(`http://${n>>8}.${n&255}.${m>>8}.${m&255}`,provider)}
+      return /^(?:f[cd][a-f0-9]{2}:|fe[89ab][a-f0-9]:)/.test(host)?'local':null;
+    }
+    // Browsers do not expose DNS resolution; explicit LAN DNS uses browser enforcement.
+    return host.endsWith('.local')||provider==='local'?'local':null;
+  }catch(_){return null}
+}
+function isLocalAiEndpointV99(endpoint,provider){
+  return !!aiAddressSpaceV140(endpoint,provider);
+}
+function aiFetchNetworkOptionsV140(config){
+  const url=new URL(config.endpoint);
+  if(url.protocol!=='http:')return {redirect:'error'};
+  const space=aiAddressSpaceV140(config.endpoint,config.provider);
+  if(!space)throw new Error('HTTP AI 接口仅支持回环或内网地址；公网接口请使用 HTTPS。');
+  return {redirect:'error',targetAddressSpace:space};
 }
 function readAiFormV99(){
   const provider=$('#ai-provider-v99')?.value||'ollama';
@@ -262,7 +289,7 @@ function aiOllamaCorsCommandV375(diag){
   return `setx OLLAMA_ORIGINS "${origins}"\n\n然后完全退出并重新启动 Ollama，再回到 Shiroha Quiz 点击“测试连接”。`;
 }
 function buildAiDiagnosticV375(error,config,mode='error'){
-  const cfg=config||{};const endpoint=String(cfg.endpoint||'').trim();const provider=String(cfg.provider||'custom');const local=endpoint?isLocalAiEndpointV99(endpoint):false;
+  const cfg=config||{};const endpoint=String(cfg.endpoint||'').trim();const provider=String(cfg.provider||'custom');const local=endpoint?isLocalAiEndpointV99(endpoint,provider):false;
   const status=Number(error?.status||0);const origin=aiCurrentOriginV375();const providerLabel=aiProviderLabelV99(provider);
   const rawDetail=sanitizeAiDiagnosticDetailV375(error?.detail||error?.cause?.message||error?.message||'',cfg);
   const network=!!error?.network||/Failed to fetch|Load failed|NetworkError|ERR_FAILED/i.test(rawDetail||error?.message||'');
@@ -273,7 +300,7 @@ function buildAiDiagnosticV375(error,config,mode='error'){
   }else if(network){
     summary=local?'疑似 CORS 拦截、本地服务未启动或地址不可达':'浏览器无法访问该接口';level='warn';
     statusMessage=local?'无法访问本地 AI 接口。请检查服务是否启动、地址是否正确，以及是否允许当前网页跨域访问。':'无法访问 AI 接口。请检查网络、地址、HTTPS/HTTP 混用和接口跨域设置。';
-    steps=local?['确认 Ollama / LM Studio 正在运行。','确认接口地址和端口正确。','如果当前页面来自 GitHub Pages，需要在本地 AI 服务里允许该页面 Origin 跨域访问。','设置跨域后要完全重启本地 AI 服务，再重新测试。']:['确认接口地址能从当前浏览器访问。','确认服务端允许当前网页跨域请求。','如果是远程服务，优先使用自己的后端代理转发请求，避免在纯前端暴露密钥。'];
+    steps=local?['确认模型服务正在运行；手机上的 127.0.0.1 指向手机自身，电脑模型请填电脑的内网 IP。','检查服务监听地址、端口及防火墙；内网域名请选择“内网本地模型”。','检查浏览器站点权限中的本地网络访问，并允许当前网页 Origin 的 CORS 请求。','HTTPS 页面访问 HTTP 内网服务取决于浏览器支持；不支持时使用项目本地启动脚本或配置可信 HTTPS。','跨域或监听设置修改后请重启模型服务。']:['确认接口地址能从当前浏览器访问。','确认服务端允许当前网页跨域请求。','如果是远程服务，优先使用自己的后端代理转发请求，避免在纯前端暴露密钥。'];
   }else if(status===401){
     summary='鉴权失败';level='warn';statusMessage='鉴权失败，请检查 API Key 或服务权限。';steps=['确认 API Key 是否填写正确。','本地 Ollama 通常不需要 API Key，可以留空。','如果是远程 OpenAI-compatible 服务，请确认 Key 仍有效且有模型调用权限。'];
   }else if(status===403){
@@ -449,7 +476,7 @@ function refreshAiImportPanelV99(){
   if(settings)settings.classList.toggle('ai-hidden-v99',configured);
   if(privacy){
     if(!configured){privacy.textContent='尚未配置 AI 服务。请先前往“AI 设置”填写接口地址和模型名称。';privacy.className='notice warn'}
-    else if(isLocalAiEndpointV99(config.endpoint)){privacy.textContent='当前使用本地 AI 服务。浏览器仍需获得跨域访问权限；整理结果只会在成功后替换当前预览。';privacy.className='notice'}
+    else if(isLocalAiEndpointV99(config.endpoint,config.provider)){privacy.textContent='当前使用本地 / 内网 AI 服务。HTTP 为明文传输，请仅在可信网络使用；浏览器仍需允许本地网络及跨域访问。';privacy.className='notice'}
     else{privacy.textContent=`本次${range.label}将发送到远程 AI 接口。请确认题库内容允许上传，并确保所用密钥和服务可信。`;privacy.className='notice warn'}
   }
 }
@@ -533,13 +560,14 @@ function aiResponseContentV99(payload){
   return String(content??'');
 }
 async function requestAiChatV99(config,messages,{controller,maxTokens,testMode,plainText}={}){
+  const networkOptions=aiFetchNetworkOptionsV140(config);
   const headers={'Content-Type':'application/json','Accept':'application/json'};if(config.apiKey)headers.Authorization='Bearer '+config.apiKey;
   const base={model:config.model,messages,temperature:0,stream:false};if(maxTokens)base.max_tokens=maxTokens;
   const attempts=plainText?[base]:[{...base,response_format:{type:'json_object'}},base];
   let lastError=null;
   for(let i=0;i<attempts.length;i++){
     let response;
-    try{response=await fetch(config.endpoint,{method:'POST',headers,body:JSON.stringify(attempts[i]),signal:controller?.signal,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'})}
+    try{response=await fetch(config.endpoint,{...networkOptions,method:'POST',headers,body:JSON.stringify(attempts[i]),signal:controller?.signal,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'})}
     catch(error){if(error?.name==='AbortError')throw error;const e=new Error('无法访问 AI 接口。请检查服务是否启动、地址是否正确，以及接口是否允许浏览器跨域访问。');e.cause=error;e.network=true;e.aiStage='fetch';e.endpoint=config.endpoint;e.provider=config.provider;throw e}
     const raw=await response.text();
     if(response.ok){
