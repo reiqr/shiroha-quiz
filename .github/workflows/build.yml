@@ -1,0 +1,171 @@
+# Shiroha Quiz 自动构建：Web ZIP + Android 原生 APK
+#
+# 触发：
+#   - push 到 main / Pull Request / 手动 Run workflow：产物上传为 Actions artifacts
+#   - 推送 v* 标签：额外创建或更新 GitHub Release，附上 Web ZIP 与 APK
+#
+# 正式签名（可选，仓库 Settings → Secrets and variables → Actions）：
+#   ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD
+#   未配置时 release APK 回退 debug 签名，仅供测试安装，不能覆盖安装正式版本。
+#
+# 版本号取自 apps/android/app/build.gradle.kts 中 web / native 两个 flavor 的 versionName，不跟随 Git 标签。
+
+name: Build Web & Android
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      include_offline_libs:
+        description: "Web ZIP 是否包含约 88MB 离线扩展资源（PDF.js 增强 / MathJax / Tesseract）"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  web:
+    name: Build Web ZIP
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Read version numbers
+        id: version
+        run: |
+          echo "web=$(python3 .github/scripts/android-version.py apps/android/app/build.gradle.kts web)" >> "$GITHUB_OUTPUT"
+          echo "native=$(python3 .github/scripts/android-version.py apps/android/app/build.gradle.kts native)" >> "$GITHUB_OUTPUT"
+
+      - name: Syntax check
+        run: |
+          node --check apps/web/app.js
+          node --check apps/web/question-bank.js
+
+      - name: Unit tests
+        run: |
+          node --test apps/web/tests/*.cjs
+          node --test test/web-webdav/*.test.cjs
+
+      - name: Package Web ZIP
+        env:
+          INCLUDE_OFFLINE_LIBS: ${{ inputs.include_offline_libs || 'false' }}
+        run: bash .github/scripts/package-web.sh "${{ steps.version.outputs.web }}"
+
+      - name: Upload Web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiroha-quiz-web
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: sdkmanager --install "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Configure release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        working-directory: apps/android
+        run: |
+          if [ -n "${ANDROID_KEYSTORE_BASE64}" ]; then
+            mkdir -p keystore
+            printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 -d > keystore/ci-release.jks
+            {
+              echo "storeFile=keystore/ci-release.jks"
+              echo "storePassword=${ANDROID_KEYSTORE_PASSWORD}"
+              echo "keyAlias=${ANDROID_KEY_ALIAS}"
+              echo "keyPassword=${ANDROID_KEY_PASSWORD}"
+            } > keystore.properties
+            echo "::notice::已使用 Secrets 中的正式签名密钥"
+          else
+            echo "::notice::未配置 ANDROID_KEYSTORE_BASE64，release APK 将回退到 debug 签名，仅供测试安装，不能覆盖安装正式版本"
+          fi
+
+      - name: Build native release APK
+        working-directory: apps/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace :app:assembleNativeRelease
+
+      - name: Verify APK signatures
+        run: |
+          set -euo pipefail
+          APK_DIR="apps/android/app/build/outputs/shiroha-quiz"
+          ls -lh "${APK_DIR}"
+          BUILD_TOOLS="$(ls -d "${ANDROID_HOME}/build-tools/"* | sort -V | tail -n 1)"
+          for apk in "${APK_DIR}"/*.apk; do
+            "${BUILD_TOOLS}/apksigner" verify --print-certs "${apk}" | head -n 3
+          done
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiroha-quiz-android
+          path: apps/android/app/build/outputs/shiroha-quiz/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    needs: [web, android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Show artifacts
+        run: ls -lh dist
+
+      - name: Create or update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/*.apk
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          fail_on_unmatched_files: true

@@ -1,4 +1,4 @@
-﻿import java.util.Properties
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -47,9 +47,17 @@ android {
         }
     }
 
+    // 没有 keystore.properties 时（例如 fork 仓库的 CI）回退到 debug 签名，
+    // 保证 assembleRelease 仍能产出可安装的 APK；正式发布请配置正式签名。
+    val hasReleaseSigning = rootProject.file("keystore.properties").exists()
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
