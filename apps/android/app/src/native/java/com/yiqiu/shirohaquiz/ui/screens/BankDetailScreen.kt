@@ -56,6 +56,7 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
+import com.yiqiu.shirohaquiz.ui.text.MathRichText
 import com.yiqiu.shirohaquiz.ui.util.bankDisplayPath
 
 @Composable
@@ -374,14 +375,14 @@ private fun QuestionPreviewBlock(
         }
     }
     Spacer(Modifier.height(8.dp))
-    Text(
+    MathRichText(
         text = "${question.number}. ${question.question}",
         style = MaterialTheme.typography.bodyLarge,
         fontWeight = FontWeight.SemiBold
     )
     if (question.options.isNotEmpty()) {
         Spacer(Modifier.height(6.dp))
-        Text(
+        MathRichText(
             text = question.options.joinToString("  ") { "${it.key}. ${it.text}" },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -389,7 +390,7 @@ private fun QuestionPreviewBlock(
     }
     if (editable) {
         Spacer(Modifier.height(6.dp))
-        Text(
+        MathRichText(
             text = if (MultiBlankSupport.hasStructuredAnswers(question)) {
                 "答案：\n${MultiBlankSupport.expectedAnswerText(question.blankAnswers)}"
             } else {

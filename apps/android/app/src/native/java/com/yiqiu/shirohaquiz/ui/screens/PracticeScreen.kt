@@ -124,6 +124,7 @@ import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
+import com.yiqiu.shirohaquiz.ui.text.MathRichText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1179,14 +1180,15 @@ fun PracticeScreen(
                 }
             }
             Spacer(Modifier.height(12.dp))
+            // 无障碍朗读仍使用纯文本结果；题目本体交给 MathRichText 做真正的公式排版
             val questionText = LatexDisplayFormatter.format(question.question)
             val questionProgressText = if (isBatchPractice) {
                 "第 $batchGroupNumber 组，第 ${QuizRepository.practiceIndex - batchGroupStart + 1} / $batchGroupTotal 题"
             } else {
                 "第 ${QuizRepository.practiceIndex + 1} / ${practiceQuestions.size} 题"
             }
-            Text(
-                text = questionText,
+            MathRichText(
+                text = question.question,
                 modifier = (if (QuizRepository.screenReaderAssistEnabled) {
                     Modifier.semantics {
                         liveRegion = LiveRegionMode.Polite
@@ -1522,7 +1524,7 @@ fun PracticeScreen(
                     question.type == QuestionType.SHORT -> "参考答案"
                     else -> "正确答案"
                 }
-                NoticeCard("$answerLabel：\n${LatexDisplayFormatter.format(answerText)}", warning = false)
+                NoticeCard("$answerLabel：\n$answerText", warning = false)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = "解析",
@@ -1531,11 +1533,10 @@ fun PracticeScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(
+                MathRichText(
                     text = question.analysis.takeIf { it.isNotBlank() }
                         ?.let { practiceAnalysisForDisplay(it, displayOptions) }
                         ?.let(::formatAnalysisForDisplay)
-                        ?.let(LatexDisplayFormatter::format)
                         ?: "暂无解析",
                     style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 23.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -3538,8 +3539,8 @@ private fun MissingAnswerAiReferenceCard(state: MissingAnswerAiReferenceState) {
                 )
             }
             state.displayAnswer.takeIf { it.isNotBlank() }?.let { answer ->
-                Text(
-                    text = "参考：${LatexDisplayFormatter.format(answer)}",
+                MathRichText(
+                    text = "参考：$answer",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -3729,8 +3730,8 @@ private fun SingleQuestionAiConversationCard(messages: List<SingleQuestionAiChat
                         shape = RoundedCornerShape(14.dp),
                         color = if (message.isUser) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardWhite78
                     ) {
-                        Text(
-                            text = LatexDisplayFormatter.format(formatAnalysisForDisplay(message.content)),
+                        MathRichText(
+                            text = formatAnalysisForDisplay(message.content),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                             style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
                             color = MaterialTheme.colorScheme.onSurface
@@ -3787,8 +3788,8 @@ private fun SingleQuestionAiResultCard(result: AiSingleQuestionAnalysis) {
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            Text(
-                text = LatexDisplayFormatter.format(formatAnalysisForDisplay(result.analysis)),
+            MathRichText(
+                text = formatAnalysisForDisplay(result.analysis),
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 23.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

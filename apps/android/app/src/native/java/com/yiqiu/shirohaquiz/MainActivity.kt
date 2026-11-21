@@ -48,6 +48,8 @@ import androidx.core.view.WindowCompat
 import com.yiqiu.shirohaquiz.document.DocumentRecognitionManager
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.app.ShirohaAppShell
+import com.yiqiu.shirohaquiz.ui.text.MathHeightCache
+import com.yiqiu.shirohaquiz.ui.text.MathWebViewPool
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaQuizTheme
@@ -74,6 +76,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        // 释放公式渲染复用池，避免 WebView 持有 Activity
+        MathWebViewPool.clear()
+        MathHeightCache.clear()
+        super.onDestroy()
     }
 
     private fun applyStatusBarTheme(darkTheme: Boolean) {

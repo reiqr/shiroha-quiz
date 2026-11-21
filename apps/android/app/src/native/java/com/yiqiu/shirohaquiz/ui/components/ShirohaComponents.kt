@@ -69,7 +69,7 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
-import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
+import com.yiqiu.shirohaquiz.ui.text.MathRichText
 
 
 @Composable
@@ -383,7 +383,6 @@ fun QuizOptionCard(
     }
     val optionFontSize = QuizRepository.optionFontSizeSp().sp
     val optionLineHeight = QuizRepository.optionLineHeightSp().sp
-    val displayText = LatexDisplayFormatter.format(text)
     val accessibilityState = when {
         isWrong -> "已选中，回答错误"
         isCorrect -> if (selected) "已选中，正确答案" else "正确答案"
@@ -423,8 +422,8 @@ fun QuizOptionCard(
                 )
             )
             Spacer(Modifier.width(8.dp))
-            Text(
-                text = displayText,
+            MathRichText(
+                text = text,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = optionFontSize,
@@ -472,8 +471,8 @@ fun QuizOptionCard(
                 }
             }
             Spacer(Modifier.width(ShirohaDimens.OptionLabelTextGap))
-            Text(
-                text = displayText,
+            MathRichText(
+                text = text,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = optionFontSize, lineHeight = optionLineHeight),
                 fontWeight = if (selected || resultStyle != QuizOptionResultStyle.Neutral) FontWeight.SemiBold else FontWeight.Normal,
@@ -534,7 +533,7 @@ fun NoticeCard(
         shape = RoundedCornerShape(20.dp),
         color = background
     ) {
-        Text(
+        MathRichText(
             text = text,
             modifier = Modifier.padding(14.dp),
             style = MaterialTheme.typography.bodyMedium,

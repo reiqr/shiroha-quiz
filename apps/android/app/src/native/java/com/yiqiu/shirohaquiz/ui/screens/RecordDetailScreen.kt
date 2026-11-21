@@ -35,6 +35,7 @@ import com.yiqiu.shirohaquiz.ui.components.NoticeCard
 import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
+import com.yiqiu.shirohaquiz.ui.text.MathRichText
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
 
 private enum class RecordQuestionFilter(val label: String) {
@@ -240,7 +241,7 @@ private fun QuestionResultCard(
             )
         }
         Spacer(Modifier.height(10.dp))
-        Text(
+        MathRichText(
             text = question.question,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
@@ -252,7 +253,7 @@ private fun QuestionResultCard(
         if (question.options.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             question.options.forEach { option ->
-                Text(
+                MathRichText(
                     text = "${option.key}. ${option.text}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium

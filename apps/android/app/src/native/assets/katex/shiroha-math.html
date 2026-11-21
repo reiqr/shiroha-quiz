@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Shiroha Math</title>
+<link rel="stylesheet" href="katex.min.css">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    font-family: "Roboto", "Noto Sans", "Noto Sans CJK SC", "PingFang SC", sans-serif;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+  #root {
+    display: block;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    padding: 0;
+    margin: 0;
+  }
+  .txt { white-space: pre-wrap; }
+  .math-inline { white-space: normal; }
+  .math-block {
+    display: block;
+    text-align: center;
+    margin: 0.28em 0;
+    white-space: normal;
+  }
+  .math-block .katex-display { margin: 0; }
+  /* 渲染失败时保留原始 LaTeX 文本，保证内容不丢失 */
+  .math-fallback {
+    font-family: "Roboto Mono", "Droid Sans Mono", monospace;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    opacity: 0.92;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="katex.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var root = document.getElementById("root");
+  var currentGen = 0;
+
+  function bridge() {
+    return (typeof ShirohaMath !== "undefined" && ShirohaMath) ? ShirohaMath : null;
+  }
+
+  function report() {
+    var rect = root.getBoundingClientRect();
+    var height = Math.ceil(rect.height);
+    if (!(height > 0)) {
+      height = Math.ceil(root.scrollHeight) || 1;
+    }
+    var scrollWidth = Math.max(root.scrollWidth, document.documentElement.scrollWidth || 0);
+    var clientWidth = document.documentElement.clientWidth || window.innerWidth || 0;
+    var overflow = scrollWidth > clientWidth + 1;
+    var b = bridge();
+    if (b && b.onRenderFinished) {
+      try {
+        b.onRenderFinished(currentGen, height, overflow ? 1 : 0, Math.ceil(scrollWidth));
+      } catch (e) { /* ignore bridge errors */ }
+    }
+  }
+
+  function applyStyle(style) {
+    style = style || {};
+    var s = document.body.style;
+    s.fontSize = (style.fontSizePx || 16) + "px";
+    s.lineHeight = (style.lineHeightPx || 24) + "px";
+    s.color = style.color || "#111827";
+    s.fontWeight = style.fontWeight || "400";
+    s.textAlign = style.textAlign || "left";
+
+    // 折叠预览（如搜索结果）用 -webkit-line-clamp 保持与原生 maxLines 一致的观感
+    var r = root.style;
+    var maxLines = style.maxLines | 0;
+    if (maxLines > 0) {
+      r.display = "-webkit-box";
+      r.webkitBoxOrient = "vertical";
+      r.webkitLineClamp = String(maxLines);
+      r.overflow = "hidden";
+    } else {
+      r.display = "block";
+      r.webkitBoxOrient = "";
+      r.webkitLineClamp = "";
+      r.overflow = "visible";
+    }
+  }
+
+  window.ShirohaRender = function (payload) {
+    payload = payload || {};
+    // 代数：丢弃上一轮渲染遗留的延迟回调，避免旧高度覆盖新内容
+    currentGen = (payload.gen | 0) || (currentGen + 1);
+    applyStyle(payload.style);
+    root.textContent = "";
+
+    var segments = payload.segments || [];
+    for (var i = 0; i < segments.length; i++) {
+      var seg = segments[i];
+      if (!seg) continue;
+      if (seg.k === "t") {
+        var textNode = document.createElement("span");
+        textNode.className = "txt";
+        // textContent 赋值：题库内容绝不会被当作 HTML 执行
+        textNode.textContent = seg.v == null ? "" : String(seg.v);
+        root.appendChild(textNode);
+        continue;
+      }
+      var mathNode = document.createElement("span");
+      var failed = false;
+      try {
+        katex.render(seg.v == null ? "" : String(seg.v), mathNode, {
+          displayMode: !!seg.d,
+          throwOnError: true,
+          strict: "ignore",
+          trust: false,
+          output: "html",
+          maxSize: 20,
+          maxExpand: 2000
+        });
+      } catch (err) {
+        failed = true;
+      }
+      if (failed) {
+        mathNode.className = "math-fallback";
+        // 渲染失败：保留用户原始公式（含定界符），不吞内容
+        mathNode.textContent = seg.r == null ? String(seg.v == null ? "" : seg.v) : String(seg.r);
+        mathNode.setAttribute("data-fallback", "1");
+      } else {
+        mathNode.className = seg.d ? "math-block" : "math-inline";
+      }
+      root.appendChild(mathNode);
+    }
+
+    report();
+    // 字体/公式排版可能带来二次回流，补两次校准
+    window.setTimeout(report, 32);
+    window.setTimeout(report, 160);
+    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === "function") {
+      document.fonts.ready.then(function () { report(); });
+    }
+  };
+
+  window.ShirohaPing = function () { return true; };
+
+  var b = bridge();
+  if (b && b.onEngineReady) {
+    try { b.onEngineReady(); } catch (e) { /* ignore */ }
+  }
+})();
+</script>
+</body>
+</html>

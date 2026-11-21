@@ -136,7 +136,7 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
-import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
+import com.yiqiu.shirohaquiz.ui.text.MathRichText
 import com.yiqiu.shirohaquiz.ui.util.bankDisplayPath
 import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.Dispatchers
@@ -3183,8 +3183,8 @@ private fun NativeImportPreview(
             )
             Spacer(Modifier.height(6.dp))
             SelectionContainer {
-                Text(
-                    text = LatexDisplayFormatter.format(question.question),
+                MathRichText(
+                    text = question.question,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -3195,18 +3195,18 @@ private fun NativeImportPreview(
             }
             if (optionText.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
-                Text(
+                MathRichText(
                     text = optionText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Spacer(Modifier.height(6.dp))
-            Text(
+            MathRichText(
                 text = if (question.type == QuestionType.SHORT) {
-                    "答案：\n${LatexDisplayFormatter.format(answerText)}"
+                    "答案：\n$answerText"
                 } else {
-                    "答案：${LatexDisplayFormatter.format(answerText)}"
+                    "答案：$answerText"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
@@ -3229,8 +3229,8 @@ private fun NativeImportPreview(
             }
             if (question.analysis.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "解析：${LatexDisplayFormatter.format(question.analysis)}",
+                MathRichText(
+                    text = "解析：${question.analysis}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
