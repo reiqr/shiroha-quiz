@@ -3,10 +3,25 @@ const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 const { test } = require("node:test");
 const { runInNewContext } = require("node:vm");
+const katex = require("../../apps/android/app/src/katex/assets/katex/katex.min.js");
 
 const html = readFileSync(resolve(__dirname,
-    "../../apps/android/app/src/native/assets/katex/shiroha-math.html"), "utf8");
+    "../../apps/android/app/src/katex/assets/katex/shiroha-math.html"), "utf8");
 const script = html.match(/<script>([\s\S]+?)<\/script>/)[1];
+
+test("the bundled KaTeX renders representative formulas from the app", () => {
+    const examples = [
+        [String.raw`\dfrac{|x|}{x}\dfrac{\sin(x-1)+\sin 1}{x}`, "<mfrac>"],
+        [String.raw`\int_0^1 x^2\,dx`, "<mo>∫</mo>"],
+        [String.raw`\begin{bmatrix}1&2\\3&4\end{bmatrix}`, "<mtable"],
+        [String.raw`\begin{cases}x^2,&x\ge0\\-x,&x<0\end{cases}`, "<mtable"],
+        [String.raw`\begin{aligned}x&=1\\ y&=2\end{aligned}`, "<mtable"]
+    ];
+    for (const [formula, expected] of examples) {
+        const rendered = katex.renderToString(formula, { displayMode: true, trust: false });
+        assert.ok(rendered.includes(expected), formula);
+    }
+});
 
 function page() {
     const reports = [];

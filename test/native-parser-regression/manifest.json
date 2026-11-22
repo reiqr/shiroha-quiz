@@ -495,6 +495,14 @@
       "sample": "samples/70_fullwidth_eight_options_compatibility.txt",
       "expected": "expected/70_fullwidth_eight_options_compatibility.json",
       "risk": "全角 Ａ．至 Ｈ． 经过现有文本规范化后应保留八个选项和 H 答案"
+    },
+    {
+      "id": "71_dual_ocr_analysis_on_next_line",
+      "mode": "dual",
+      "questionSample": "samples/71_dual_ocr_analysis_on_next_line_questions.txt",
+      "answerSample": "samples/71_dual_ocr_analysis_on_next_line_answers.txt",
+      "expected": "expected/71_dual_ocr_analysis_on_next_line.json",
+      "risk": "OCR 答案后的独立解析标签与续行应合并回原题，不误吞下一题"
     }
   ]
 }

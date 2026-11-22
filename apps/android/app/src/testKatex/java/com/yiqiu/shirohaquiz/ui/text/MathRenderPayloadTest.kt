@@ -19,6 +19,14 @@ class MathRenderPayloadTest {
     )
 
     @Test
+    fun skipsScriptsThatExceedTheBridgeBudgetAfterEscaping() {
+        val text = "<".repeat(25000) + " \$x^2\$"
+        val layout = MathRenderLayout(LatexSegmenter.split(text), style, 320f)
+        assertEquals(null, MathRenderPayload.buildBoundedScript(layout, 7))
+        assertTrue(MathRenderPayload.buildBoundedScript(layout.copy(segments = LatexSegmenter.split("\$x^2\$")), 8) != null)
+    }
+
+    @Test
     fun `公式与文本都进入 segments`() {
         val segments = LatexSegmenter.split("已知 \$\\sin x\$ 的导数")
         val script = MathRenderPayload.buildScript(MathRenderLayout(segments, style, 320f), 7)

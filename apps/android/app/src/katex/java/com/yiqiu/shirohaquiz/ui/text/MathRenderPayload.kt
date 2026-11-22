@@ -26,6 +26,11 @@ internal data class MathRenderLayout(
  */
 internal object MathRenderPayload {
 
+    private const val MAX_SCRIPT_CHARS = 128 * 1024
+
+    fun buildBoundedScript(layout: MathRenderLayout, generation: Int): String? =
+        buildScript(layout, generation).takeIf { it.length <= MAX_SCRIPT_CHARS }
+
     fun buildScript(layout: MathRenderLayout, generation: Int): String {
         val (segments, style, widthDp) = layout
         val builder = StringBuilder(256 + segments.size * 48)

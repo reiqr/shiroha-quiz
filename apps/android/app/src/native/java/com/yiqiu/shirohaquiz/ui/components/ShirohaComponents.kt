@@ -69,7 +69,6 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
-import com.yiqiu.shirohaquiz.ui.text.MathRichText
 
 
 @Composable
@@ -422,7 +421,7 @@ fun QuizOptionCard(
                 )
             )
             Spacer(Modifier.width(8.dp))
-            MathRichText(
+            MathText(
                 text = text,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -471,7 +470,7 @@ fun QuizOptionCard(
                 }
             }
             Spacer(Modifier.width(ShirohaDimens.OptionLabelTextGap))
-            MathRichText(
+            MathText(
                 text = text,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = optionFontSize, lineHeight = optionLineHeight),
@@ -524,7 +523,8 @@ fun UploadPanel(
 @Composable
 fun NoticeCard(
     text: String,
-    warning: Boolean = true
+    warning: Boolean = true,
+    renderMath: Boolean = false
 ) {
     val background = if (warning) ShirohaColors.StateWarningSoft else ShirohaColors.CardWhite78
     val foreground = if (warning) ShirohaColors.TextWarning else MaterialTheme.colorScheme.onSurface
@@ -533,12 +533,13 @@ fun NoticeCard(
         shape = RoundedCornerShape(20.dp),
         color = background
     ) {
-        MathRichText(
-            text = text,
-            modifier = Modifier.padding(14.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = foreground
-        )
+        val modifier = Modifier.padding(14.dp)
+        val style = MaterialTheme.typography.bodyMedium
+        if (renderMath) {
+            MathText(text, modifier = modifier, style = style, color = foreground)
+        } else {
+            Text(text, modifier = modifier, style = style, color = foreground)
+        }
     }
 }
 

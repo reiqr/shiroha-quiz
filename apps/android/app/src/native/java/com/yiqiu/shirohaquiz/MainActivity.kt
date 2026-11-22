@@ -1,6 +1,7 @@
 package com.yiqiu.shirohaquiz
 
 import android.os.Bundle
+import android.content.ComponentCallbacks2
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -48,8 +49,7 @@ import androidx.core.view.WindowCompat
 import com.yiqiu.shirohaquiz.document.DocumentRecognitionManager
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.app.ShirohaAppShell
-import com.yiqiu.shirohaquiz.ui.text.MathHeightCache
-import com.yiqiu.shirohaquiz.ui.text.MathWebViewPool
+import com.yiqiu.shirohaquiz.ui.components.clearMathRenderCaches
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaQuizTheme
@@ -79,10 +79,13 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        // 释放公式渲染复用池，避免 WebView 持有 Activity
-        MathWebViewPool.clear()
-        MathHeightCache.clear()
         super.onDestroy()
+        clearMathRenderCaches()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) clearMathRenderCaches()
     }
 
     private fun applyStatusBarTheme(darkTheme: Boolean) {

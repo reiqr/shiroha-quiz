@@ -54,7 +54,7 @@ import com.yiqiu.shirohaquiz.ui.components.QuestionImagesBlock
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.components.shirohaNoRippleClickable
-import com.yiqiu.shirohaquiz.ui.text.MathRichText
+import com.yiqiu.shirohaquiz.ui.components.MathText
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
@@ -384,7 +384,7 @@ private fun QuestionSearchResultCard(
             StatusChip(if (expanded) "收起" else "展开", selected = expanded)
         }
         Spacer(Modifier.height(10.dp))
-        MathRichText(
+        MathText(
             text = question.question.ifBlank { "（空题干）" },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
@@ -405,7 +405,7 @@ private fun QuestionSearchResultCard(
         }
         if (answerText.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
-            MathRichText(
+            MathText(
                 text = "答案：$answerText",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -430,7 +430,7 @@ private fun QuestionSearchResultCard(
             )
         } else if (question.analysis.isNotBlank()) {
             Spacer(Modifier.height(6.dp))
-            MathRichText(
+            MathText(
                 text = "解析：${question.analysis}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -458,7 +458,7 @@ private fun FullQuestionInfo(question: Question) {
         )
         Spacer(Modifier.height(6.dp))
         question.options.forEach { option ->
-            MathRichText(
+            MathText(
                 text = "${option.key}. ${option.text}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
@@ -492,7 +492,7 @@ private fun SearchInfoBlock(label: String, text: String) {
         fontWeight = FontWeight.SemiBold
     )
     Spacer(Modifier.height(4.dp))
-    MathRichText(
+    MathText(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurface

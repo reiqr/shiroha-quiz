@@ -23,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -47,7 +49,7 @@ import androidx.compose.ui.viewinterop.AndroidView
  * - WebView 不可用或渲染失败时，原生文本继续显示题库原文。
  */
 @Composable
-fun MathRichText(
+internal fun MathRichText(
     text: String,
     modifier: Modifier = Modifier,
     style: TextStyle = LocalTextStyle.current,
@@ -64,7 +66,7 @@ fun MathRichText(
 
     if (!hasMath || !MathRenderSettings.enabled) {
         Text(
-            text = LatexDisplayFormatter.format(text),
+            text = if (!MathRenderSettings.enabled) LatexDisplayFormatter.format(text) else formatPlainMathText(text),
             modifier = modifier,
             color = color,
             fontSize = fontSize,
@@ -112,8 +114,9 @@ private fun MathWebText(
     val accessibleText = remember(rawText) {
         AnnotatedString(LatexDisplayFormatter.format(rawText).ifBlank { rawText })
     }
-    var engineFailed by remember(context) { mutableStateOf(false) }
-    val resolvedColor = if (color == Color.Unspecified) LocalContentColor.current else color
+    var inViewport by remember { mutableStateOf(false) }
+    val resolvedColor = if (color != Color.Unspecified) color
+        else if (style.color != Color.Unspecified) style.color else LocalContentColor.current
     val fallback: @Composable () -> Unit = {
         Text(
             text = rawText,
@@ -151,7 +154,14 @@ private fun MathWebText(
         )
     }
 
-    BoxWithConstraints(modifier.semantics { text = accessibleText }) {
+    BoxWithConstraints(modifier.semantics { text = accessibleText }.onGloballyPositioned {
+        inViewport = !it.boundsInWindow().isEmpty
+    }) {
+        if (!inViewport) {
+            fallback()
+            return@BoxWithConstraints
+        }
+        var engineFailed by remember(context, rawText) { mutableStateOf(false) }
         if (!MathRenderSettings.webViewEngineEnabled || engineFailed ||
             !constraints.hasBoundedWidth || maxWidth < 8.dp
         ) {
@@ -163,7 +173,11 @@ private fun MathWebText(
             MathRenderLayout(segments, renderStyle, maxWidth.value)
         }
         val generation = remember(layout) { MathRenderSequence.next() }
-        val script = remember(generation) { MathRenderPayload.buildScript(layout, generation) }
+        val script = remember(generation) { MathRenderPayload.buildBoundedScript(layout, generation) }
+        if (script == null) {
+            fallback()
+            return@BoxWithConstraints
+        }
         var measurement by remember(generation) { mutableStateOf<MathRenderResult?>(null) }
         val cachedHeightDp = remember(generation) { MathHeightCache.get(layout) }
         val result = measurement

@@ -46,6 +46,7 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
     private var pendingCallback: ((MathRenderResult?) -> Unit)? = null
     private var scriptSucceeded = false
     private var measurement: MathRenderResult? = null
+    private var publishedMeasurement: MathRenderResult? = null
     private val renderTimeout = Runnable { fail("math page or render timed out") }
 
     var isDisposed = false
@@ -200,6 +201,7 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
         pendingScript = script
         scriptSucceeded = false
         measurement = null
+        publishedMeasurement = null
         mainHandler.removeCallbacks(renderTimeout)
         mainHandler.postDelayed(renderTimeout, RENDER_TIMEOUT_MS)
         if (!loadRequested) {
@@ -237,7 +239,8 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
 
     private fun publishMeasurement() {
         val result = measurement ?: return
-        if (!scriptSucceeded) return
+        if (!scriptSucceeded || result == publishedMeasurement) return
+        publishedMeasurement = result
         mainHandler.removeCallbacks(renderTimeout)
         pendingCallback?.invoke(result)
     }
@@ -256,6 +259,7 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
         pendingCallback = null
         pendingGeneration = 0
         measurement = null
+        publishedMeasurement = null
         scriptSucceeded = false
     }
 

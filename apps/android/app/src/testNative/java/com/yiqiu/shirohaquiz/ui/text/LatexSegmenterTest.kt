@@ -176,7 +176,7 @@ class LatexSegmenterTest {
         val math = mathOf(text)
         assertEquals(1, math.size)
         assertEquals("x", math[0].latex)
-        assertTrue(plainJoined(text).contains("\$5 元"))
+        assertTrue(plainJoined(text).contains("\\\$5 元"))
     }
 
     @Test

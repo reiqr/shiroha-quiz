@@ -75,6 +75,7 @@ import com.yiqiu.shirohaquiz.ui.screens.ExamScreen
 import com.yiqiu.shirohaquiz.ui.screens.FavoriteScreen
 import com.yiqiu.shirohaquiz.ui.screens.HomeScreen
 import com.yiqiu.shirohaquiz.ui.screens.ImportScreen
+import com.yiqiu.shirohaquiz.ui.screens.ImportSourceDraft
 import com.yiqiu.shirohaquiz.ui.screens.MeScreen
 import com.yiqiu.shirohaquiz.ui.screens.AppearancePreferenceScreen
 import com.yiqiu.shirohaquiz.ui.screens.PracticePreferenceScreen
@@ -179,6 +180,7 @@ private fun decodeRouteSnapshot(value: String): AppRouteSnapshot? {
 
 @Composable
 fun ShirohaAppShell() {
+    val importSourceDraft = remember { ImportSourceDraft() }
     var currentTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var detailBankId by rememberSaveable { mutableStateOf<String?>(null) }
     var detailRecordId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -369,7 +371,9 @@ fun ShirohaAppShell() {
                             onBack = { navigateBack() }
                         )
                         MainTab.Import -> ImportScreen(
+                            sourceDraft = importSourceDraft,
                             onImportSaved = {
+                                importSourceDraft.reset()
                                 navigateRoot(MainTab.Home)
                             },
                             onOpenPreference = { navigateTo(MainTab.AiSettings) },

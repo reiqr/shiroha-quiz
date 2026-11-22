@@ -19,7 +19,7 @@ object MathRenderSettings {
 
     /** 复用池里最多保留几个已加载 KaTeX 的 WebView。 */
     @Volatile
-    var maxIdleWebViews: Int = 3
+    var maxIdleWebViews: Int = 2
 }
 
 /**
@@ -30,20 +30,30 @@ object MathRenderSettings {
  */
 internal object MathWebViewPool {
 
+    private const val MAX_ACTIVE_WEB_VIEWS = 12
     private val idle = ArrayDeque<MathWebView>()
+    private val active = mutableSetOf<MathWebView>()
     private var creationFailed = false
 
     fun obtain(context: Context): MathWebView? {
+        if (active.size >= MAX_ACTIVE_WEB_VIEWS) return null
         while (idle.isNotEmpty()) {
             val candidate = idle.removeFirst()
-            if (!candidate.isDisposed && candidate.context === context) return candidate
+            if (!candidate.isDisposed && candidate.context === context) {
+                active.add(candidate)
+                return candidate
+            }
             candidate.dispose()
         }
         if (creationFailed) return null
-        return MathWebView.create(context).also { creationFailed = it == null }
+        return MathWebView.create(context).also {
+            creationFailed = it == null
+            if (it != null) active.add(it)
+        }
     }
 
     fun recycle(view: MathWebView) {
+        if (!active.remove(view)) return
         if (view.isDisposed) return
         view.prepareForReuse()
         if (view.isDisposed) return

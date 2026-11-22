@@ -123,8 +123,8 @@ import com.yiqiu.shirohaquiz.ui.components.QuizSessionExitIconButton
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
+import com.yiqiu.shirohaquiz.ui.components.MathText
 import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
-import com.yiqiu.shirohaquiz.ui.text.MathRichText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1187,7 +1187,7 @@ fun PracticeScreen(
             } else {
                 "第 ${QuizRepository.practiceIndex + 1} / ${practiceQuestions.size} 题"
             }
-            MathRichText(
+            MathText(
                 text = question.question,
                 modifier = (if (QuizRepository.screenReaderAssistEnabled) {
                     Modifier.semantics {
@@ -1524,7 +1524,7 @@ fun PracticeScreen(
                     question.type == QuestionType.SHORT -> "参考答案"
                     else -> "正确答案"
                 }
-                NoticeCard("$answerLabel：\n$answerText", warning = false)
+                NoticeCard("$answerLabel：\n$answerText", warning = false, renderMath = true)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = "解析",
@@ -1533,7 +1533,7 @@ fun PracticeScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(4.dp))
-                MathRichText(
+                MathText(
                     text = question.analysis.takeIf { it.isNotBlank() }
                         ?.let { practiceAnalysisForDisplay(it, displayOptions) }
                         ?.let(::formatAnalysisForDisplay)
@@ -3539,7 +3539,7 @@ private fun MissingAnswerAiReferenceCard(state: MissingAnswerAiReferenceState) {
                 )
             }
             state.displayAnswer.takeIf { it.isNotBlank() }?.let { answer ->
-                MathRichText(
+                MathText(
                     text = "参考：$answer",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
@@ -3730,7 +3730,7 @@ private fun SingleQuestionAiConversationCard(messages: List<SingleQuestionAiChat
                         shape = RoundedCornerShape(14.dp),
                         color = if (message.isUser) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardWhite78
                     ) {
-                        MathRichText(
+                        MathText(
                             text = formatAnalysisForDisplay(message.content),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                             style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
@@ -3788,7 +3788,7 @@ private fun SingleQuestionAiResultCard(result: AiSingleQuestionAnalysis) {
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            MathRichText(
+            MathText(
                 text = formatAnalysisForDisplay(result.analysis),
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 23.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant

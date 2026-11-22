@@ -10,9 +10,13 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebSettings
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Recomposer
@@ -74,6 +78,26 @@ class MathRichTextTest {
         controller.pause().stop().destroy()
         MathWebViewPool.clear()
         MathHeightCache.clear()
+    }
+
+    @Test
+    fun offscreenPreviewWaitsForViewportBeforeBorrowingAWebView() {
+        val scroll = ScrollState(0)
+        show {
+            Column(Modifier.height(240.dp).verticalScroll(scroll)) {
+                Spacer(Modifier.height(400.dp))
+                MathRichText("题干 \$x^2\$")
+            }
+        }
+        assertNull(webView())
+
+        scroll.dispatchRawDelta(400f)
+        frame()
+        requireNotNull(webView())
+
+        scroll.dispatchRawDelta(-400f)
+        frame()
+        assertNull(webView())
     }
 
     @Test

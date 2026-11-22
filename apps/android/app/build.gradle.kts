@@ -5,6 +5,14 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val latexComparison = providers.gradleProperty("latexComparison").orNull
+val noRatex = providers.gradleProperty("noRatex").isPresent
+require(latexComparison == null || latexComparison in setOf("ratex", "katex")) {
+    "latexComparison must be ratex or katex"
+}
+require(latexComparison == null || !noRatex) { "Do not combine latexComparison and noRatex" }
+val latexSource = latexComparison ?: if (noRatex) "lite" else "ratex"
+
 android {
     namespace = "com.yiqiu.shirohaquiz"
     compileSdk = 34
@@ -21,15 +29,23 @@ android {
         create("web") {
             dimension = "variant"
             applicationId = "com.yiqiu.shirohaquiz"
-            versionCode = 56
-            versionName = "0.8.9.1-alpha"
+            versionCode = 57
+            versionName = "0.8.10-alpha"
         }
         create("native") {
             dimension = "variant"
             testInstrumentationRunner = "com.yiqiu.shirohaquiz.state.QuizRepositoryCloudRestoreSafetyInstrumentation"
             applicationId = "com.reqir.shirohaquiz"
-            versionCode = 217
-            versionName = "0.9.16.1"
+            versionCode = 218
+            buildConfigField("boolean", "MATH_RENDERING_ENABLED", (latexSource != "lite").toString())
+            versionName = when {
+                latexComparison != null -> "0.9.17-$latexComparison-test"
+                noRatex -> "0.9.17-lite"
+                else -> "0.9.17"
+            }
+            if (latexComparison != null) {
+                applicationIdSuffix = ".$latexComparison.test"
+            }
         }
     }
 
@@ -48,14 +64,14 @@ android {
     }
 
     buildTypes {
-        create("katexTest") {
-            initWith(getByName("debug"))
-            applicationIdSuffix = ".katex.test"
-        }
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName(if (latexComparison != null) "debug" else "release")
             isMinifyEnabled = true
             isShrinkResources = true
+            // Standard release targets modern 64-bit ARM phones; Lite (no native libs) stays universal.
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -82,7 +98,15 @@ android {
         compose = true
     }
 
-    sourceSets.getByName("testNative").java.srcDir("src/androidTestNative/java")
+    sourceSets.getByName("native").apply {
+        java.srcDir("src/$latexSource/java")
+        if (latexSource == "katex") assets.srcDir("src/katex/assets")
+        if (latexComparison != null) res.srcDir("src/$latexSource/res")
+    }
+    sourceSets.getByName("testNative").apply {
+        java.srcDir("src/androidTestNative/java")
+        if (latexSource == "katex") java.srcDir("src/testKatex/java")
+    }
     testOptions.unitTests.isIncludeAndroidResources = true
 
     packaging {
@@ -93,8 +117,10 @@ android {
 }
 
 androidComponents {
-    beforeVariants(selector().withFlavor("variant" to "web").withBuildType("katexTest")) {
-        it.enable = false
+    if (latexComparison != null) {
+        beforeVariants(selector().withFlavor("variant" to "web")) {
+            it.enable = false
+        }
     }
 }
 
@@ -113,8 +139,10 @@ val exportNativeReleaseApk by tasks.registering(Copy::class) {
 }
 
 afterEvaluate {
-    tasks.named("assembleWebRelease") {
-        finalizedBy(exportWebReleaseApk)
+    if (latexComparison == null) {
+        tasks.named("assembleWebRelease") {
+            finalizedBy(exportWebReleaseApk)
+        }
     }
     tasks.named("assembleNativeRelease") {
         finalizedBy(exportNativeReleaseApk)
@@ -134,6 +162,9 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     add("nativeImplementation", "androidx.work:work-runtime-ktx:2.9.1")
+    if (latexSource == "ratex") {
+        add("nativeImplementation", "io.github.erweixin:ratex-android:0.1.15")
+    }
     testImplementation("junit:junit:4.13.2")
     add("testNativeImplementation", "net.sf.kxml:kxml2:2.3.0")
     add("testNativeImplementation", "org.robolectric:robolectric:4.12.2")

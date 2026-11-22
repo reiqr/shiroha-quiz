@@ -215,6 +215,13 @@ object AnswerParser {
     private val numberedAnalysisOnlyLineRegex = Regex(
         """^\s*(?:第\s*)?(\d{1,4})\s*(?:题)?\s*[.、．:：)）]\s*(.+)$"""
     )
+    private val followingAnalysisLabelRegex = Regex(
+        """^(?:#{1,6}\s+)?(?:[【\[]\s*(?:$ANALYSIS_LABEL_PATTERN)\s*[】\]]\s*[:：]?|(?:$ANALYSIS_LABEL_PATTERN)(?:\s*[:：]|(?=$)))\s*(.*)$"""
+    )
+    private val numberedAnswerBoundaryRegex = Regex(
+        """^(?:第\s*)?[0-9一二三四五六七八九十百]{1,4}(?:\s*题)?(?:\s*[.、．:：)）]|\s*(?:[【\[]\s*(?:$ANSWER_LABEL_PATTERN)\s*[】\]]|(?:本题)?(?:$ANSWER_LABEL_PATTERN)$ANSWER_SEPARATOR_PATTERN)|\s+(?:$OBJECTIVE_ANSWER_VALUE_PATTERN)(?=\s|$))""",
+        RegexOption.IGNORE_CASE
+    )
 
 
     private data class AnswerParseContext(
@@ -294,13 +301,25 @@ object AnswerParser {
 
             when (result) {
                 is AnswerRuleResult.Entries -> {
-                    entries += result.values
+                    val nextIndex = index + result.consumedLines
+                    val single = result.values.singleOrNull()
+                    val continuation = if (single != null && single.answer.isNotEmpty()) {
+                        readFollowingAnalysis(lines, nextIndex)
+                    } else null
+                    if (single != null && continuation != null) {
+                        val (analysis, _) = continuation
+                        entries += single.copy(
+                            analysis = listOf(single.analysis, analysis).filter(String::isNotBlank).joinToString("\n")
+                        )
+                    } else {
+                        entries += result.values
+                    }
                     result.values.lastOrNull { it.category.isNotBlank() }?.let { entry ->
                         currentCategory = entry.category
                         currentType = entry.type ?: currentType
                     }
                     sequence += result.values.size
-                    index += result.consumedLines
+                    index = continuation?.second ?: nextIndex
                     inNumberedAnalysisSection = false
                 }
                 is AnswerRuleResult.ConsumeLine -> {
@@ -314,6 +333,30 @@ object AnswerParser {
         }
 
         return entries
+    }
+
+    private fun readFollowingAnalysis(lines: List<String>, start: Int): Pair<String, Int>? {
+        val label = lines.getOrNull(start)?.let(followingAnalysisLabelRegex::matchEntire) ?: return null
+        val body = mutableListOf<String>()
+        label.groupValues[1].takeIf(String::isNotBlank)?.let(body::add)
+        var index = start + 1
+        while (index < lines.size) {
+            val line = lines[index]
+            if (numberedAnswerBoundaryRegex.containsMatchIn(line) ||
+                tableQuestionNumberRowRegex.matches(line) ||
+                tableAnswerRowRegex.matches(line) ||
+                analysisOnlySectionHeadingRegex.matches(line) ||
+                followingAnalysisLabelRegex.matches(line) ||
+                SectionTitleParser.isSectionHeading(line) ||
+                compactAnswerPairRegex.containsMatchIn(line) && compactAnswerNoiseRegex.matches(
+                    compactAnswerPairRegex.replace(line, "").ifEmpty { " " }
+                )
+            ) break
+            body += line
+            index += 1
+        }
+        // A standalone heading followed by numbered entries belongs to the existing analysis-section path.
+        return body.takeIf { it.isNotEmpty() }?.joinToString("\n")?.let { it to index }
     }
 
     private fun parseNumberedAnalysisOnlyLine(line: String): ParsedAnswerEntry? {

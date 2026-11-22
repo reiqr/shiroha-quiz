@@ -17,7 +17,7 @@ sealed class LatexSegment {
 
     /**
      * 数学公式。
-     * @param latex 去掉定界符后的公式体，交给 KaTeX 渲染。
+     * @param latex 去掉定界符后的公式体。
      * @param display 是否为独立公式（$$ / \[ \]）。
      * @param raw 含定界符的原始片段，渲染失败时用于回退显示。
      */
@@ -27,12 +27,15 @@ sealed class LatexSegment {
 object LatexSegmenter {
 
     private const val FENCE = "```"
+    private const val MAX_FORMULAS = 48
 
     /** 行内公式最长扫描长度，防止未闭合的 `$` 把整段题干吞掉。 */
     private const val MAX_INLINE_LENGTH = 2048
 
     /** 独立公式最长扫描长度。 */
     private const val MAX_DISPLAY_LENGTH = 16384
+
+    private const val MAX_TEXT_LENGTH = 32768
 
     fun containsMath(text: String): Boolean {
         if (text.isEmpty()) return false
@@ -47,9 +50,13 @@ object LatexSegmenter {
 
     fun split(text: String): List<LatexSegment> {
         if (text.isEmpty()) return emptyList()
+        if (text.length > MAX_TEXT_LENGTH || !looksLikeMathSource(text)) {
+            return listOf(LatexSegment.PlainText(text))
+        }
         val segments = ArrayList<LatexSegment>()
         val plain = StringBuilder(text.length)
         var index = 0
+        var formulaCount = 0
         val length = text.length
 
         fun flushPlain() {
@@ -60,12 +67,19 @@ object LatexSegmenter {
         }
 
         while (index < length) {
+            if (formulaCount >= MAX_FORMULAS) {
+                plain.append(text, index, length)
+                break
+            }
             val ch = text[index]
 
             // 围栏代码块整体按纯文本处理
-            if (ch == '`' && text.startsWith(FENCE, index)) {
-                val close = text.indexOf(FENCE, index + FENCE.length)
-                val end = if (close < 0) length else close + FENCE.length
+            if (text.startsWith(FENCE, index) || text.startsWith("~~~", index)) {
+                var afterOpening = index + 3
+                while (text.getOrNull(afterOpening) == ch) afterOpening++
+                val fence = text.substring(index, afterOpening)
+                val close = text.indexOf(fence, afterOpening)
+                val end = if (close < 0) length else close + fence.length
                 plain.append(text, index, end)
                 index = end
                 continue
@@ -100,6 +114,7 @@ object LatexSegmenter {
                         if (parsed != null) {
                             flushPlain()
                             segments.add(parsed.segment)
+                            formulaCount++
                             index = parsed.end
                             continue
                         }
@@ -118,6 +133,7 @@ object LatexSegmenter {
                         if (parsed != null) {
                             flushPlain()
                             segments.add(parsed.segment)
+                            formulaCount++
                             index = parsed.end
                             continue
                         }
@@ -125,7 +141,7 @@ object LatexSegmenter {
 
                     '$' -> {
                         // 转义美元符号，不参与公式识别
-                        plain.append('$')
+                        plain.append('\\').append('$')
                         index += 2
                         continue
                     }
@@ -156,10 +172,14 @@ object LatexSegmenter {
                     if (parsed != null) {
                         flushPlain()
                         segments.add(parsed.segment)
+                        formulaCount++
                         index = parsed.end
                         continue
                     }
-                } else {
+                    plain.append("$$")
+                    index += 2
+                    continue
+                } else if (text.getOrNull(index + 1)?.isWhitespace() == false) {
                     val parsed = parseDelimited(
                         text = text,
                         contentStart = index + 1,
@@ -172,6 +192,7 @@ object LatexSegmenter {
                     if (parsed != null) {
                         flushPlain()
                         segments.add(parsed.segment)
+                        formulaCount++
                         index = parsed.end
                         continue
                     }
@@ -209,6 +230,9 @@ object LatexSegmenter {
                 val content = text.substring(contentStart, cursor)
                 if (content.isBlank()) return null
                 val rawEnd = cursor + closer.length
+                if (closer == "$" && (content.last().isWhitespace() ||
+                        text.getOrNull(rawEnd)?.let { it == '$' || it.isDigit() } == true)
+                ) return null
                 return Parsed(
                     LatexSegment.Math(
                         latex = content,
@@ -219,11 +243,12 @@ object LatexSegmenter {
                 )
             }
             val ch = text[cursor]
+            if (!allowNewline && (ch == '\n' || ch == '\r')) return null
             if (ch == '\\' && cursor + 1 < text.length) {
+                if (!allowNewline && text[cursor + 1] in "\r\n") return null
                 cursor += 2
                 continue
             }
-            if (!allowNewline && (ch == '\n' || ch == '\r')) return null
             // 未闭合的公式不应跨越代码块
             if (ch == '`' && text.startsWith(FENCE, cursor)) return null
             cursor++
@@ -243,3 +268,6 @@ object LatexSegmenter {
         return -1
     }
 }
+
+internal fun formatPlainMathText(text: String): String =
+    if (LatexSegmenter.looksLikeMathSource(text)) text else LatexDisplayFormatter.format(text)

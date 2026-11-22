@@ -58,6 +58,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.yiqiu.shirohaquiz.document.DocumentImportTarget
 import com.yiqiu.shirohaquiz.document.DocumentRecognitionManager
 import com.yiqiu.shirohaquiz.document.DocumentRecognitionTask
 import com.yiqiu.shirohaquiz.document.DocumentTaskStage
@@ -211,9 +212,9 @@ fun DocumentRecognitionScreen(
                 hasImageReferences = task.hasImageReferences,
                 onTextChange = DocumentRecognitionManager::updateResultText,
                 enabled = !isLocked,
-                onUseForImport = {
+                onUseForImport = { target ->
                     scope.launch {
-                        if (DocumentRecognitionManager.prepareImportDraft(resultText)) onUseResultForImport()
+                        if (DocumentRecognitionManager.prepareImportDraft(resultText, target)) onUseResultForImport()
                     }
                 }
             )
@@ -671,7 +672,7 @@ private fun RecognitionResultCard(
     hasImageReferences: Boolean,
     enabled: Boolean,
     onTextChange: (String) -> Unit,
-    onUseForImport: () -> Unit
+    onUseForImport: (DocumentImportTarget) -> Unit
 ) {
     GlassCard {
         Text("识别文本预览", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
@@ -702,15 +703,19 @@ private fun RecognitionResultCard(
         Spacer(Modifier.height(12.dp))
         ActionPillButton(
             icon = Icons.Rounded.PlayArrow,
-            text = "使用此文本导入",
+            text = "用作题目／完整题库",
             primary = true,
             enabled = enabled && text.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
             fillWidthContent = true,
-            onClick = onUseForImport
+            onClick = { onUseForImport(DocumentImportTarget.QUESTIONS) }
         )
+        TextButton(
+            enabled = enabled && text.isNotBlank(),
+            onClick = { onUseForImport(DocumentImportTarget.ANSWERS) }
+        ) { Text("用作答案文件（仅文本）") }
     }
 }
 

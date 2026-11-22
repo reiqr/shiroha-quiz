@@ -66,13 +66,16 @@ data class DocumentRecognitionTask(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+enum class DocumentImportTarget { QUESTIONS, ANSWERS }
+
 data class DocumentImportDraft(
     val id: String,
     val sourceFileName: String,
     val text: String,
     val hasImageReferences: Boolean,
     val images: List<QuestionImportAssetExtractor.ExtractedImportImage> = emptyList(),
-    val imageAssignments: Map<String, Int> = emptyMap()
+    val imageAssignments: Map<String, Int> = emptyMap(),
+    val target: DocumentImportTarget = DocumentImportTarget.QUESTIONS
 )
 
 data class DocumentImageAsset(

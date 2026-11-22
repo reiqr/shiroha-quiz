@@ -84,7 +84,7 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
-import com.yiqiu.shirohaquiz.ui.text.MathRichText
+import com.yiqiu.shirohaquiz.ui.components.MathText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -863,7 +863,7 @@ private fun ActiveExamPanel(
             }
         }
         Spacer(Modifier.height(18.dp))
-        MathRichText(
+        MathText(
             text = examQuestion.question,
             modifier = Modifier.questionInkLayer(questionInk, "stem"),
             style = MaterialTheme.typography.titleLarge.copy(
