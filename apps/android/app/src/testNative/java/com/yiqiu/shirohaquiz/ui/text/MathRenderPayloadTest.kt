@@ -21,7 +21,7 @@ class MathRenderPayloadTest {
     @Test
     fun `公式与文本都进入 segments`() {
         val segments = LatexSegmenter.split("已知 \$\\sin x\$ 的导数")
-        val script = MathRenderPayload.buildScript(segments, style, 7)
+        val script = MathRenderPayload.buildScript(MathRenderLayout(segments, style, 320f), 7)
         assertTrue(script.startsWith("window.ShirohaRender("))
         assertTrue(script.endsWith(");"))
         assertTrue(script.contains("\"gen\":7"))
@@ -33,7 +33,7 @@ class MathRenderPayloadTest {
     @Test
     fun `独立公式带 display 标记`() {
         val segments = LatexSegmenter.split("$$\n\\int_0^1 x^2\\,dx\n$$")
-        val script = MathRenderPayload.buildScript(segments, style, 1)
+        val script = MathRenderPayload.buildScript(MathRenderLayout(segments, style, 320f), 1)
         assertTrue(script.contains("\"d\":1"))
     }
 
@@ -42,7 +42,7 @@ class MathRenderPayloadTest {
         val segments = listOf(
             LatexSegment.PlainText("<script>alert(1)</script>")
         )
-        val script = MathRenderPayload.buildScript(segments, style, 1)
+        val script = MathRenderPayload.buildScript(MathRenderLayout(segments, style, 320f), 1)
         assertFalse(script.contains("<script>"))
         assertTrue(script.contains("\\u003cscript\\u003e"))
     }
@@ -52,7 +52,7 @@ class MathRenderPayloadTest {
         val segments = listOf(
             LatexSegment.PlainText("引号 \" 与反斜杠 \\ 与换行 \n")
         )
-        val script = MathRenderPayload.buildScript(segments, style, 1)
+        val script = MathRenderPayload.buildScript(MathRenderLayout(segments, style, 320f), 1)
         assertTrue(script.contains("\\\""))
         assertTrue(script.contains("\\\\"))
         assertTrue(script.contains("\\n"))
@@ -63,7 +63,7 @@ class MathRenderPayloadTest {
         val segments = listOf(
             LatexSegment.PlainText("</script><img src=x onerror=alert(1)>")
         )
-        val script = MathRenderPayload.buildScript(segments, style, 1)
+        val script = MathRenderPayload.buildScript(MathRenderLayout(segments, style, 320f), 1)
         assertFalse(script.contains("</script>"))
         assertFalse(script.contains("<img"))
     }
@@ -71,7 +71,7 @@ class MathRenderPayloadTest {
     @Test
     fun `原始公式用于渲染失败回退`() {
         val segments = LatexSegmenter.split("$\\notACommand{x}$")
-        val script = MathRenderPayload.buildScript(segments, style, 1)
+        val script = MathRenderPayload.buildScript(MathRenderLayout(segments, style, 320f), 1)
         assertTrue(script.contains("\"r\":\"$\\notACommand{x}$\"") || script.contains("notACommand"))
     }
 
@@ -85,19 +85,17 @@ class MathRenderPayloadTest {
     fun `maxLines 写入样式`() {
         val clamped = style.copy(maxLines = 3)
         val script = MathRenderPayload.buildScript(
-            LatexSegmenter.split("\$x\$"),
-            clamped,
+            MathRenderLayout(LatexSegmenter.split("\$x\$"), clamped, 320f),
             1
         )
         assertTrue(script.contains("\"maxLines\":3"))
     }
 
     @Test
-    fun `样式缓存键区分字号与颜色`() {
-        val a = style.cacheKey()
-        val b = style.copy(fontSizePx = 18f).cacheKey()
-        val c = style.copy(colorArgb = 0xFF000000.toInt()).cacheKey()
-        assertTrue(a != b)
-        assertTrue(a != c)
+    fun `布局缓存键区分字号颜色与宽度`() {
+        val layout = MathRenderLayout(emptyList(), style, 320f)
+        assertFalse(layout == layout.copy(style = style.copy(fontSizePx = 18f)))
+        assertFalse(layout == layout.copy(style = style.copy(colorArgb = 0xFF000000.toInt())))
+        assertFalse(layout == layout.copy(widthDp = 240f))
     }
 }

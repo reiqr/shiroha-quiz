@@ -1,6 +1,7 @@
 package com.yiqiu.shirohaquiz.ui.text
 
 import android.content.Context
+import android.view.View
 import android.widget.FrameLayout
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -13,15 +14,21 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,8 +44,7 @@ import androidx.compose.ui.viewinterop.AndroidView
  * - 不含公式时走原生 [Text]，与改造前完全一致（零额外开销）。
  * - 含公式时用离线 KaTeX（assets 内置）在一个复用 WebView 里整段排版，
  *   中文与行内公式的基线、分式、矩阵、极限等都由 KaTeX 正确处理。
- * - 渲染失败、WebView 不可用、或开关关闭时，自动回退到 [LatexDisplayFormatter] 的纯文本结果，
- *   原始公式内容不会被吞掉。
+ * - WebView 不可用或渲染失败时，原生文本继续显示题库原文。
  */
 @Composable
 fun MathRichText(
@@ -82,7 +88,8 @@ fun MathRichText(
         fontSize = fontSize,
         lineHeight = lineHeight,
         textAlign = textAlign,
-        maxLines = maxLines
+        maxLines = maxLines,
+        overflow = overflow
     )
 }
 
@@ -97,28 +104,29 @@ private fun MathWebText(
     fontSize: TextUnit,
     lineHeight: TextUnit,
     textAlign: TextAlign?,
-    maxLines: Int
+    maxLines: Int,
+    overflow: TextOverflow
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val engineSupported = remember(context) {
-        MathRenderSettings.webViewEngineEnabled && MathEngineAvailability.isSupported(context)
+    val accessibleText = remember(rawText) {
+        AnnotatedString(LatexDisplayFormatter.format(rawText).ifBlank { rawText })
     }
-    val fallbackText = remember(rawText) { LatexDisplayFormatter.format(rawText) }
+    var engineFailed by remember(context) { mutableStateOf(false) }
     val resolvedColor = if (color == Color.Unspecified) LocalContentColor.current else color
-
-    if (!engineSupported) {
+    val fallback: @Composable () -> Unit = {
         Text(
-            text = fallbackText,
-            modifier = modifier,
+            text = rawText,
+            modifier = Modifier.clearAndSetSemantics {},
             color = color,
             fontSize = fontSize,
             lineHeight = lineHeight,
             fontWeight = fontWeight,
             textAlign = textAlign,
+            maxLines = maxLines,
+            overflow = overflow,
             style = style
         )
-        return
     }
 
     val baseFontSize = if (fontSize == TextUnit.Unspecified) style.fontSize else fontSize
@@ -143,102 +151,79 @@ private fun MathWebText(
         )
     }
 
-    BoxWithConstraints(modifier) {
-        // 宽度不受限时无法排版（WebView 需要一个确定宽度），直接退回纯文本
-        if (!constraints.hasBoundedWidth || maxWidth.value < 8f) {
-            Text(
-                text = fallbackText,
-                style = style,
-                color = color,
-                fontSize = fontSize,
-                lineHeight = lineHeight,
-                fontWeight = fontWeight,
-                textAlign = textAlign
-            )
+    BoxWithConstraints(modifier.semantics { text = accessibleText }) {
+        if (!MathRenderSettings.webViewEngineEnabled || engineFailed ||
+            !constraints.hasBoundedWidth || maxWidth < 8.dp
+        ) {
+            fallback()
             return@BoxWithConstraints
         }
 
-        val availableWidthDp = maxWidth.value
-        val availableWidthPx = constraints.maxWidth
-        val cacheKey = remember(renderStyle, availableWidthPx, segments) {
-            "${renderStyle.cacheKey()}|$availableWidthPx|${segments.hashCode()}"
+        val layout = remember(segments, renderStyle, maxWidth) {
+            MathRenderLayout(segments, renderStyle, maxWidth.value)
         }
-        val render = remember(segments, renderStyle) {
-            val generation = MathRenderSequence.next()
-            generation to MathRenderPayload.buildScript(segments, renderStyle, generation)
-        }
+        val generation = remember(layout) { MathRenderSequence.next() }
+        val script = remember(generation) { MathRenderPayload.buildScript(layout, generation) }
+        var measurement by remember(generation) { mutableStateOf<MathRenderResult?>(null) }
+        val cachedHeightDp = remember(generation) { MathHeightCache.get(layout) }
+        val result = measurement
+        val scrollState = key(rawText) { rememberScrollState() }
 
-        var measuredHeightDp by remember(cacheKey) {
-            mutableIntStateOf(MathHeightCache.get(cacheKey))
-        }
-        var requiredWidthDp by remember(cacheKey) { mutableIntStateOf(0) }
+        Box(Modifier.fillMaxWidth()) {
+            if (result == null) fallback()
 
-        val needsScroll = requiredWidthDp > 0 && requiredWidthDp > availableWidthDp + 1f
-        val scrollState = rememberScrollState()
-
-        Box(
-            modifier = if (needsScroll) {
+            val overflowWidth = result?.takeIf { it.overflow }?.scrollWidthPx
+            val webViewport = if (overflowWidth != null) {
                 Modifier.fillMaxWidth().horizontalScroll(scrollState)
             } else {
                 Modifier.fillMaxWidth()
             }
-        ) {
-            // 高度尚未测量出来之前，用透明纯文本占位，避免整屏跳动
-            if (measuredHeightDp <= 0) {
-                Text(
-                    text = fallbackText,
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Transparent,
-                    fontSize = fontSize,
-                    lineHeight = lineHeight,
-                    fontWeight = fontWeight,
-                    textAlign = textAlign,
-                    style = style
+            Box(webViewport) {
+                AndroidView(
+                    factory = { ctx -> MathTextContainer(ctx) },
+                    update = { container ->
+                        val webView = container.ensureEngine()
+                        if (webView == null) {
+                            engineFailed = true
+                        } else {
+                            webView.render(script, generation) { measured ->
+                                if (measured == null) {
+                                    engineFailed = true
+                                } else {
+                                    measurement = measured
+                                    MathHeightCache.put(layout, measured.heightPx)
+                                }
+                            }
+                        }
+                    },
+                    onRelease = { container -> container.releaseEngine() },
+                    modifier = (overflowWidth?.let { Modifier.width(it.dp) } ?: Modifier.fillMaxWidth())
+                        .height((result?.heightPx ?: cachedHeightDp.coerceAtLeast(1)).dp)
+                        .alpha(if (result == null) 0f else 1f)
                 )
             }
-
-            AndroidView(
-                factory = { ctx -> MathTextContainer(ctx) },
-                update = { container ->
-                    val webView = container.ensureEngine() ?: return@AndroidView
-                    webView.render(render.second, render.first) { result ->
-                        if (result.heightPx > 0 && result.heightPx != measuredHeightDp) {
-                            measuredHeightDp = result.heightPx
-                            MathHeightCache.put(cacheKey, result.heightPx)
-                        }
-                        if (requiredWidthDp == 0 && result.overflow &&
-                            result.scrollWidthPx > availableWidthDp + 1f
-                        ) {
-                            requiredWidthDp = result.scrollWidthPx
-                        }
-                    }
-                },
-                onRelease = { container -> container.releaseEngine() },
-                modifier = Modifier
-                    .then(
-                        if (needsScroll) {
-                            Modifier.width(requiredWidthDp.dp)
-                        } else {
-                            Modifier.fillMaxWidth()
-                        }
-                    )
-                    .height((if (measuredHeightDp > 0) measuredHeightDp else 1).dp)
-            )
         }
     }
 }
 
-/** 承载 WebView 的容器：WebView 创建失败时不会崩溃，而是让上层继续用占位文本。 */
+/** 容器在生命周期内只尝试一次创建，由 Compose 在失败时显示原文。 */
 internal class MathTextContainer(context: Context) : FrameLayout(context) {
 
     private var engine: MathWebView? = null
+    private var requestedEngine = false
+
+    init {
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    }
 
     fun ensureEngine(): MathWebView? {
-        engine?.let { return it }
-        val created = MathWebViewPool.obtain(context) ?: return null
-        engine = created
-        addView(created, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        return created
+        if (!requestedEngine) {
+            requestedEngine = true
+            engine = MathWebViewPool.obtain(context)?.also {
+                addView(it, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+            }
+        }
+        return engine
     }
 
     fun releaseEngine() {

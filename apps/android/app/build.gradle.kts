@@ -48,6 +48,10 @@ android {
     }
 
     buildTypes {
+        create("katexTest") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".katex.test"
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
@@ -85,6 +89,12 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+androidComponents {
+    beforeVariants(selector().withFlavor("variant" to "web").withBuildType("katexTest")) {
+        it.enable = false
     }
 }
 

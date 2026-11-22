@@ -10,6 +10,8 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -29,7 +31,7 @@ internal data class MathRenderResult(
  *
  * 关键约束：
  * 1. 触摸事件全部返回 false，让手势回到 Compose，保证 LazyColumn 滚动与选项点击都不受影响。
- * 2. 所有请求都由 [shouldInterceptRequest] 决定，只允许读 `assets/katex/`，
+ * 2. 所有请求都由 WebViewClient 拦截，只允许读 `assets/katex/`，
  *    其它请求一律返回空响应，因此离线可用且不可能访问 CDN。
  * 3. 题目文本以 `textContent` 与 JSON 字符串形式注入，绝不拼 HTML，不执行题库内容里的脚本。
  */
@@ -41,8 +43,13 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
     private var loadRequested = false
     private var pendingScript: String? = null
     private var pendingGeneration = 0
-    private var pendingCallback: ((MathRenderResult) -> Unit)? = null
-    private var lastScript: String? = null
+    private var pendingCallback: ((MathRenderResult?) -> Unit)? = null
+    private var scriptSucceeded = false
+    private var measurement: MathRenderResult? = null
+    private val renderTimeout = Runnable { fail("math page or render timed out") }
+
+    var isDisposed = false
+        private set
 
     private val bridge = Bridge()
 
@@ -57,7 +64,7 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
         isClickable = false
         isLongClickable = false
         isHapticFeedbackEnabled = false
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
 
         settings.apply {
             javaScriptEnabled = true
@@ -92,23 +99,51 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
                 view: WebView?,
                 request: WebResourceRequest?
             ): WebResourceResponse {
-                val url = request?.url?.toString().orEmpty()
-                return loadLocalAsset(url) ?: blockedResponse()
+                val uri = request?.url
+                return if (uri != null && isLocalAsset(uri)) {
+                    loadLocalAsset(uri) ?: emptyResponse(404, "Not Found")
+                } else {
+                    emptyResponse(403, "Forbidden")
+                }
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
+                if (isDisposed || url != PAGE_URL) return
                 pageReady = true
                 flushPending()
+            }
+
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame || isLocalAsset(request.url)) {
+                    fail("math page or asset failed to load (${error.errorCode})")
+                }
+            }
+
+            override fun onReceivedHttpError(
+                view: WebView,
+                request: WebResourceRequest,
+                errorResponse: WebResourceResponse
+            ) {
+                if (request.isForMainFrame || isLocalAsset(request.url)) {
+                    fail("math page or asset returned HTTP ${errorResponse.statusCode}")
+                }
+            }
+
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                fail("math WebView renderer exited")
+                return true
             }
         }
     }
 
-    private fun loadLocalAsset(url: String): WebResourceResponse? {
-        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
-        if (!uri.host.equals(ASSET_HOST, ignoreCase = true)) return null
+    private fun isLocalAsset(uri: Uri): Boolean =
+        uri.scheme == "https" &&
+            uri.host.equals(ASSET_HOST, ignoreCase = true) &&
+            uri.path.orEmpty().startsWith("/$ASSET_PREFIX") &&
+            !uri.path.orEmpty().contains("..")
+
+    private fun loadLocalAsset(uri: Uri): WebResourceResponse? {
         val path = uri.path.orEmpty().trimStart('/')
-        if (path.isEmpty() || !path.startsWith(ASSET_PREFIX)) return null
-        if (path.contains("..")) return null
         return try {
             val stream = context.assets.open(path)
             val mime = mimeTypeOf(path)
@@ -119,8 +154,10 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
         }
     }
 
-    private fun blockedResponse(): WebResourceResponse {
-        return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
+    private fun emptyResponse(status: Int, reason: String): WebResourceResponse {
+        return WebResourceResponse(
+            "text/plain", "utf-8", status, reason, emptyMap(), ByteArrayInputStream(ByteArray(0))
+        )
     }
 
     private fun mimeTypeOf(path: String): String {
@@ -151,68 +188,94 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
         flushPending()
     }
 
-    fun render(script: String, generation: Int, callback: (MathRenderResult) -> Unit) {
-        pendingGeneration = generation
-        pendingCallback = callback
-        if (script == lastScript && pendingScript == null) {
-            // 同样的内容已经渲染过，只更新回调，避免重复回流
+    fun render(script: String, generation: Int, callback: (MathRenderResult?) -> Unit) {
+        if (isDisposed) {
+            callback(null)
             return
         }
-        lastScript = script
+        pendingCallback = callback
+        if (generation == pendingGeneration) return
+
+        pendingGeneration = generation
         pendingScript = script
-        if (!pageReady) {
-            ensurePageLoaded()
-            return
+        scriptSucceeded = false
+        measurement = null
+        mainHandler.removeCallbacks(renderTimeout)
+        mainHandler.postDelayed(renderTimeout, RENDER_TIMEOUT_MS)
+        if (!loadRequested) {
+            loadRequested = true
+            runCatching { loadUrl(PAGE_URL) }
+                .onFailure { fail("failed to load math page", it) }
         }
         flushPending()
-    }
-
-    private fun ensurePageLoaded() {
-        if (loadRequested) return
-        loadRequested = true
-        runCatching { loadUrl(PAGE_URL) }
-            .onFailure { Log.w(TAG, "failed to load math page", it) }
     }
 
     private fun flushPending() {
         val script = pendingScript ?: return
         if (!pageReady || !isAttachedToWindow) return
+        val generation = pendingGeneration
         pendingScript = null
-        runCatching { evaluateJavascript(script, null) }
-            .onFailure { Log.w(TAG, "failed to run render script", it) }
+        runCatching {
+            evaluateJavascript(script) { reply ->
+                if (generation == pendingGeneration && !isDisposed) {
+                    if (reply == "true") {
+                        scriptSucceeded = true
+                        publishMeasurement()
+                    } else {
+                        fail("math render script did not complete")
+                    }
+                }
+            }
+        }.onFailure { fail("failed to run math render script", it) }
     }
 
     private fun deliverResult(generation: Int, result: MathRenderResult) {
-        // 代数不匹配说明这是上一轮渲染的延迟回调，直接丢弃
-        if (generation != pendingGeneration) return
-        if (result.heightPx <= 0) return
+        if (generation != pendingGeneration || isDisposed || result.heightPx <= 0) return
+        measurement = result
+        publishMeasurement()
+    }
+
+    private fun publishMeasurement() {
+        val result = measurement ?: return
+        if (!scriptSucceeded) return
+        mainHandler.removeCallbacks(renderTimeout)
         pendingCallback?.invoke(result)
+    }
+
+    private fun fail(message: String, cause: Throwable? = null) {
+        if (isDisposed) return
+        Log.w(TAG, message, cause)
+        val callback = pendingCallback
+        dispose()
+        callback?.invoke(null)
+    }
+
+    private fun resetRender() {
+        mainHandler.removeCallbacks(renderTimeout)
+        pendingScript = null
+        pendingCallback = null
+        pendingGeneration = 0
+        measurement = null
+        scriptSucceeded = false
     }
 
     /** 归还到复用池之前调用：清空页面内容，避免下一个使用位置先闪出旧公式。 */
     fun prepareForReuse() {
-        pendingScript = null
-        pendingCallback = null
-        lastScript = null
-        pendingGeneration = 0
+        resetRender()
         if (pageReady) {
             runCatching {
-                evaluateJavascript(
-                    "try{document.getElementById('root').textContent='';}catch(e){}",
-                    null
-                )
-            }
+                evaluateJavascript("document.getElementById('root').textContent='';", null)
+            }.onFailure { fail("failed to clear math page", it) }
         }
     }
 
     fun dispose() {
-        pendingScript = null
-        pendingCallback = null
-        runCatching {
-            stopLoading()
-            (parent as? android.view.ViewGroup)?.removeView(this)
-            destroy()
-        }
+        if (isDisposed) return
+        isDisposed = true
+        resetRender()
+        runCatching { stopLoading() }
+        (parent as? android.view.ViewGroup)?.removeView(this)
+        runCatching { destroy() }
     }
 
     private inner class Bridge {
@@ -234,15 +297,11 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
                 )
             }
         }
-
-        @JavascriptInterface
-        fun onEngineReady() {
-            // 仅用于调试与健康检查，无需回调
-        }
     }
 
     companion object {
         private const val TAG = "ShirohaMath"
+        private const val RENDER_TIMEOUT_MS = 5_000L
         private const val JS_BRIDGE_NAME = "ShirohaMath"
         private const val ASSET_HOST = "shiroha.math"
         private const val ASSET_PREFIX = "katex/"
@@ -250,9 +309,16 @@ internal class MathWebView private constructor(context: Context) : WebView(conte
         private val PAGE_URL = "https://$ASSET_HOST/$PAGE_PATH"
 
         fun create(context: Context): MathWebView? {
-            return runCatching { MathWebView(context).also { it.configure() } }
-                .onFailure { Log.w(TAG, "unable to create math webview", it) }
-                .getOrNull()
+            var view: MathWebView? = null
+            return runCatching {
+                MathWebView(context).also {
+                    view = it
+                    it.configure()
+                }
+            }.onFailure {
+                Log.w(TAG, "unable to create math webview", it)
+                view?.dispose()
+            }.getOrNull()
         }
     }
 }

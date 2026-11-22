@@ -2,7 +2,6 @@ package com.yiqiu.shirohaquiz.ui.text
 
 import android.content.Context
 import android.util.LruCache
-import android.webkit.WebView
 import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -23,22 +22,6 @@ object MathRenderSettings {
     var maxIdleWebViews: Int = 3
 }
 
-/** 探测系统是否可以创建 WebView（极少数精简 ROM 会缺失 WebView 实现）。 */
-internal object MathEngineAvailability {
-    @Volatile
-    private var cached: Boolean? = null
-
-    fun isSupported(context: Context): Boolean {
-        cached?.let { return it }
-        val supported = runCatching {
-            WebView(context).destroy()
-            true
-        }.getOrDefault(false)
-        cached = supported
-        return supported
-    }
-}
-
 /**
  * WebView 复用池。
  *
@@ -48,18 +31,22 @@ internal object MathEngineAvailability {
 internal object MathWebViewPool {
 
     private val idle = ArrayDeque<MathWebView>()
+    private var creationFailed = false
 
     fun obtain(context: Context): MathWebView? {
         while (idle.isNotEmpty()) {
             val candidate = idle.removeFirst()
-            if (candidate.context === context) return candidate
+            if (!candidate.isDisposed && candidate.context === context) return candidate
             candidate.dispose()
         }
-        return MathWebView.create(context)
+        if (creationFailed) return null
+        return MathWebView.create(context).also { creationFailed = it == null }
     }
 
     fun recycle(view: MathWebView) {
+        if (view.isDisposed) return
         view.prepareForReuse()
+        if (view.isDisposed) return
         if (idle.size >= MathRenderSettings.maxIdleWebViews) {
             view.dispose()
             return
@@ -77,6 +64,7 @@ internal object MathWebViewPool {
 
     /** Activity 销毁时调用，释放所有缓存的 WebView。 */
     fun clear() {
+        creationFailed = false
         while (idle.isNotEmpty()) {
             idle.removeFirst().dispose()
         }
@@ -85,11 +73,11 @@ internal object MathWebViewPool {
 
 /** 已渲染高度缓存：重新进入题目时可以直接按正确高度布局，避免明显跳动。 */
 internal object MathHeightCache {
-    private val cache = object : LruCache<String, Int>(128) {}
+    private val cache = object : LruCache<MathRenderLayout, Int>(128) {}
 
-    fun get(key: String): Int = cache.get(key) ?: 0
+    fun get(key: MathRenderLayout): Int = cache.get(key) ?: 0
 
-    fun put(key: String, height: Int) {
+    fun put(key: MathRenderLayout, height: Int) {
         if (height > 0) cache.put(key, height)
     }
 

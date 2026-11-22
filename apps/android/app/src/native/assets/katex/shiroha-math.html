@@ -33,7 +33,7 @@
     margin: 0.28em 0;
     white-space: normal;
   }
-  .math-block .katex-display { margin: 0; }
+  .math-block > .katex-display { margin: 0; width: max-content; min-width: 100%; }
   /* 渲染失败时保留原始 LaTeX 文本，保证内容不丢失 */
   .math-fallback {
     font-family: "Roboto Mono", "Droid Sans Mono", monospace;
@@ -57,19 +57,19 @@
     return (typeof ShirohaMath !== "undefined" && ShirohaMath) ? ShirohaMath : null;
   }
 
-  function report() {
+  function report(gen, widthDp, clamped) {
+    if (gen !== currentGen) return;
     var rect = root.getBoundingClientRect();
     var height = Math.ceil(rect.height);
     if (!(height > 0)) {
       height = Math.ceil(root.scrollHeight) || 1;
     }
-    var scrollWidth = Math.max(root.scrollWidth, document.documentElement.scrollWidth || 0);
-    var clientWidth = document.documentElement.clientWidth || window.innerWidth || 0;
-    var overflow = scrollWidth > clientWidth + 1;
+    var scrollWidth = root.scrollWidth;
+    var overflow = !clamped && scrollWidth > widthDp + 1;
     var b = bridge();
     if (b && b.onRenderFinished) {
       try {
-        b.onRenderFinished(currentGen, height, overflow ? 1 : 0, Math.ceil(scrollWidth));
+        b.onRenderFinished(gen, height, overflow ? 1 : 0, Math.ceil(scrollWidth));
       } catch (e) { /* ignore bridge errors */ }
     }
   }
@@ -99,14 +99,7 @@
     }
   }
 
-  window.ShirohaRender = function (payload) {
-    payload = payload || {};
-    // 代数：丢弃上一轮渲染遗留的延迟回调，避免旧高度覆盖新内容
-    currentGen = (payload.gen | 0) || (currentGen + 1);
-    applyStyle(payload.style);
-    root.textContent = "";
-
-    var segments = payload.segments || [];
+  function renderSegments(segments) {
     for (var i = 0; i < segments.length; i++) {
       var seg = segments[i];
       if (!seg) continue;
@@ -131,6 +124,7 @@
           maxExpand: 2000
         });
       } catch (err) {
+        if (!(err instanceof katex.ParseError)) throw err;
         failed = true;
       }
       if (failed) {
@@ -143,22 +137,36 @@
       }
       root.appendChild(mathNode);
     }
+  }
 
-    report();
-    // 字体/公式排版可能带来二次回流，补两次校准
-    window.setTimeout(report, 32);
-    window.setTimeout(report, 160);
-    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === "function") {
-      document.fonts.ready.then(function () { report(); });
+  window.ShirohaRender = function (payload) {
+    var gen = payload.gen;
+    var widthDp = payload.widthDp;
+    currentGen = gen;
+    if (typeof katex === "undefined" || typeof katex.render !== "function" ||
+        !Number.isFinite(widthDp) || widthDp <= 0) return false;
+
+    try {
+      // Use the Compose content width even when the WebView grows to expose overflow.
+      root.style.width = widthDp + "px";
+      var style = payload.style || {};
+      applyStyle(style);
+      root.textContent = "";
+      renderSegments(payload.segments || []);
+
+      var clamped = style.maxLines > 0;
+      var measure = function () { report(gen, widthDp, clamped); };
+      measure();
+      window.setTimeout(measure, 32);
+      window.setTimeout(measure, 160);
+      if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === "function") {
+        document.fonts.ready.then(measure);
+      }
+      return true;
+    } catch (err) {
+      return false;
     }
   };
-
-  window.ShirohaPing = function () { return true; };
-
-  var b = bridge();
-  if (b && b.onEngineReady) {
-    try { b.onEngineReady(); } catch (e) { /* ignore */ }
-  }
 })();
 </script>
 </body>

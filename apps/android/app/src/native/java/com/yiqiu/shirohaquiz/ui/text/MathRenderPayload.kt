@@ -10,19 +10,13 @@ internal data class MathRenderStyle(
     val fontWeight: Int,
     val textAlign: String,
     val maxLines: Int = 0
-) {
-    /** 用于高度缓存的稳定键。 */
-    fun cacheKey(): String {
-        return buildString {
-            append(fontSizePx.toInt())
-            append('|').append(lineHeightPx.toInt())
-            append('|').append(Integer.toHexString(colorArgb))
-            append('|').append(fontWeight)
-            append('|').append(textAlign)
-            append('|').append(maxLines)
-        }
-    }
-}
+)
+
+internal data class MathRenderLayout(
+    val segments: List<LatexSegment>,
+    val style: MathRenderStyle,
+    val widthDp: Float
+)
 
 /**
  * 把切分结果序列化成注入 WebView 的脚本。
@@ -32,11 +26,13 @@ internal data class MathRenderStyle(
  */
 internal object MathRenderPayload {
 
-    fun buildScript(segments: List<LatexSegment>, style: MathRenderStyle, generation: Int): String {
+    fun buildScript(layout: MathRenderLayout, generation: Int): String {
+        val (segments, style, widthDp) = layout
         val builder = StringBuilder(256 + segments.size * 48)
         builder.append("window.ShirohaRender(")
         builder.append('{')
         builder.append("\"gen\":").append(generation).append(',')
+        builder.append("\"widthDp\":").append(widthDp).append(',')
 
         builder.append("\"style\":{")
         builder.append("\"fontSizePx\":").append(formatNumber(style.fontSizePx)).append(',')
