@@ -112,6 +112,7 @@ import com.yiqiu.shirohaquiz.importer.assets.QuestionImageBinder
 import com.yiqiu.shirohaquiz.importer.assets.QuestionImportAssetExtractor
 import com.yiqiu.shirohaquiz.document.DocumentImageBinding
 import com.yiqiu.shirohaquiz.document.DocumentRecognitionManager
+import com.yiqiu.shirohaquiz.document.DocumentImportTarget
 import com.yiqiu.shirohaquiz.importer.model.WarningLevel
 import com.yiqiu.shirohaquiz.importer.parser.QuizImportParser
 import com.yiqiu.shirohaquiz.importer.parser.TextImportDecoder
@@ -148,7 +149,8 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun ImportScreen(
+internal fun ImportScreen(
+    sourceDraft: ImportSourceDraft,
     onImportSaved: () -> Unit,
     onOpenPreference: () -> Unit,
     onOpenDocumentRecognition: () -> Unit,
@@ -157,13 +159,13 @@ fun ImportScreen(
 ) {
     val context = LocalContext.current
     val importScope = rememberCoroutineScope()
-    var rawText by remember { mutableStateOf("") }
-    var answerText by remember { mutableStateOf("") }
-    var importedImages by remember { mutableStateOf<List<QuestionImportAssetExtractor.ExtractedImportImage>>(emptyList()) }
-    var importedImageAssignments by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-    var ocrImportActive by remember { mutableStateOf(false) }
-    var selectedFileName by rememberSaveable { mutableStateOf("未选择文件") }
-    var selectedAnswerFileName by rememberSaveable { mutableStateOf("未选择答案文件") }
+    var rawText by sourceDraft.rawText
+    var answerText by sourceDraft.answerText
+    var importedImages by sourceDraft.importedImages
+    var importedImageAssignments by sourceDraft.importedImageAssignments
+    var ocrImportActive by sourceDraft.ocrImportActive
+    var selectedFileName by sourceDraft.selectedFileName
+    var selectedAnswerFileName by sourceDraft.selectedAnswerFileName
     var importResult by remember { mutableStateOf<ImportResult?>(null) }
     var editableQuestions by remember { mutableStateOf<List<Question>>(emptyList()) }
     var reviewMode by rememberSaveable { mutableStateOf(false) }
@@ -176,7 +178,7 @@ fun ImportScreen(
         mutableStateOf("")
     }
     var isStatusWarn by rememberSaveable { mutableStateOf(false) }
-    var useDualImport by rememberSaveable { mutableStateOf(false) }
+    var useDualImport by sourceDraft.useDualImport
     var isImportBusy by rememberSaveable { mutableStateOf(false) }
     var busyText by rememberSaveable { mutableStateOf("") }
     var rawTextEditorExpanded by rememberSaveable { mutableStateOf(true) }
@@ -248,18 +250,18 @@ fun ImportScreen(
 
     LaunchedEffect(ocrImportDraft?.id) {
         val draft = ocrImportDraft ?: return@LaunchedEffect
-        useDualImport = false
-        selectedFileName = draft.sourceFileName
-        selectedAnswerFileName = "未选择答案文件"
-        rawText = draft.text
-        answerText = ""
-        rawTextEditorExpanded = draft.text.length <= LARGE_TEXT_PREVIEW_THRESHOLD
-        answerTextEditorExpanded = true
-        clearParsedResult(clearImages = true)
-        importedImages = draft.images
-        importedImageAssignments = draft.imageAssignments
-        ocrImportActive = true
-        statusText = if (draft.hasImageReferences) {
+        clearParsedResult()
+        sourceDraft.accept(draft)
+        val isAnswer = draft.target == DocumentImportTarget.ANSWERS
+        if (isAnswer) {
+            answerTextEditorExpanded = draft.text.length <= LARGE_TEXT_PREVIEW_THRESHOLD
+        } else {
+            rawTextEditorExpanded = draft.text.length <= LARGE_TEXT_PREVIEW_THRESHOLD
+        }
+        statusText = if (isAnswer) {
+            if (rawText.isBlank()) "已接收在线 OCR 答案，请再选择题目文件或识别题目 PDF。"
+            else "已接收在线 OCR 答案，题目原文已保留，请核对后开始双文件解析。"
+        } else if (draft.hasImageReferences) {
             "已接收在线 OCR 文本和 ${draft.images.size} 张图片，请核对后解析，并在沉浸核对中检查图片归属。"
         } else {
             "已接收在线 OCR 文本，请核对后开始解析。"

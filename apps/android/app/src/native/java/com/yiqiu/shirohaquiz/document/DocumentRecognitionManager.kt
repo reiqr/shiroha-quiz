@@ -390,7 +390,7 @@ object DocumentRecognitionManager {
         }
     }
 
-    suspend fun prepareImportDraft(text: String = resultText): Boolean {
+    suspend fun prepareImportDraft(text: String, target: DocumentImportTarget): Boolean {
         val current = task?.takeIf { it.stage == DocumentTaskStage.READY } ?: return false
         if (isPreparingImport) return false
         val clean = text.trim()
@@ -399,19 +399,20 @@ object DocumentRecognitionManager {
             return false
         }
         isPreparingImport = true
-        val assets = resultImages.filterNot { it.excluded }
+        val includeImages = target == DocumentImportTarget.QUESTIONS
+        val assets = if (includeImages) resultImages.filterNot { it.excluded } else emptyList()
         val destination = File(appContext.filesDir, "question_assets/ocr_${UUID.randomUUID()}")
         try {
             val copied = withContext(Dispatchers.IO) {
-                destination.mkdirs()
+                if (assets.isNotEmpty()) destination.mkdirs()
                 assets.mapIndexed { index, asset ->
                     val source = File(asset.image.localPath)
                     require(source.isFile) { "图片文件丢失，请重新识别或删除该图片。" }
                     require(source.canonicalPath.startsWith(recognitionDir().canonicalPath + File.separator)) { "临时图片来源无效。" }
-                    val target = File(destination, "img_${index + 1}.${source.extension}")
-                    source.copyTo(target)
+                    val targetFile = File(destination, "img_${index + 1}.${source.extension}")
+                    source.copyTo(targetFile)
                     QuestionImportAssetExtractor.ExtractedImportImage(asset.marker,
-                        asset.image.copy(localPath = target.absolutePath, order = index + 1))
+                        asset.image.copy(localPath = targetFile.absolutePath, order = index + 1))
                 }
             }
             require(task?.id == current.id) { "识别任务已切换，请重新进入导入。" }
@@ -420,10 +421,12 @@ object DocumentRecognitionManager {
             pendingImportDraft = DocumentImportDraft(
                 id = UUID.randomUUID().toString(),
                 sourceFileName = current.fileName,
-                text = resultImages.filter { it.excluded }.fold(clean) { value, asset -> value.replace(asset.marker, "") },
-                hasImageReferences = current.hasImageReferences,
+                text = resultImages.filter { !includeImages || it.excluded }
+                    .fold(clean) { value, asset -> value.replace(asset.marker, "") },
+                hasImageReferences = includeImages && current.hasImageReferences,
                 images = copied,
-                imageAssignments = assets.mapNotNull { asset -> asset.targetQuestionIndex?.let { asset.image.id to it } }.toMap()
+                imageAssignments = assets.mapNotNull { asset -> asset.targetQuestionIndex?.let { asset.image.id to it } }.toMap(),
+                target = target
             )
             cleanupAfterImportTaskId = current.id
             return true
