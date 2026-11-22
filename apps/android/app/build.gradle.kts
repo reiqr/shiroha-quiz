@@ -29,7 +29,7 @@ android {
             testInstrumentationRunner = "com.yiqiu.shirohaquiz.state.QuizRepositoryCloudRestoreSafetyInstrumentation"
             applicationId = "com.reqir.shirohaquiz"
             versionCode = 218
-            versionName = "0.9.17"
+            versionName = if (project.hasProperty("noRatex")) "0.9.17-lite" else "0.9.17"
         }
     }
 
@@ -78,6 +78,9 @@ android {
         compose = true
     }
 
+    sourceSets.getByName("native").java.srcDir(
+        if (project.hasProperty("noRatex")) "src/lite/java" else "src/ratex/java"
+    )
     sourceSets.getByName("testNative").java.srcDir("src/androidTestNative/java")
     testOptions.unitTests.isIncludeAndroidResources = true
 
@@ -124,7 +127,9 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     add("nativeImplementation", "androidx.work:work-runtime-ktx:2.9.1")
-    add("nativeImplementation", "io.github.erweixin:ratex-android:0.1.15")
+    if (!project.hasProperty("noRatex")) {
+        add("nativeImplementation", "io.github.erweixin:ratex-android:0.1.15")
+    }
     testImplementation("junit:junit:4.13.2")
     add("testNativeImplementation", "net.sf.kxml:kxml2:2.3.0")
     add("testNativeImplementation", "org.robolectric:robolectric:4.12.2")
