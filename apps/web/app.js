@@ -301,6 +301,22 @@ function bindPracticeAutoSubmit(q,item){
     submitPractice(item,false);
   }));
 }
+function sessionOptionOrder(session,item){
+  const q=practiceQuestionV8916(item);
+  if(!session.shuffleOptions||!['single','multiple'].includes(q.type)||(q.options||[]).length<2)return null;
+  const key=practiceItemKeyV8916(item);
+  session.optionOrders=session.optionOrders||{};
+  if(!session.optionOrders[key])session.optionOrders[key]=shuffle(q.options.map(option=>option.key));
+  return session.optionOrders[key];
+}
+function displayAnswerKeys(q,answers,order){
+  if(!order)return answers;
+  return (answers||[]).map(key=>{const index=order.indexOf(key);return index<0?key:q.options[index].key}).sort();
+}
+function shuffledOptionReference(q,order){
+  if(!order)return '';
+  return `<details class="notice"><summary>选项已打乱，解析和 AI 原文中的字母仍按原题引用</summary><p>显示选项 → 原题选项：${order.map((key,index)=>`${esc(q.options[index].key)} → ${esc(key)}`).join('；')}</p></details>`;
+}
 
 /* SHIROHA_WEB_ISSUE_99_AI_IMPORT_START */
 function defaultAiConfigV99(){return {provider:'ollama',endpoint:AI_PROVIDER_PRESETS_V99.ollama.endpoint,model:'',timeoutSeconds:120,rememberKey:false}}
@@ -5372,7 +5388,7 @@ function parseStructuredExamText(text){
   const questions=[]; let currentType=''; let currentVolume=''; let currentChapter=''; let current=null; let collectingAnalysis=false;let collectingSubjectiveAnswerV58917=false;
   const flush=()=>{
     if(!current)return;
-    const stem=stripLeadingQuestionTypeLabelV592((current.questionLines||[]).join(' ').replace(/\s+/g,' ').trim());
+    const stem=stripLeadingQuestionTypeLabelV592((current.questionLines||[]).join('\n'));
     const mergedOptions=mergeDuplicateOptions(repairEmbeddedOptions(current.options||[])).filter(o=>o.text);
     let answer=[...(current.answer||[])];
     const groupType=mapType(current.group||'');
@@ -6407,7 +6423,7 @@ function parseBlock(block,idx){
   }
   const qNo=(qlines[0]||'').match(/^\s*(?:[【\[]\s*(\d+)\s*[】\]]|(?:第\s*)?(\d+)\s*(?:题)?[\.、．:：])/);
   if(qNo)number=qNo[1]||qNo[2];
-  let question=stripLeadingQuestionTypeLabelV592(qlines.join(' ')
+  let question=stripLeadingQuestionTypeLabelV592(qlines.join('\n')
     .replace(/^\s*(?:[【\[]\s*\d+\s*[】\]]|第\s*\d+\s*题|\d+\s*[\.、．:：])\s*/,'')
     .replace(/^\s*[（(]\s*\d+\s*[）)]\s*/,'')
     .replace(/[\[【(（]\s*(单选题|单选|单项选择题|單選題|單選|多选题|多选|多项选择题|多選題|多選|复选题|複選題|判断题|判断|判斷題|是非题|是非題|填空题|填空|填充题|简答题|简答|問答題|问答题|名词解释|名詞解釋|论述题|論述題)\s*[\]】)）]/g,'')
@@ -6793,7 +6809,7 @@ function cleanQuestionStemAndAnswer(question,answer=[],type='',options=[]){
     ans=ans.concat(splitAnswer(inner));
     return '（ ）';
   });
-  return {question:q.replace(/\s+/g,' ').trim(),answer:[...new Set(ans)]};
+  return {question:trimMultilineBoundaryV5910(q),answer:[...new Set(ans)]};
 }
 function selectOrderedOptionHits(hits){
   hits=[...hits].map(h=>String(h.key)==='0'?{...h,key:'D'}:h).sort((a,b)=>a.idx-b.idx);
@@ -7320,6 +7336,7 @@ function savePracticeEditQuestionV120(){
     $('#edit-status').textContent=importSaveFailureTextV5911(error,'保存');$('#edit-status').className='notice warn';return;
   }
   (practice.items||[]).forEach(item=>{if(item&&item.bankId===bank.id&&(item.question===oldQuestion||practiceItemKeyV8916(item)===session.sessionKey))item.question=next});
+  if(practice.optionOrders)delete practice.optionOrders[session.sessionKey];
   editQuestionImagesV391=normalizeQuestionImagesForWebV83(next.images);editImageSourceImagesV391=editQuestionImagesV391.map(image=>({...image}));editImagesChangedV391=false;
   const status=validateQuestion(next);
   $('#edit-status').textContent='已保存到来源题库。当前状态：'+status;
@@ -7891,7 +7908,7 @@ function shouldUseDefaultImageOptions(question,options,answer,type,group=''){
   const context=String(question||'')+' '+String(group||'');
   return hasQuestionImageContent(context)||/图形|图表|纸盒|折叠|问号|资料分析|材料分析/.test(context);
 }
-function questionHtml(q,examMode,idx=0){
+function questionHtml(q,examMode,idx=0,optionOrder=null){
   const meta=`<div class="qmeta"><span class="pill">${label(q.type)}</span><span class="pill">${esc(q.category||'未分类')}</span>${examMode?`<span class="pill">${scoreOf(q)}分</span>`:''}</div><div class="question-title">${examMode?idx+'. ':''}${renderQuestionBodyV83(q)}</div>`;
   if(q.type==='cloze'){
     const groups=(q.clozeItems||[]).map((item,index)=>`<div class="cloze-item-v391" data-cloze-index="${index}"><b>第${esc(item.number)}空</b><div class="options">${(item.options||[]).map(option=>`<label class="option" data-key="${esc(option.key)}"><input type="radio" name="q_${esc(q.id)}_${index}" value="${esc(option.key)}"><span class="option-key">${esc(option.key)}.</span><span class="option-text">${renderQuestionContent(option.text)}</span></label>`).join('')}</div></div>`).join('');
@@ -7906,7 +7923,8 @@ function questionHtml(q,examMode,idx=0){
     const input=q.type==='short'?`<textarea class="text-answer" data-qid="${esc(q.id)}" placeholder="${placeholder}"></textarea>`:`<input class="text-answer" data-qid="${esc(q.id)}" placeholder="${placeholder}" />`;
     return meta+`<div class="answer-input-wrap">${input}</div>`;
   }
-  return meta+`<div class="options">${q.options.map(o=>{const displayText=displayOptionTextV589(q,o);return `<label class="option${displayText?'':' option-key-only-v59'}" data-key="${esc(o.key)}"><input type="${q.type==='multiple'?'checkbox':'radio'}" name="q_${esc(q.id)}" value="${esc(o.key)}"><span class="option-key">${esc(o.key)}${displayText?'.':''}</span>${displayText?`<span class="option-text">${renderQuestionContent(displayText)}</span>`:''}</label>`}).join('')}</div>`;
+  const options=optionOrder?optionOrder.map(key=>q.options.find(option=>option.key===key)):q.options;
+  return meta+`<div class="options">${options.map((o,index)=>{const displayText=displayOptionTextV589(q,o),displayKey=optionOrder?q.options[index].key:o.key;return `<label class="option${displayText?'':' option-key-only-v59'}" data-key="${esc(o.key)}"><input type="${q.type==='multiple'?'checkbox':'radio'}" name="q_${esc(q.id)}" value="${esc(o.key)}"><span class="option-key">${esc(displayKey)}${displayText?'.':''}</span>${displayText?`<span class="option-text">${renderQuestionContent(displayText)}</span>`:''}</label>`}).join('')}</div>`+shuffledOptionReference(q,optionOrder);
 }
 function bindOptionSelect(root,q){$$(root+' .option').forEach(opt=>{opt.onclick=()=>setTimeout(()=>{$$(root+' .option').forEach(o=>o.classList.toggle('selected',o.querySelector('input').checked))},0)})}
 function selectedKeys(root){return $$(root+' input:checked').map(x=>x.value).sort()}
@@ -7933,14 +7951,14 @@ function sameAnswerForQuestion(q,chosen,answer){
 function blankAnswersFromDetailV58914(detail){const direct=normalizeBlankAnswersV58914(detail&&detail.blankAnswers);if(direct.length)return direct;return normalizeBlankAnswersV58914(detail&&detail.nativeQuestion&&detail.nativeQuestion.blankAnswers)}
 function blankUserAnswersFromDetailV58914(detail){const direct=Array.isArray(detail&&detail.userBlankAnswers)?detail.userBlankAnswers.map(value=>String(value??'')):null;if(direct&&direct.length)return direct;if(Array.isArray(detail&&detail.userAnswer)&&blankAnswersFromDetailV58914(detail).length)return detail.userAnswer.map(value=>String(value??''));if(direct)return direct;return Array.isArray(detail&&detail.chosen)?detail.chosen.map(value=>String(value??'')):[]}
 function renderMultiBlankComparisonV58914(groups,userAnswers,showUser=true){return `<div class="multi-blank-comparison-v58914">${normalizeBlankAnswersV58914(groups).map((accepted,index)=>`<div class="multi-blank-comparison-row-v58914"><b>第${index+1}空</b>${showUser?`<span>你的答案：${esc(String((userAnswers||[])[index]||'未填写'))}</span>`:''}<span>标准答案：${esc(accepted.join(' / ')||'未提供')}</span></div>`).join('')}</div>`}
-function feedbackAnswerHtmlV58914(q,chosen){
+function feedbackAnswerHtmlV58914(q,chosen,optionOrder=null){
   if(q.type==='cloze')return `<div class="multi-blank-comparison-v58914">${(q.clozeItems||[]).map((item,index)=>{const actual=String((chosen||[])[index]||'').trim().toUpperCase();const expected=item.answer||'未识别';return `<div class="multi-blank-comparison-row-v58914"><b>第${esc(item.number)}空</b><span>你的答案：${esc(actual||'未作答')}</span><span>参考答案：${esc(expected)}${actual&&item.answer?` · ${actual===item.answer?'正确':'错误'}`:''}</span>${item.analysis?`<span>解析：${renderQuestionContent(item.analysis)}</span>`:''}</div>`}).join('')}</div>`;
   if(isMultiBlankQuestionV58914(q))return renderMultiBlankComparisonV58914(q.blankAnswers,chosen,true);
   if(normalizeWebQuestionType(q.type)==='short'){
     const user=(chosen||[]).join('；')||'未作答';const reference=(q.answer||[]).join('；')||'未提供';
     return `<div class="q-multiline-text"><b>你的答案：</b>${renderQuestionContent(user)}<br><b>参考答案：</b>${renderQuestionContent(reference)}</div>`;
   }
-  return `你的答案：${esc((chosen||[]).join('；')||'未作答')}｜参考答案：${esc((q.answer||[]).join('；'))}`;
+  return `你的答案：${esc(displayAnswerKeys(q,chosen,optionOrder).join('；')||'未作答')}｜参考答案：${esc(displayAnswerKeys(q,q.answer,optionOrder).join('；'))}`;
 }
 function markOptions(root,q,chosen){if(isTextType(q.type))return;$$(root+' .option').forEach(o=>{const k=o.dataset.key;const index=Number(o.closest('[data-cloze-index]')?.dataset.clozeIndex);const expected=q.type==='cloze'?q.clozeItems[index]?.answer:q.answer;const actual=q.type==='cloze'?chosen[index]:chosen;if((Array.isArray(expected)?expected.includes(k):expected===k))o.classList.add('correct');else if((Array.isArray(actual)?actual.includes(k):actual===k))o.classList.add('wrong')})}
 function getWrongEntries(bid=activeBank().id){const v=state.wrongBook[bid]||[];if(!Array.isArray(v))return[];return v.map(x=>typeof x==='string'?{id:x,wrongCount:1,rightCount:0,reviewRightCount:0,streakCorrectCount:0,lastWrongAt:'',lastCorrectAt:'',lastReviewedAt:'',nextReviewAt:'',reviewLevel:0,lastAnswer:[],source:'web',timestamp:0,status:'未掌握'}:{...x,id:x.id,wrongCount:Number(x.wrongCount||0),rightCount:Number(x.rightCount||0),reviewRightCount:Number(x.reviewRightCount||0),streakCorrectCount:Number(x.streakCorrectCount||0),lastWrongAt:x.lastWrongAt||'',lastCorrectAt:x.lastCorrectAt||'',lastReviewedAt:x.lastReviewedAt||'',nextReviewAt:x.nextReviewAt||'',reviewLevel:Number(x.reviewLevel||0),lastAnswer:Array.isArray(x.lastAnswer)?x.lastAnswer:[],source:x.source||'web',timestamp:Number(x.timestamp||0),status:x.status||'未掌握'}).filter(x=>x.id)}
@@ -8474,6 +8492,7 @@ function startPractice(scopeOverrideV8916){
   if(practice.items.length>200&&(limit==='all'||limit==='half'||limit==='custom'||Number(limit)>200||selection.startMode===PRACTICE_START_CUSTOM_V58916)){const msg=practice.items.length>500?`本轮将练习 ${practice.items.length} 道题，题量很大，手机 WebView 可能明显卡顿，建议减少题量或使用电脑端。是否继续？`:`本轮将练习 ${practice.items.length} 道题，手机 WebView 可能出现轻微卡顿，是否继续？`;if(!confirm(msg)){practice={items:[],idx:0,answered:0,correct:0,wrong:0,start:0,details:[],answerState:{}};return}}
   const startText=selection.startMode===PRACTICE_START_CONTINUE_V58916?` · 从第 ${selection.startIndex+1} 题继续`:selection.startMode===PRACTICE_START_CUSTOM_V58916?' · 自选题号':'';
   rememberStudyConfig('practice');
+  practice.shuffleOptions=studyPreferences().shufflePractice;practice.optionOrders={};
   enterPracticeFocus();prewarmMathJaxV56();showNotice('练习开始',`${practice.scopeName}${startText} · 本轮共 ${practice.items.length} 道题。`,'ok');renderPracticeQuestion();
 }
 function renderPracticeQuestion(done=false){
@@ -8481,7 +8500,7 @@ function renderPracticeQuestion(done=false){
   $('#practice-progress').textContent=`${Math.min(practice.idx+1,practice.items.length)} / ${practice.items.length}`;
   if(done||practice.idx>=practice.items.length){finishPractice();return}
   const item=currentPracticeItemV8916();const q=practiceQuestionV8916(item);const key=practiceItemKeyV8916(item);const bid=practiceItemBankIdV8916(item);const st=getPracticeAnswerStateV26(key);const fav=isFavoriteV27(q.id,bid);const groupTitle=practice.scopeType==='GROUP'?`${practice.scopeName} · 分组练习`:'刷题练习';
-  $('#practice-card').innerHTML=`<div class="practice-focus-head"><b>${esc(groupTitle)}</b><span>${practice.idx+1} / ${practice.items.length}</span><div class="practice-tools-v26"><button class="ghost mini-btn" id="p-favorite">${fav?'取消收藏':'收藏题目'}</button><button class="ghost mini-btn" id="p-edit-v120">编辑题目</button><button class="ghost mini-btn" id="p-exit">退出练习</button></div></div>${questionHtml(q,false)}<div class="actions practice-actions-v44"><button class="ghost" id="p-prev" ${practice.idx===0?'disabled':''}>上一题</button><button class="ghost" id="p-next">${practice.idx>=practice.items.length-1?'完成练习':'下一题'}</button><button class="primary" id="p-submit" ${st.answered||st.revealed?'disabled':''}>提交答案</button><button class="ghost" id="p-reveal" ${st.answered||st.revealed?'disabled':''}>看答案</button></div><div id="p-feedback"></div><div id="p-ai-v613"></div>${renderPracticeNavV26()}<aside class="practice-side-v31">${renderPracticeStatsV30()}</aside>`;
+  $('#practice-card').innerHTML=`<div class="practice-focus-head"><b>${esc(groupTitle)}</b><span>${practice.idx+1} / ${practice.items.length}</span><div class="practice-tools-v26"><button class="ghost mini-btn" id="p-favorite">${fav?'取消收藏':'收藏题目'}</button><button class="ghost mini-btn" id="p-edit-v120">编辑题目</button><button class="ghost mini-btn" id="p-exit">退出练习</button></div></div>${questionHtml(q,false,0,sessionOptionOrder(practice,item))}<div class="actions practice-actions-v44"><button class="ghost" id="p-prev" ${practice.idx===0?'disabled':''}>上一题</button><button class="ghost" id="p-next">${practice.idx>=practice.items.length-1?'完成练习':'下一题'}</button><button class="primary" id="p-submit" ${st.answered||st.revealed?'disabled':''}>提交答案</button><button class="ghost" id="p-reveal" ${st.answered||st.revealed?'disabled':''}>看答案</button></div><div id="p-feedback"></div><div id="p-ai-v613"></div>${renderPracticeNavV26()}<aside class="practice-side-v31">${renderPracticeStatsV30()}</aside>`;
   bindOptionSelect('#practice-card',q);bindPracticeAutoSubmit(q,item);applyAnswerStateV26('#practice-card',q,st.chosen||[]);bindPracticeBlankDraftV58914(q,key,st);
   if(q.type==='cloze'&&!st.answered&&!st.revealed)$$('#practice-card [data-cloze-index] input').forEach(input=>input.addEventListener('change',()=>setPracticeAnswerStateV26(key,{chosen:clozeAnswerV391('#practice-card',q)})));
   if(st.answered||st.revealed)showAnsweredStateV26(q,st);
@@ -8518,7 +8537,12 @@ function submitPractice(item,reveal){
   markOptions('#practice-card',q,chosen);showAnsweredStateV26(q,getPracticeAnswerStateV26(key));refreshPracticeStatsV30();syncPracticeNavigation();saveSilent();renderStats();
   if(!reveal)schedulePracticeAutoNext(item);
 }
-function showAnsweredStateV26(q,st){markOptions('#practice-card',q,st.chosen||[]);$('#p-feedback').innerHTML=`<div class="feedback ${st.revealed?'warn':st.correct?'ok':'bad'}"><b>${st.revealed?'已显示参考答案':st.correct?'✓ 回答正确':'✕ 这题要再看一遍'}</b>${isMultiBlankQuestionV58914(q)?renderMultiBlankComparisonV58914(q.blankAnswers,st.chosen||[],true):'｜'+feedbackAnswerHtmlV58914(q,st.chosen||[])}${q.analysis?'<br>解析：'+renderQuestionContent(q.analysis):''}</div>`;const sub=$('#p-submit'),rev=$('#p-reveal');if(sub)sub.disabled=true;if(rev)rev.disabled=true;renderPracticeAiPanelV613()}
+function showAnsweredStateV26(q,st){
+  const order=sessionOptionOrder(practice,currentPracticeItemV8916());
+  markOptions('#practice-card',q,st.chosen||[]);
+  $('#p-feedback').innerHTML=`<div class="feedback ${st.revealed?'warn':st.correct?'ok':'bad'}"><b>${st.revealed?'已显示参考答案':st.correct?'✓ 回答正确':'✕ 这题要再看一遍'}</b>${isMultiBlankQuestionV58914(q)?renderMultiBlankComparisonV58914(q.blankAnswers,st.chosen||[],true):'｜'+feedbackAnswerHtmlV58914(q,st.chosen||[],order)}${q.analysis?'<br>解析：'+renderQuestionContent(q.analysis):''}</div>`;
+  const sub=$('#p-submit'),rev=$('#p-reveal');if(sub)sub.disabled=true;if(rev)rev.disabled=true;renderPracticeAiPanelV613();
+}
 function showSubjectiveFeedback(item,chosen,reveal){const q=practiceQuestionV8916(item),key=practiceItemKeyV8916(item),user=chosen.join('；')||'未填写';setPracticeAnswerStateV26(key,{chosen,revealed:!!reveal});$('#p-feedback').innerHTML=`<div class="feedback warn"><b>你的作答：</b><div class="q-multiline-text">${renderQuestionContent(user)}</div><b>参考答案：</b><div class="q-multiline-text">${renderQuestionContent(q.answer.join('；')||'未提供')}</div>${q.analysis?'<b>解析：</b><div class="q-multiline-text">'+renderQuestionContent(q.analysis)+'</div>':''}<div class="actions"><button class="primary" id="p-self-right">判为正确</button><button class="danger" id="p-self-wrong">判为错误</button></div></div>`;$('#p-submit').disabled=true;$('#p-reveal').disabled=true;$('#p-self-right').onclick=()=>{recordPracticeAnswer(item,chosen,true);$('#p-self-right').disabled=true;$('#p-self-wrong').disabled=true;saveSilent();renderStats();renderPracticeQuestion()};$('#p-self-wrong').onclick=()=>{recordPracticeAnswer(item,chosen,false);$('#p-self-right').disabled=true;$('#p-self-wrong').disabled=true;saveSilent();renderStats();renderPracticeQuestion()};renderPracticeAiPanelV613()}
 /* SHIROHA_WEB_PRACTICE_AI_SINGLE_QUESTION_V613_START
    沉浸练习页的单题 AI 解析与追问：只处理当前这一道题，结果先作为草稿展示，由用户决定是否写入题库解析。 */
@@ -9411,6 +9435,7 @@ function startExam(){
   exam={name:($('#exam-name').value||'模拟考试').trim(),passScore:Number($('#exam-pass-score').value)||0,items:filteredExamItemsV113($('#exam-type').value,$('#exam-order').value,count),answers:{},start:Date.now(),deadline:0,timer:null,submitted:false,scopeType:scope.type===PRACTICE_SCOPE_GROUP_V8916?'GROUP':'BANK',scopeName:scopeLabel,scopeSummary};
   if(!exam.items.length){$('#exam-card').innerHTML='<div class="empty">当前考试范围下没有题目。</div>';return}
   rememberStudyConfig('exam');
+  exam.shuffleOptions=studyPreferences().shuffleExam;exam.optionOrders={};
   const min=Number($('#exam-minutes').value)||0;
   if(min>0){exam.deadline=Date.now()+min*60000;clearInterval(exam.timer);exam.timer=setInterval(updateTimer,1000);updateTimer()}else $('#exam-timer').textContent='不限时';
   $('#submit-exam-btn').disabled=false;
@@ -9433,7 +9458,7 @@ function updateTimer(){
 function renderExamPaper(){
   const timerText=exam.deadline?($('#exam-timer')?.textContent||'计时中'):'不限时';
   let html=`<main class="exam-focus-main-v31"><div class="exam-focus-head"><div><b>${esc(exam.name||'模拟考试')}</b><span id="exam-focus-timer">${esc(timerText)}</span>${exam.scopeName?`<span class="pill">范围：${esc(exam.scopeName)}</span>`:''}</div><div class="exam-head-actions"><button class="ghost mini-btn focus-mini-btn" id="exam-exit-focus" type="button">退出考试</button><button class="danger focus-mini-btn" id="exam-submit-focus" type="button">交卷评分</button></div></div><div class="notice warn">考试中：多选题需完全一致才得分；填空/简答按参考答案规范化匹配评分，简答题建议交卷后人工核对。</div>`;
-  exam.items.forEach((item,i)=>{const key=examItemKeyV113(item);html+=`<div class="exam-q" data-qid="${esc(key)}" id="exam-q-${i+1}">${questionHtml(examRenderQuestionV113(item),true,i+1)}</div>`});
+  exam.items.forEach((item,i)=>{const key=examItemKeyV113(item);html+=`<div class="exam-q" data-qid="${esc(key)}" id="exam-q-${i+1}">${questionHtml(examRenderQuestionV113(item),true,i+1,sessionOptionOrder(exam,item))}</div>`});
   html+=`<div class="exam-focus-actions"><button class="danger" id="exam-submit-focus-bottom" type="button">交卷评分</button></div></main><aside class="exam-side-v31">${renderExamAnswerCardV30()}</aside>`;
   $('#exam-card').innerHTML=html;
   $('#exam-submit-focus').onclick=()=>submitExam(false);
@@ -9505,7 +9530,7 @@ function submitExam(auto){
 function renderExamResult(rec){
   const typeRows=Object.entries(rec.byType||{}).map(([t,v])=>`<tr><td>${label(t)}</td><td>${v.correct}/${v.total}</td><td>${Number(v.score.toFixed? v.score.toFixed(1):v.score)}/${v.fullScore}</td></tr>`).join('');
   let html=`<div class="exam-focus-head"><div><b>考试结果</b><span>${esc(rec.name||'模拟考试')}</span></div><div class="exam-head-actions"><button class="primary focus-mini-btn" id="exam-back-setup" type="button">返回考试设置</button></div></div><div class="score-card"><div class="metric"><span>得分</span><b>${rec.score}/${rec.totalScore}</b></div><div class="metric"><span>结果</span><b>${rec.passed?'合格':'未合格'}</b></div><div class="metric"><span>正确率</span><b>${rec.accuracy}%</b></div><div class="metric"><span>用时</span><b>${rec.duration}秒</b></div></div><div class="notice ${rec.passed?'ok':'warn'}">${esc(rec.name||'模拟考试')}：及格线 ${rec.passScore} 分，${rec.autoSubmitted?'系统已自动交卷。':'已交卷。'}</div>${typeRows?`<div class="table-wrap"><table><thead><tr><th>题型</th><th>正确</th><th>得分</th></tr></thead><tbody>${typeRows}</tbody></table></div>`:''}`;
-  exam.items.forEach((item,i)=>{const q=examQuestionV113(item),key=examItemKeyV113(item),ans=exam.answers[key]||[];html+=`<div class="exam-q" data-result-qid="${esc(key)}">${questionHtml(examRenderQuestionV113(item),true,i+1)}<div class="feedback ${sameAnswerForQuestion(q,ans,q.answer)?'ok':'bad'}">${feedbackAnswerHtmlV58914(q,ans)}${q.analysis?'<br>解析：'+renderQuestionContent(q.analysis):''}</div></div>`});
+  exam.items.forEach((item,i)=>{const q=examQuestionV113(item),key=examItemKeyV113(item),ans=exam.answers[key]||[],order=sessionOptionOrder(exam,item);html+=`<div class="exam-q" data-result-qid="${esc(key)}">${questionHtml(examRenderQuestionV113(item),true,i+1,order)}<div class="feedback ${sameAnswerForQuestion(q,ans,q.answer)?'ok':'bad'}">${feedbackAnswerHtmlV58914(q,ans,order)}${q.analysis?'<br>解析：'+renderQuestionContent(q.analysis):''}</div></div>`});
   $('#exam-card').innerHTML=html;
   $('#exam-back-setup').onclick=()=>exitExamFocus();
   exam.items.forEach(item=>{const q=examQuestionV113(item),key=examItemKeyV113(item);markOptions(`#exam-card [data-result-qid="${CSS.escape(key)}"]`,q,exam.answers[key]||[])});
