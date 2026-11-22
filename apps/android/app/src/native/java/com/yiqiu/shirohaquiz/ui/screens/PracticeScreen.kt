@@ -123,6 +123,7 @@ import com.yiqiu.shirohaquiz.ui.components.QuizSessionExitIconButton
 import com.yiqiu.shirohaquiz.ui.components.ShirohaHeader
 import com.yiqiu.shirohaquiz.ui.components.StatusChip
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
+import com.yiqiu.shirohaquiz.ui.components.MathText
 import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -1185,8 +1186,8 @@ fun PracticeScreen(
             } else {
                 "第 ${QuizRepository.practiceIndex + 1} / ${practiceQuestions.size} 题"
             }
-            Text(
-                text = questionText,
+            MathText(
+                text = question.question,
                 modifier = (if (QuizRepository.screenReaderAssistEnabled) {
                     Modifier.semantics {
                         liveRegion = LiveRegionMode.Polite
@@ -1522,7 +1523,7 @@ fun PracticeScreen(
                     question.type == QuestionType.SHORT -> "参考答案"
                     else -> "正确答案"
                 }
-                NoticeCard("$answerLabel：\n${LatexDisplayFormatter.format(answerText)}", warning = false)
+                NoticeCard("$answerLabel：\n$answerText", warning = false, renderMath = true)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = "解析",
@@ -1531,11 +1532,10 @@ fun PracticeScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(
+                MathText(
                     text = question.analysis.takeIf { it.isNotBlank() }
                         ?.let { practiceAnalysisForDisplay(it, displayOptions) }
                         ?.let(::formatAnalysisForDisplay)
-                        ?.let(LatexDisplayFormatter::format)
                         ?: "暂无解析",
                     style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 23.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant

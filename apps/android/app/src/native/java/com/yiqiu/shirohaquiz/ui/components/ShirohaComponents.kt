@@ -69,7 +69,6 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
-import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
 
 
 @Composable
@@ -383,7 +382,6 @@ fun QuizOptionCard(
     }
     val optionFontSize = QuizRepository.optionFontSizeSp().sp
     val optionLineHeight = QuizRepository.optionLineHeightSp().sp
-    val displayText = LatexDisplayFormatter.format(text)
     val accessibilityState = when {
         isWrong -> "已选中，回答错误"
         isCorrect -> if (selected) "已选中，正确答案" else "正确答案"
@@ -423,8 +421,8 @@ fun QuizOptionCard(
                 )
             )
             Spacer(Modifier.width(8.dp))
-            Text(
-                text = displayText,
+            MathText(
+                text = text,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = optionFontSize,
@@ -472,8 +470,8 @@ fun QuizOptionCard(
                 }
             }
             Spacer(Modifier.width(ShirohaDimens.OptionLabelTextGap))
-            Text(
-                text = displayText,
+            MathText(
+                text = text,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = optionFontSize, lineHeight = optionLineHeight),
                 fontWeight = if (selected || resultStyle != QuizOptionResultStyle.Neutral) FontWeight.SemiBold else FontWeight.Normal,
@@ -525,7 +523,8 @@ fun UploadPanel(
 @Composable
 fun NoticeCard(
     text: String,
-    warning: Boolean = true
+    warning: Boolean = true,
+    renderMath: Boolean = false
 ) {
     val background = if (warning) ShirohaColors.StateWarningSoft else ShirohaColors.CardWhite78
     val foreground = if (warning) ShirohaColors.TextWarning else MaterialTheme.colorScheme.onSurface
@@ -534,12 +533,13 @@ fun NoticeCard(
         shape = RoundedCornerShape(20.dp),
         color = background
     ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(14.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = foreground
-        )
+        val modifier = Modifier.padding(14.dp)
+        val style = MaterialTheme.typography.bodyMedium
+        if (renderMath) {
+            MathText(text, modifier = modifier, style = style, color = foreground)
+        } else {
+            Text(text, modifier = modifier, style = style, color = foreground)
+        }
     }
 }
 
