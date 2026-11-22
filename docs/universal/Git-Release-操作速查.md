@@ -1,15 +1,16 @@
 # Git & Release 操作速查
 
+> ⚠️ 本项目发布铁律：只创建 Draft，由用户手动 Publish；永远不要删除 Git 标签或已发布的 Release；禁止 `git add .` / `git add -A` / `git add <目录>`。
+
 ## 日常提交（每次改代码都要做）
 
 ```powershell
 # 1. 查看改了什么
 git status
 
-# 2. 添加文件（三选一）
-git add apps/                    # 添加指定文件夹
-git add README.md app.js         # 添加指定文件
-git add .                        # 添加所有改动
+# 2. 添加文件（只暂存本次相关文件，逐个 add）
+git add README.md
+git add apps/web/app.js
 
 # 3. 提交
 git commit -m "feat: 做了什么"
@@ -72,6 +73,8 @@ git tag -l
 
 Release 是 GitHub 层面的发布，可以附带说明和附件。
 
+> 本项目只使用方式三（Draft 草稿）创建发布，由用户手动 Publish；方式一、二仅作命令参考，不要直接发布。
+
 ### 方式一：一步到位（推荐）
 
 创建 tag + 创建 release + 上传附件，一条命令搞定：
@@ -121,17 +124,15 @@ gh release edit <tag> -n "新的版本说明"
 
 ## 补传附件
 
-> **重要：** Release 发布后默认不可补传。只有草稿状态才能上传附件。
+> **重要：** Release 发布后不可补传、不可删除。只有 Draft（草稿）可以补传附件。
 
-如果确实需要补传，只能删除重建：
+Draft 状态可反复更新附件：
 
 ```powershell
-# 1. 删除旧 release（不会删除 tag）
-gh release delete <tag> --yes
-
-# 2. 重建（带附件）
-gh release create <tag> "./apps/压缩包.zip" "./apps/xxx.apk" -t "<tag>" -n "版本说明"
+gh release upload <tag> "./apps/xxx.apk" --clobber
 ```
+
+已发布 Release 需要补充内容时，发布新版本；不要删除旧 Release 或标签。
 
 ---
 
@@ -153,8 +154,7 @@ gh release view <tag>      # 查看某个 Release
 git restore 文件名                  # 撤销还没 add 的改动
 git restore --staged 文件名         # 取消暂存
 git rm -r --cached 文件夹名/        # 取消跟踪（不删除本地文件）
-git tag -d <tag>            # 删除本地标签
-git push origin :refs/tags/<tag>   # 删除远端标签
+# 禁止删除 Git 标签（本地或远程）；如标签创建有误，先停止并确认处理方式
 ```
 
 ---

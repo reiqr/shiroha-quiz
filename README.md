@@ -29,7 +29,7 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 
 | 你的情况 | 下载什么 | 入口 |
 | --- | --- | --- |
-| Android 手机 | 原生版 APK，文件名以 `-native-release.apk` 结尾 | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
+| Android 手机 | 标准版 APK（arm64，含公式渲染）或 Lite APK（全设备，公式纯文本）；文件名分别含 `-native-release.apk` / `-lite-native-release.apk` | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
 | Windows 电脑 | Web ZIP，解压后双击 `打开Shiroha Quiz.cmd` | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
 | 先体验一下 | 在线版，免安装 | [打开在线版](https://reiqr.github.io/shiroha-quiz) |
 
@@ -43,7 +43,7 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 
 | 维度 | Android 原生版 | Web 版 |
 | --- | --- | --- |
-| 使用方式 | 安装 APK，Android 8.0+ | 解压后双击启动器，免安装 |
+| 使用方式 | 安装 APK，Android 8.0+（标准版需 arm64） | 解压后双击启动器，免安装 |
 | 数据存储 | 本地 SharedPreferences | 浏览器 LocalStorage |
 | 离线能力 | 除 AI、在线文档识别外可离线 | 基础功能可离线，扩展库可按需下载 |
 | 文档识别 | MinerU 在线 OCR、DOCX 图片提取 | PDF.js 文字层解析、OCR 测试区 |
@@ -153,6 +153,7 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 
 - Kotlin + Jetpack Compose + Material3 原生界面。
 - 支持浅色 / 暗夜模式、Shiroha 模式、平板侧边导航和系统返回键。
+- 标准版使用 RaTeX 渲染 LaTeX 公式；Lite 版回退纯文本，安装包更小、全设备通用。
 - 主要面向手机和平板日常刷题。
 
 **Web 版**
@@ -330,13 +331,15 @@ npx serve apps/web
 
 ```bash
 cd apps/android
-./gradlew assembleNativeRelease
+./gradlew assembleNativeRelease              # 标准版（仅 arm64-v8a）
+./gradlew assembleNativeRelease -PnoRatex    # Lite 版（无 RaTeX）
 ```
 
 Windows PowerShell：
 
 ```powershell
-.\gradlew.bat assembleNativeRelease
+.\gradlew.bat assembleNativeRelease              # 标准版（仅 arm64-v8a）
+.\gradlew.bat assembleNativeRelease -PnoRatex    # Lite 版（无 RaTeX）
 ```
 
 ---
