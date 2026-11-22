@@ -52,6 +52,10 @@ android {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
+            // Standard release targets modern 64-bit ARM phones; Lite (no native libs) stays universal.
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
