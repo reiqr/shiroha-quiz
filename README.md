@@ -409,3 +409,29 @@ AI 练习回归位于 `test/web-ai-practice/`，需要 Node、Playwright 和可�
 ## 许可证
 
 本项目采用 `GPL-3.0` 开源。
+
+### 第三方组件
+
+<details>
+<summary>点击展开第三方组件与许可声明</summary>
+
+本项目包含以下第三方开源组件；完整清单、版权信息与许可原文见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
+
+| 平台 | 组件 | 许可 |
+|------|------|------|
+| Android | AndroidX / Jetpack Compose / Material Components / OkHttp / WorkManager / Kotlin | Apache-2.0 |
+| Android | RaTeX | MIT |
+| Web | MathJax / PDF.js / Tesseract.js | Apache-2.0 |
+| 测试 | JUnit / Robolectric / kxml2 | EPL-1.0 / MIT / BSD-style |
+
+</details>
+
+## Star History
+
+<a href="https://star-history.com/#reiqr/shiroha-quiz&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=reiqr/shiroha-quiz&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=reiqr/shiroha-quiz&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=reiqr/shiroha-quiz&type=Date" />
+  </picture>
+</a>
