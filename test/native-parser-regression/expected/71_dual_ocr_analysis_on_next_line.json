@@ -1,0 +1,25 @@
+{
+  "id": "71_dual_ocr_analysis_on_next_line",
+  "mode": "dual-file",
+  "questionSample": "samples/71_dual_ocr_analysis_on_next_line_questions.txt",
+  "answerSample": "samples/71_dual_ocr_analysis_on_next_line_answers.txt",
+  "expected": {
+    "questionCount": 2,
+    "answeredCount": 2,
+    "typeCounts": {"SINGLE": 2},
+    "questions": [
+      {
+        "number": "1",
+        "type": "SINGLE",
+        "answer": ["A"],
+        "analysisContains": "温度计用于测量温度。\n读数前应等待示数稳定。"
+      },
+      {
+        "number": "2",
+        "type": "SINGLE",
+        "answer": ["B"],
+        "analysisContains": "第二题的解析是秒表用于测量时间。"
+      }
+    ]
+  }
+}
