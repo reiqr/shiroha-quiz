@@ -2,7 +2,7 @@
 
 这里整理当前仍建议阅读的文档入口。主要文档按主题放在独立文件夹中；历史计划和旧方案统一放在 `archive/`，避免和当前主线混在一起。
 
-当前主线为 Web 版与原生 Android Compose 版。原生版已更新到 `v0.9.17-native`，外部回归当前维护 70 个有效 parser 用例（编号 1–71，缺 35 号，为历史空号）。具体功能状态以根目录 [README](../README.md) 和 [CHANGELOG](../CHANGELOG.md) 为准。
+公开主线为 Web 与原生 Android Compose。下载的版本以 [GitHub Releases](https://github.com/reiqr/shiroha-quiz/releases/latest) 中的附件为准；已合入但尚未发包的变更见 [CHANGELOG](../CHANGELOG.md)。Android 公式引擎的发布与开发状态见 [原生开发进度](./native/原生开发进度.md)。
 
 ## 目录
 
@@ -21,19 +21,22 @@
 - 题库导入格式支持说明：支持哪些文件格式、每种格式怎么写。  
   [Markdown](./题库导入格式支持说明/Shiroha_Quiz_题库导入格式支持说明.md) / [Word](./题库导入格式支持说明/Shiroha_Quiz_题库导入格式支持说明.docx)
 - 题库导入策略与使用指南：面向普通用户的导入入口、AI 辅助、预览检查和备份恢复说明。<br>
-  [Markdown](./题库导入策略与使用指南/Shiroha Quiz 题库导入策略与使用指南.md) / [Word](./题库导入策略与使用指南/Shiroha Quiz 题库导入策略与使用指南.docx)
+  [Markdown](./题库导入策略与使用指南/Shiroha%20Quiz%20题库导入策略与使用指南.md) / [Word](./题库导入策略与使用指南/Shiroha%20Quiz%20题库导入策略与使用指南.docx)
 - 题目导入解析方法说明：解释软件如何识别题号、选项、答案、解析、集中答案区和异常提示。<br>
-  [Markdown](./题目导入解析方法说明/Shiroha Quiz 题目导入解析方法说明.md) / [Word](./题目导入解析方法说明/Shiroha Quiz 题目导入解析方法说明.docx)
+  [Markdown](./题目导入解析方法说明/Shiroha%20Quiz%20题目导入解析方法说明.md) / [Word](./题目导入解析方法说明/Shiroha%20Quiz%20题目导入解析方法说明.docx)
 - WebDAV 云备份使用指南：把题库备份到自己的 WebDAV 云盘，含双端配置、云端恢复与自动备份说明。<br>
-  [Markdown](./WebDAV云备份使用指南/Shiroha Quiz WebDAV 云备份使用指南.md)
+  [Markdown](./WebDAV云备份使用指南/Shiroha%20Quiz%20WebDAV%20云备份使用指南.md) / [Word](./WebDAV云备份使用指南/Shiroha%20Quiz%20WebDAV%20云备份使用指南.docx)
+- [Web 离线扩展资源](../apps/web/离线资源下载速查.txt)：PDF.js、MathJax 和 OCR 的本地资源获取方法。
 
 <a name="docs-native"></a>
 
 ## 原生 Android
 
 - [原生开发进度](./native/原生开发进度.md)
+- [LaTeX 引擎选型与对照测试](../test/android-katex/README.md)
+- [MinerU 与 WebDAV 功能实施记录](./native/MinerU与WebDAV功能实施记录.md)
 - [解析器回归测试说明](./native/解析器回归测试说明.md)
-- [测试体系整理说明](./native/测试体系整理说明.md)
+- [测试入口与历史整理记录](./native/测试体系整理说明.md)
 - [解析器回归测试剩余关注项](./native/解析器回归测试未覆盖功能点.md)
 - [安卓组件与状态说明](./native/安卓组件与状态说明.md)
 - [原生 Compose 视觉规范](./native/Shiroha_Quiz_原生Android_Compose视觉规范_v30.md)

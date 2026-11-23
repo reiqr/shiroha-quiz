@@ -19,7 +19,7 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 <img src="assets/shiroha_quiz_ui_assets_v2_cutout/illus_me_settings.webp" width="150" align="right" alt="看板娘" />
 
 > [!IMPORTANT]
-> **更新节奏**：最近工作稍微闲了一些，应该会开始恢复更新。问题反馈仍欢迎提交。
+> **发布状态（2026-11-23 核对）**：目前公开下载的是 [`v2.8.13-beta`](https://github.com/reiqr/shiroha-quiz/releases/tag/v2.8.13-beta)，内含 Android 原生 `v0.9.17`（RaTeX 标准版和纯文本 Lite）与 Web `v0.8.10-alpha`。主分支已通过 [PR #147](https://github.com/reiqr/shiroha-quiz/pull/147) 将原生默认引擎切换为离线 KaTeX，**还没有发布对应 APK**。
 
 <br clear="right">
 
@@ -29,11 +29,11 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 
 | 你的情况 | 下载什么 | 入口 |
 | --- | --- | --- |
-| Android 手机 | 标准版 APK（arm64，含公式渲染）或 Lite APK（全设备，公式纯文本）；文件名分别含 `-native-release.apk` / `-lite-native-release.apk` | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
+| Android 手机 | 当前下载包提供标准版（ARM64，含公式渲染）和 Lite（纯文本，不依赖 RaTeX）；Lite 文件名带 `-lite-native-release.apk` | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
 | Windows 电脑 | Web ZIP，解压后双击 `打开Shiroha Quiz.cmd` | [下载](https://github.com/reiqr/shiroha-quiz/releases/latest) |
 | 先体验一下 | 在线版，免安装 | [打开在线版](https://reiqr.github.io/shiroha-quiz) |
 
-> 原生版与 Web 版使用独立版本号，不是新旧关系。**下载时认文件名即可**，当前版本以 [Releases/latest](https://github.com/reiqr/shiroha-quiz/releases/latest) 为准。
+> 原生版和 Web 版使用独立版本号。在线 Web 版由 `main` 的 Web 源码部署，下载版以 [Release 附件](https://github.com/reiqr/shiroha-quiz/releases/latest)为准。
 
 > **当前仍处于测试阶段**，不建议用于高风险正式考试场景。**重要题库请定期备份。**
 
@@ -43,9 +43,9 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 
 | 维度 | Android 原生版 | Web 版 |
 | --- | --- | --- |
-| 使用方式 | 安装 APK，Android 8.0+（标准版需 arm64） | 解压后双击启动器，免安装 |
+| 使用方式 | 安装 APK，Android 8.0+；当前 RaTeX 标准下载包要求 ARM64 | 在线使用，或解压后双击启动器 |
 | 数据存储 | 本地 SharedPreferences | 浏览器 LocalStorage |
-| 离线能力 | 除 AI、在线文档识别外可离线 | 基础功能可离线，扩展库可按需下载 |
+| 离线能力 | 导入、刷题和本地备份可离线；在线 AI、MinerU 和 WebDAV 需要连接服务 | 基础功能可离线；PDF、公式和 OCR 扩展库可按需下载 |
 | 文档识别 | MinerU 在线 OCR、DOCX 图片提取 | PDF.js 文字层解析、OCR 测试区 |
 | 特色 | 背题、斩题、智能复习、暗夜模式、平板适配 | 桌面题库清洗、OCR、AI 导入与单题解析 |
 | 适合 | 手机日常刷题 | 电脑整理题库与快速使用 |
@@ -60,24 +60,23 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 **双端都有**
 
 - 支持随机练习、顺序练习、考试、错题复习、收藏和学习记录。
-- 支持单选、多选、判断、填空（含多空）和简答题。
-- 支持顺序练习进度、题目快速编辑、考试倒计时和答题卡。
-- 答错题目可进入错题本，学习记录可用于后续复盘。
+- 支持单选、多选、判断、填空（含多空）、简答和逐空作答的完形填空。
+- 支持题库分组、顺序练习进度、随机练习优先未做题，以及独立设置练习和考试的选项打乱。
+- 支持题目快速编辑、考试倒计时、答题卡和结果统计；学习记录可逐题复盘。
 
 **Android 原生版额外支持（Web 当前没有）**
 
-- **即时练习 / 批量练习**：可选择立即判题、自动下一题，也可整组提交。
+- **批量练习**：除即时判题外，也可整组提交。
 - **背题模式**：直接查看答案与解析，不计入普通练习记录。
 - **斩题**：把已经掌握的题移出普通练习池，并可随时恢复。
 - **智能复习**：根据错题状态安排到期复习。
-- **选项打乱**：练习与考试可独立控制。
 - **字号与紧凑模式**：题干、选项字号可调，适合长题阅读。
 - **错题作用域**：可在当前题库 / 全部题库之间切换，并按掌握状态筛选。
-- **优先未做题**：随机组题时优先抽取尚未练习过的题，数量不足再从已做题补足。
 - **考试细化设置**：可按题型设置题量、分值和时长，并支持滑动切题。
 
 **Web 版额外 / 实现不同**
 
+- 可在设置中开启单选、判断选择后立即判题，以及答对后自动下一题；也可分别记住练习和考试设置。
 - 考试结果可按题型汇总得分。
 - 更偏桌面端快速刷题与题库整理，不提供背题、斩题和智能复习。
 
@@ -90,12 +89,12 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 - 自动识别题号、题干、选项、答案、解析、题型和分区。
 - 支持导入预览、异常提示、手动修正和全文查找 / 替换。
 - 支持普通 JSON、跨端备份和图片题数据互通。
+- 支持提取 DOCX 内嵌图片，以及按标准 XLSX 表格的题目行尝试关联图片；归属不明的图片需人工核对。
+- 对材料题、共用题干和集中答案区提供兼容解析；复杂排版请先预览和核对。
 
 **Android 原生版额外支持**
 
-- **DOCX 内嵌图片提取**并绑定到题目。
-- **材料题 / 共用题干、集中答案区**等复杂格式的专门解析与回归保护。
-- **MinerU 在线 OCR**：支持扫描 PDF 识别、图片提取与人工绑定。
+- **MinerU 在线 OCR**：支持扫描 PDF 识别和精准模式图片绑定。题目与答案分成两份 PDF 时，可分别识别，再送入双文件导入。
 
 **Web 版额外支持**
 
@@ -112,6 +111,8 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 - 确认后的 AI 解析可以保存回题库。
 - 支持 DeepSeek、OpenAI 兼容接口和自定义接口。
 - 可连接 **Ollama / LM Studio** 等本机或内网 OpenAI 兼容服务。
+
+> AI 只作辅助。使用外部 AI 服务时，题目文本会发送给你配置的服务商；API Key 不写入题库备份。
 
 **Android 原生版额外支持（Web 当前没有）**
 
@@ -153,7 +154,7 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 
 - Kotlin + Jetpack Compose + Material3 原生界面。
 - 支持浅色 / 暗夜模式、Shiroha 模式、平板侧边导航和系统返回键。
-- 原生正式构建使用 KaTeX 离线排版 LaTeX，渲染失败时保留可读文本。RaTeX 保留用于开发对照。
+- 主分支用 KaTeX 离线排版 LaTeX，失败时保留可读文本；RaTeX 源码保留用于开发对照。当前公开 APK 仍用 RaTeX，详见上方发布状态。
 - 主要面向手机和平板日常刷题。
 
 **Web 版**
@@ -164,46 +165,6 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 > 两端题库与备份格式持续保持互通；具体功能变化以 [CHANGELOG](./CHANGELOG.md) 和 [Releases](https://github.com/reiqr/shiroha-quiz/releases) 为准。
 
 </details>
-
----
-
-## 当前能力
-
-### 刷题与考试
-
-- **题型**：单选、多选、判断、填空（含多空）、简答题。
-- **练习**：随机练习、顺序练习、考试、错题复习、收藏与学习记录。
-- **范围与进度**：支持题库分组、跨题库练习范围和顺序练习进度。
-- **原生特色**：即时/批量练习、随机练习优先未做题、背题、斩题、选项打乱、字号调整和智能复习。
-- **考试**：支持倒计时、答题卡、交卷提醒和结果统计。
-- **快速编辑**：练习中可直接修改题目并写回来源题库。
-- **学习记录**：每轮练习或考试生成独立记录，支持逐题复盘与只看错题筛选。
-
-### 题库导入
-
-- **格式**：支持 `docx`、`xlsx` / `csv`、`txt`、`json`、文字层 `pdf` 和粘贴文本。
-- **双文件导入**：支持“题目文件 + 答案文件”自动匹配。
-- **自动解析**：识别题号、题干、选项、答案、解析、题型和分区。
-- **核对与修正**：支持导入预览、异常提示、手动修正、全文查找/替换。
-- **原生版**：支持 DOCX 内嵌图片提取、材料题/共用题干和集中答案区等复杂格式。
-- **Web 版**：支持 PDF.js 文字层解析，并提供扫描 PDF OCR 测试兜底。
-- 原生解析器持续维护真实题库回归测试，复杂边界说明放在专项文档中。
-
-### AI 辅助
-
-- **AI 导入**：Web 与原生版均支持整理 / 核对 / 补解析，优先使用结构化题目结果。
-- **单题 AI**：练习页可按需解析与追问，确认后保存解析。
-- **临时参考答案**：原生版可选启用，默认关闭，不写回题库、不进入错题本。
-- **接口**：支持 DeepSeek、OpenAI 兼容接口和自定义接口；Web 版也可连接 Ollama / LM Studio。
-
-> AI 结果仅作辅助参考；使用外部 AI 服务时，题目文本会发送给你配置的服务商。API Key 不写入题库备份。
-
-### 备份与跨端
-
-- **本地备份**：支持完整数据备份和恢复。
-- **跨端互通**：Web 与原生版题库格式互通，图片题可通过 ZIP 保留素材。
-- **WebDAV**：支持云备份与远程恢复，原生版还可选自动备份。
-- **密钥存储**：原生版 API Key 使用 Android Keystore 加密保存。
 
 ---
 
@@ -270,9 +231,9 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 - [在线体验](https://reiqr.github.io/shiroha-quiz)
 - [CHANGELOG](./CHANGELOG.md)
 
-每次正式发布通常提供 Android 原生 APK 与 Web ZIP。近期功能变化以 Release 说明和 CHANGELOG 为准，README 只保留当前稳定能力概览。
+新发布的 Android 原生包计划只发 KaTeX 版。现有 Release 中的 RaTeX 和 Lite 仍可下载，是否已有新 APK 请以 Release 附件为准；未发布的变化单独列在 [CHANGELOG](./CHANGELOG.md)。
 
-Web ZIP 不包含约 88 MB 的 PDF.js / MathJax / Tesseract 离线扩展资源，可在 `apps/web/libs/` 下按需下载；联网时也可使用 CDN 兜底。
+Web ZIP 不捆绑完整 PDF.js、MathJax 和 Tesseract 离线扩展，可按 [离线资源下载速查](./apps/web/离线资源下载速查.txt) 补齐；联网时可使用 CDN 兜底。
 
 ---
 
@@ -284,17 +245,14 @@ Web ZIP 不包含约 88 MB 的 PDF.js / MathJax / Tesseract 离线扩展资源�
 shiroha-quiz/
 ├── apps/
 │   ├── web/                        # Web 版
-│   └── android/                    # Android 工程
-│       └── app/src/native/         # 原生 Compose 源码
-│           ├── ai/                 # AI
-│           ├── importer/           # 导入解析
-│           ├── document/           # 文档识别
-│           ├── security/           # 密钥存储
-│           ├── state/              # 状态管理
-│           ├── sync/               # WebDAV
-│           └── ui/                 # Compose UI
+│   └── android/app/src/            # Android 工程的主要源集
+│       ├── native/                 # 原生 Compose、导入解析、AI、WebDAV
+│       ├── katex/                  # 正式版公式排版与本地资源
+│       ├── ratex/、lite/           # 开发对照与纯文本构建
+│       ├── latexComparison/        # 仅用于对照 APK 的内置题库
+│       └── web/                    # 历史 WebView 壳
 ├── docs/                           # 文档索引见 docs/README.md
-├── test/                           # 回归与 Web 测试
+├── test/                           # 原生解析、公式对照与 Web 专项测试
 ├── assets/                         # 宣传素材
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
@@ -316,7 +274,7 @@ Android 工程仍保留两个 flavor：
 ### Web
 
 ```powershell
-apps/web/打开Shiroha Quiz.cmd
+& '.\apps\web\打开Shiroha Quiz.cmd'
 ```
 
 也可以使用任意静态服务器：
@@ -337,6 +295,7 @@ cd apps/android
 Windows PowerShell：
 
 ```powershell
+cd apps/android
 .\gradlew.bat assembleNativeRelease              # 正式版（离线 KaTeX）
 ```
 
@@ -372,6 +331,7 @@ AI 练习回归位于 `test/web-ai-practice/`，需要 Node、Playwright 和可�
 - [测试体系整理说明](docs/native/测试体系整理说明.md)
 - [解析器回归测试说明](docs/native/解析器回归测试说明.md)
 - [外部回归测试包说明](test/native-parser-regression/README.md)
+- [LaTeX 引擎对照与内置题库](test/android-katex/README.md)
 
 ---
 
@@ -379,7 +339,7 @@ AI 练习回归位于 `test/web-ai-practice/`，需要 Node、Playwright 和可�
 
 历史开发计划已归档到 `docs/archive/`。当前功能状态以 README、CHANGELOG、Releases 和原生开发进度为准。
 
-- [文档索引](docs/README.md)
+- 文档索引：[Markdown](docs/README.md) / [Word](docs/文档索引/README.docx)
 - [原生 Android 开发进度](docs/native/原生开发进度.md)
 - [架构说明](docs/universal/架构说明.md)
 - [解析器回归测试说明](docs/native/解析器回归测试说明.md)
