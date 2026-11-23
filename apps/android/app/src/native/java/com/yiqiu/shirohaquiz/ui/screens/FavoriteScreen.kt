@@ -60,6 +60,7 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
+import com.yiqiu.shirohaquiz.ui.components.MathText
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -398,7 +399,7 @@ private fun FavoriteQuestionPreview(entry: FavoriteQuestionEntry) {
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text(
+        MathText(
             text = favoriteQuestionDisplayTitle(entry),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
@@ -414,7 +415,7 @@ private fun FavoriteQuestionPreview(entry: FavoriteQuestionEntry) {
         if (entry.question.options.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             entry.question.options.forEach { option ->
-                Text(
+                MathText(
                     text = "${option.key}. ${option.text}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium
@@ -423,13 +424,13 @@ private fun FavoriteQuestionPreview(entry: FavoriteQuestionEntry) {
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text(
+        MathText(
             text = "正确答案：${entry.question.answer.joinToString(" / ").ifBlank { "未识别答案" }}",
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (entry.question.analysis.isNotBlank()) {
             Spacer(Modifier.height(6.dp))
-            Text(
+            MathText(
                 text = "解析：${entry.question.analysis}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

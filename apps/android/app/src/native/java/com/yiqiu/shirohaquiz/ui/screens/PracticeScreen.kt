@@ -1180,6 +1180,7 @@ fun PracticeScreen(
                 }
             }
             Spacer(Modifier.height(12.dp))
+            // 无障碍朗读仍使用纯文本结果；题目本体交给 MathRichText 做真正的公式排版
             val questionText = LatexDisplayFormatter.format(question.question)
             val questionProgressText = if (isBatchPractice) {
                 "第 $batchGroupNumber 组，第 ${QuizRepository.practiceIndex - batchGroupStart + 1} / $batchGroupTotal 题"
@@ -3538,8 +3539,8 @@ private fun MissingAnswerAiReferenceCard(state: MissingAnswerAiReferenceState) {
                 )
             }
             state.displayAnswer.takeIf { it.isNotBlank() }?.let { answer ->
-                Text(
-                    text = "参考：${LatexDisplayFormatter.format(answer)}",
+                MathText(
+                    text = "参考：$answer",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -3729,8 +3730,8 @@ private fun SingleQuestionAiConversationCard(messages: List<SingleQuestionAiChat
                         shape = RoundedCornerShape(14.dp),
                         color = if (message.isUser) ShirohaColors.BrandPrimarySoft else ShirohaColors.CardWhite78
                     ) {
-                        Text(
-                            text = LatexDisplayFormatter.format(formatAnalysisForDisplay(message.content)),
+                        MathText(
+                            text = formatAnalysisForDisplay(message.content),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                             style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
                             color = MaterialTheme.colorScheme.onSurface
@@ -3787,8 +3788,8 @@ private fun SingleQuestionAiResultCard(result: AiSingleQuestionAnalysis) {
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            Text(
-                text = LatexDisplayFormatter.format(formatAnalysisForDisplay(result.analysis)),
+            MathText(
+                text = formatAnalysisForDisplay(result.analysis),
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 23.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

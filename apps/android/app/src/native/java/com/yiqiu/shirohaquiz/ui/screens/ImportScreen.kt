@@ -87,10 +87,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -137,7 +139,9 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaMotion
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
-import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
+import com.yiqiu.shirohaquiz.BuildConfig
+import com.yiqiu.shirohaquiz.ui.components.MathText
+import com.yiqiu.shirohaquiz.ui.text.LatexSegmenter
 import com.yiqiu.shirohaquiz.ui.util.bankDisplayPath
 import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.Dispatchers
@@ -3176,6 +3180,8 @@ private fun NativeImportPreview(
         questions.take(8).forEach { question ->
             val answerText = answerDisplayText(question)
             val optionText = question.options.joinToString("  ") { "${it.key}. ${it.text}" }
+            val hasFormula = BuildConfig.MATH_RENDERING_ENABLED &&
+                remember(question.question) { LatexSegmenter.containsMath(question.question) }
 
             Text(
                 text = "${question.number}. ${typeLabel(question.type)}",
@@ -3185,11 +3191,17 @@ private fun NativeImportPreview(
             )
             Spacer(Modifier.height(6.dp))
             SelectionContainer {
-                Text(
-                    text = LatexDisplayFormatter.format(question.question),
+                MathText(
+                    text = question.question,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold
                 )
+            }
+            if (hasFormula) {
+                val clipboard = LocalClipboardManager.current
+                TextButton(onClick = { clipboard.setText(AnnotatedString(question.question)) }) {
+                    Text("复制题干")
+                }
             }
             if (question.images.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
@@ -3197,18 +3209,18 @@ private fun NativeImportPreview(
             }
             if (optionText.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
-                Text(
+                MathText(
                     text = optionText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Spacer(Modifier.height(6.dp))
-            Text(
+            MathText(
                 text = if (question.type == QuestionType.SHORT) {
-                    "答案：\n${LatexDisplayFormatter.format(answerText)}"
+                    "答案：\n$answerText"
                 } else {
-                    "答案：${LatexDisplayFormatter.format(answerText)}"
+                    "答案：$answerText"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
@@ -3231,8 +3243,8 @@ private fun NativeImportPreview(
             }
             if (question.analysis.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "解析：${LatexDisplayFormatter.format(question.analysis)}",
+                MathText(
+                    text = "解析：${question.analysis}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

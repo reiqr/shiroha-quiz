@@ -68,6 +68,7 @@ import com.yiqiu.shirohaquiz.ui.theme.ShirohaColors
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaDimens
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaRadius
 import com.yiqiu.shirohaquiz.ui.theme.ShirohaSpacing
+import com.yiqiu.shirohaquiz.ui.components.MathText
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -857,7 +858,7 @@ private fun WrongQuestionPreview(entry: WrongQuestionEntry) {
             StatusChip(entry.bankName)
         }
         Spacer(Modifier.height(12.dp))
-        Text(
+        MathText(
             text = wrongQuestionDisplayTitle(entry),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
@@ -873,7 +874,7 @@ private fun WrongQuestionPreview(entry: WrongQuestionEntry) {
         if (entry.question.options.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             entry.question.options.forEach { option ->
-                Text(
+                MathText(
                     text = "${option.key}. ${option.text}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium
@@ -882,7 +883,7 @@ private fun WrongQuestionPreview(entry: WrongQuestionEntry) {
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text(
+        MathText(
             text = if (MultiBlankSupport.hasStructuredAnswers(entry.question)) {
                 "正确答案：\n${MultiBlankSupport.expectedAnswerText(entry.question.blankAnswers)}"
             } else {

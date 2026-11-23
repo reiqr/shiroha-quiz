@@ -1,0 +1,83 @@
+{
+  "name": "Shiroha KaTeX Delimiter Probes (3 Questions)",
+  "questions": [
+    {
+      "type": "single",
+      "question": "???? 1????????????\n$$\\int_0^1 x^2\\,dx$$",
+      "options": [
+        {
+          "key": "A",
+          "text": "$1/2$"
+        },
+        {
+          "key": "B",
+          "text": "$1/3$"
+        },
+        {
+          "key": "C",
+          "text": "$1$"
+        },
+        {
+          "key": "D",
+          "text": "$2$"
+        }
+      ],
+      "answer": [
+        "B"
+      ],
+      "analysis": "?????????$\\int_0^1 x^2\\,dx=1/3$?"
+    },
+    {
+      "type": "single",
+      "question": "???? 2????\n\\[A=\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}\\]\n? $\\det A$ ???",
+      "options": [
+        {
+          "key": "A",
+          "text": "$-2$"
+        },
+        {
+          "key": "B",
+          "text": "$2$"
+        },
+        {
+          "key": "C",
+          "text": "$5$"
+        },
+        {
+          "key": "D",
+          "text": "$-5$"
+        }
+      ],
+      "answer": [
+        "A"
+      ],
+      "analysis": "$\\det A=1\\cdot4-2\\cdot3=-2$?"
+    },
+    {
+      "type": "single",
+      "question": "???? 3?? \\(\\operatorname{Var}(X)=E(X^2)-[E(X)]^2\\)?? \\(E(X)=2\\)?\\(E(X^2)=7\\)?? \\(\\operatorname{Var}(X)\\) ???",
+      "options": [
+        {
+          "key": "A",
+          "text": "$1$"
+        },
+        {
+          "key": "B",
+          "text": "$2$"
+        },
+        {
+          "key": "C",
+          "text": "$3$"
+        },
+        {
+          "key": "D",
+          "text": "$7$"
+        }
+      ],
+      "answer": [
+        "C"
+      ],
+      "analysis": "????? $\\operatorname{Var}(X)=7-2^2=3$?"
+    }
+  ]
+}

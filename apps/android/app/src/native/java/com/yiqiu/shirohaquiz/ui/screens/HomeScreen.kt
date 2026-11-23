@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.yiqiu.shirohaquiz.BuildConfig
 import com.yiqiu.shirohaquiz.R
 import com.yiqiu.shirohaquiz.state.QuizRepository
 import com.yiqiu.shirohaquiz.ui.components.GlassCard
@@ -103,6 +104,11 @@ fun HomeScreen(
             )
 
             Spacer(Modifier.height(homeSectionGap))
+
+            if (BuildConfig.LATEX_COMPARISON_ENABLED) {
+                LatexComparisonCard(onGoPractice)
+                Spacer(Modifier.height(homeSectionGap))
+            }
 
             IllustrationHeroCard(
                 title = "欢迎回来",

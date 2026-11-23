@@ -5,6 +5,7 @@ import android.graphics.Typeface
 import android.os.Build
 import android.text.Spannable
 import android.text.SpannableStringBuilder
+import android.text.TextUtils
 import android.util.TypedValue
 import android.widget.TextView
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,11 +24,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
-import com.yiqiu.shirohaquiz.ui.text.findLatexMathSegments
+import com.yiqiu.shirohaquiz.ui.text.LatexSegment
+import com.yiqiu.shirohaquiz.ui.text.LatexSegmenter
+import com.yiqiu.shirohaquiz.ui.text.formatPlainMathText
 import io.ratex.RaTeXException
 import io.ratex.RaTeXSpan
 
@@ -38,11 +41,13 @@ internal fun MathText(
     style: TextStyle = LocalTextStyle.current,
     color: Color = Color.Unspecified,
     fontWeight: FontWeight? = null,
-    plainText: (String) -> String = LatexDisplayFormatter::format
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip
 ) {
-    val segments = remember(text) { findLatexMathSegments(text) }
-    if (segments.isEmpty()) {
-        Text(plainText(text), modifier = modifier, style = style, color = color, fontWeight = fontWeight)
+    val segments = remember(text) { LatexSegmenter.split(text) }
+    if (segments.none { it is LatexSegment.Math }) {
+        Text(formatPlainMathText(text), modifier = modifier, style = style, color = color,
+            fontWeight = fontWeight, maxLines = maxLines, overflow = overflow)
         return
     }
 
@@ -57,16 +62,19 @@ internal fun MathText(
         val rendered by produceState<CharSequence>(text, text, textSize, textColor, width) {
             value = text
             val builder = SpannableStringBuilder()
-            var end = 0
-            for (segment in segments) {
-                builder.append(text.substring(end, segment.start))
-                val original = text.substring(segment.start, segment.end)
+            for ((index, segment) in segments.withIndex()) {
+                if (segment is LatexSegment.PlainText) {
+                    builder.append(segment.text)
+                    continue
+                }
+                segment as LatexSegment.Math
+                val original = segment.raw
                 val span = try {
                     val fontDp = textSize / density.density
-                    val fullSize = RaTeXSpan.create(context, segment.formula, fontDp, textColor, segment.display)
+                    val fullSize = RaTeXSpan.create(context, segment.latex, fontDp, textColor, segment.display)
                     val spanWidth = fullSize.getSize(Paint(), original, 0, original.length, null)
                     if (width > 0 && spanWidth > width) {
-                        RaTeXSpan.create(context, segment.formula, fontDp * width / spanWidth * 0.98f, textColor, segment.display)
+                        RaTeXSpan.create(context, segment.latex, fontDp * width / spanWidth * 0.98f, textColor, segment.display)
                     } else fullSize
                 } catch (_: RaTeXException) {
                     null
@@ -80,11 +88,13 @@ internal fun MathText(
                     val start = builder.length
                     builder.append(original.replace('\n', ' ').replace('\r', ' '))
                     builder.setSpan(span, start, builder.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    if (segment.display && segment.end < text.length && text[segment.end] != '\n') builder.append('\n')
+                    val next = segments.getOrNull(index + 1)
+                    if (segment.display && next != null &&
+                        !(next is LatexSegment.PlainText && next.text.startsWith('\n'))
+                    ) builder.append('\n')
                 }
-                end = segment.end
             }
-            value = builder.append(text.substring(end))
+            value = builder
         }
         AndroidView(
             factory = { TextView(it).apply { includeFontPadding = false } },
@@ -97,8 +107,12 @@ internal fun MathText(
                     Typeface.create(Typeface.DEFAULT, if (weight >= 600) Typeface.BOLD else Typeface.NORMAL)
                 }
                 view.setLineSpacing((lineHeight - view.paint.fontSpacing).coerceAtLeast(0f), 1f)
+                view.maxLines = maxLines
+                view.ellipsize = if (overflow == TextOverflow.Ellipsis) TextUtils.TruncateAt.END else null
                 view.text = rendered
             }
         )
     }
 }
+
+internal fun clearMathRenderCaches() = Unit

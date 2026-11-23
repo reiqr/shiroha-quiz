@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.yiqiu.shirohaquiz.ui.text.LatexDisplayFormatter
 
 /**
@@ -20,13 +21,18 @@ internal fun MathText(
     style: TextStyle = LocalTextStyle.current,
     color: Color = Color.Unspecified,
     fontWeight: FontWeight? = null,
-    plainText: (String) -> String = LatexDisplayFormatter::format
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip
 ) {
     Text(
-        text = plainText(text),
+        text = LatexDisplayFormatter.format(text),
         modifier = modifier,
         style = style,
         color = color,
-        fontWeight = fontWeight
+        fontWeight = fontWeight,
+        maxLines = maxLines,
+        overflow = overflow
     )
 }
+
+internal fun clearMathRenderCaches() = Unit
