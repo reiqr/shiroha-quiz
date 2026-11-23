@@ -403,6 +403,7 @@ AI 练习回归位于 `test/web-ai-practice/`，需要 Node、Playwright 和可�
 
 - [@jiesou](https://github.com/jiesou) —— Web 练习页单题 AI 解析/追问与 WebDAV 同步相关贡献
 - [@anupamme](https://github.com/anupamme) —— 指出 AI API Key 明文存储问题并提供最小修复思路
+- [@lyoualker-sudo](https://github.com/lyoualker-sudo) —— 为原生 Android 版实现离线 KaTeX 公式排版，并补充渲染回退、无障碍与测试题库（[PR #147](https://github.com/reiqr/shiroha-quiz/pull/147)）
 
 ---
 
