@@ -11,7 +11,7 @@ require(latexComparison == null || latexComparison in setOf("ratex", "katex")) {
     "latexComparison must be ratex or katex"
 }
 require(latexComparison == null || !noRatex) { "Do not combine latexComparison and noRatex" }
-val latexSource = latexComparison ?: if (noRatex) "lite" else "ratex"
+val latexSource = latexComparison ?: if (noRatex) "lite" else "katex"
 
 android {
     namespace = "com.yiqiu.shirohaquiz"
@@ -36,10 +36,11 @@ android {
             dimension = "variant"
             testInstrumentationRunner = "com.yiqiu.shirohaquiz.state.QuizRepositoryCloudRestoreSafetyInstrumentation"
             applicationId = "com.reqir.shirohaquiz"
-            versionCode = 218
+            versionCode = if (latexComparison != null) 219 else 218
             buildConfigField("boolean", "MATH_RENDERING_ENABLED", (latexSource != "lite").toString())
+            buildConfigField("boolean", "LATEX_COMPARISON_ENABLED", (latexComparison != null).toString())
             versionName = when {
-                latexComparison != null -> "0.9.17-$latexComparison-test"
+                latexComparison != null -> "0.9.17-$latexComparison-test-builtin"
                 noRatex -> "0.9.17-lite"
                 else -> "0.9.17"
             }
@@ -52,10 +53,12 @@ android {
     signingConfigs {
         create("release") {
             val props = Properties()
-            val propsFile = rootProject.file("keystore.properties")
+            val propsFile = rootProject.file(
+                providers.gradleProperty("releaseSigningProperties").getOrElse("keystore.properties")
+            )
             if (propsFile.exists()) {
                 props.load(propsFile.inputStream())
-                storeFile = rootProject.file(props["storeFile"] as String)
+                storeFile = propsFile.parentFile.resolve(props["storeFile"] as String)
                 storePassword = props["storePassword"] as String
                 keyAlias = props["keyAlias"] as String
                 keyPassword = props["keyPassword"] as String
@@ -68,9 +71,11 @@ android {
             signingConfig = signingConfigs.getByName(if (latexComparison != null) "debug" else "release")
             isMinifyEnabled = true
             isShrinkResources = true
-            // Standard release targets modern 64-bit ARM phones; Lite (no native libs) stays universal.
-            ndk {
-                abiFilters += listOf("arm64-v8a")
+            // Only the RaTeX comparison package contains an Android native library.
+            if (latexSource == "ratex") {
+                ndk {
+                    abiFilters += listOf("arm64-v8a")
+                }
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -101,7 +106,10 @@ android {
     sourceSets.getByName("native").apply {
         java.srcDir("src/$latexSource/java")
         if (latexSource == "katex") assets.srcDir("src/katex/assets")
-        if (latexComparison != null) res.srcDir("src/$latexSource/res")
+        if (latexComparison != null) {
+            res.srcDir("src/$latexSource/res")
+            assets.srcDir("src/latexComparison/assets")
+        }
     }
     sourceSets.getByName("testNative").apply {
         java.srcDir("src/androidTestNative/java")

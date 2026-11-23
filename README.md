@@ -153,7 +153,7 @@ Shiroha Quiz 是一个轻量、开源的刷题工具，支持自导入题库、�
 
 - Kotlin + Jetpack Compose + Material3 原生界面。
 - 支持浅色 / 暗夜模式、Shiroha 模式、平板侧边导航和系统返回键。
-- 标准版使用 RaTeX 渲染 LaTeX 公式；Lite 版回退纯文本，安装包更小、全设备通用。
+- 原生正式构建使用 KaTeX 离线排版 LaTeX，渲染失败时保留可读文本。RaTeX 保留用于开发对照。
 - 主要面向手机和平板日常刷题。
 
 **Web 版**
@@ -331,16 +331,16 @@ npx serve apps/web
 
 ```bash
 cd apps/android
-./gradlew assembleNativeRelease              # 标准版（仅 arm64-v8a）
-./gradlew assembleNativeRelease -PnoRatex    # Lite 版（无 RaTeX）
+./gradlew assembleNativeRelease              # 正式版（离线 KaTeX）
 ```
 
 Windows PowerShell：
 
 ```powershell
-.\gradlew.bat assembleNativeRelease              # 标准版（仅 arm64-v8a）
-.\gradlew.bat assembleNativeRelease -PnoRatex    # Lite 版（无 RaTeX）
+.\gradlew.bat assembleNativeRelease              # 正式版（离线 KaTeX）
 ```
+
+RaTeX 对照包和纯文本 Lite 保留为开发构建，见 [公式引擎测试说明](./test/android-katex/README.md)。
 
 ---
 
@@ -420,7 +420,7 @@ AI 练习回归位于 `test/web-ai-practice/`，需要 Node、Playwright 和可�
 | 平台 | 组件 | 许可 |
 |------|------|------|
 | Android | AndroidX / Jetpack Compose / Material Components / OkHttp / WorkManager / Kotlin | Apache-2.0 |
-| Android | RaTeX | MIT |
+| Android | KaTeX；RaTeX（开发对照） | MIT |
 | Web | MathJax / PDF.js / Tesseract.js | Apache-2.0 |
 | 测试 | JUnit / Robolectric / kxml2 | EPL-1.0 / MIT / BSD-style |
 

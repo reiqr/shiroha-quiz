@@ -31,9 +31,9 @@ Apache-2.0 完整文本见 [LICENSES/Apache-2.0.txt](./LICENSES/Apache-2.0.txt)�
 
 | 组件 | 版本 | 许可 | 版权 / 来源 |
 | --- | --- | --- | --- |
-| RaTeX（`io.github.erweixin:ratex-android`） | 0.1.15 | MIT | RaTeX Contributors，https://github.com/erweixin/RaTeX |
+| RaTeX（`io.github.erweixin:ratex-android`，仅开发对照） | 0.1.15 | MIT | RaTeX Contributors，https://github.com/erweixin/RaTeX |
 | KaTeX 字体（随 RaTeX 内置） | - | MIT | Khan Academy and other contributors，https://katex.org |
-| KaTeX（仅 Android KaTeX 对照包） | 0.19.1 | MIT | Khan Academy and other contributors，[KaTeX v0.19.1](https://github.com/KaTeX/KaTeX/releases/tag/v0.19.1) |
+| KaTeX（Android 正式版及 KaTeX 对照包） | 0.19.1 | MIT | Khan Academy and other contributors，[KaTeX v0.19.1](https://github.com/KaTeX/KaTeX/releases/tag/v0.19.1) |
 
 MIT 完整文本见 [LICENSES/MIT.txt](./LICENSES/MIT.txt)。KaTeX 字体随 KaTeX 项目分发；如上游对字体另有许可声明，以该声明为准。
 

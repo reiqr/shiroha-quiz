@@ -1,0 +1,1807 @@
+{
+ "id": "latexbank-17ad86dddcfd92348b",
+ "name": "LaTeX｜压力测试前50题（预热）",
+ "groupName": "性能压测",
+ "questions": [
+  {
+   "id": "latex-2a21dafe5639b26a62",
+   "number": "P0001",
+   "type": "single",
+   "question": "【公式压力测试 0001/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-edefc0ed58d6a9b27d",
+   "number": "P0002",
+   "type": "single",
+   "question": "【公式压力测试 0002/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-3baa9839db4037a298",
+   "number": "P0003",
+   "type": "single",
+   "question": "【公式压力测试 0003/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-7393099be10ee58cfc",
+   "number": "P0004",
+   "type": "single",
+   "question": "【公式压力测试 0004/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-12e27c63021ffb443a",
+   "number": "P0005",
+   "type": "single",
+   "question": "【公式压力测试 0005/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-afa85a0e61982e9c0e",
+   "number": "P0006",
+   "type": "single",
+   "question": "【公式压力测试 0006/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-5a085dc565c841b5b7",
+   "number": "P0007",
+   "type": "single",
+   "question": "【公式压力测试 0007/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-78817678c0440be70a",
+   "number": "P0008",
+   "type": "single",
+   "question": "【公式压力测试 0008/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-5a61ea3693a84d2b89",
+   "number": "P0009",
+   "type": "single",
+   "question": "【公式压力测试 0009/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-b9c1cf68079eb28c0c",
+   "number": "P0010",
+   "type": "single",
+   "question": "【公式压力测试 0010/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-acc35ad4062dc747ad",
+   "number": "P0011",
+   "type": "single",
+   "question": "【公式压力测试 0011/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-fe324fa3a7b6873832",
+   "number": "P0012",
+   "type": "single",
+   "question": "【公式压力测试 0012/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-203e95b44b058fc25c",
+   "number": "P0013",
+   "type": "single",
+   "question": "【公式压力测试 0013/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-0d3be5b06480f300f5",
+   "number": "P0014",
+   "type": "single",
+   "question": "【公式压力测试 0014/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-c187671d209e9542a1",
+   "number": "P0015",
+   "type": "single",
+   "question": "【公式压力测试 0015/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-403ac31142e9000c70",
+   "number": "P0016",
+   "type": "single",
+   "question": "【公式压力测试 0016/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-5bba2dd82ed287c2ae",
+   "number": "P0017",
+   "type": "single",
+   "question": "【公式压力测试 0017/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-29adcd06adeddb34f0",
+   "number": "P0018",
+   "type": "single",
+   "question": "【公式压力测试 0018/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-b89540d4b0b543adb2",
+   "number": "P0019",
+   "type": "single",
+   "question": "【公式压力测试 0019/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-52e7752fc46469442e",
+   "number": "P0020",
+   "type": "single",
+   "question": "【公式压力测试 0020/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-1330985a5fa2ca4e82",
+   "number": "P0021",
+   "type": "single",
+   "question": "【公式压力测试 0021/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-0c6a1d21c81985338a",
+   "number": "P0022",
+   "type": "single",
+   "question": "【公式压力测试 0022/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-ba1258356f7d3332fa",
+   "number": "P0023",
+   "type": "single",
+   "question": "【公式压力测试 0023/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-06cb1eaa7ae4f4fc59",
+   "number": "P0024",
+   "type": "single",
+   "question": "【公式压力测试 0024/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-1f66074e6287e8751f",
+   "number": "P0025",
+   "type": "single",
+   "question": "【公式压力测试 0025/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-c27d8b803d7e3958ed",
+   "number": "P0026",
+   "type": "single",
+   "question": "【公式压力测试 0026/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-612044e496840d7812",
+   "number": "P0027",
+   "type": "single",
+   "question": "【公式压力测试 0027/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-c2b7de57e4667723de",
+   "number": "P0028",
+   "type": "single",
+   "question": "【公式压力测试 0028/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-08b4e9c3a64074bf77",
+   "number": "P0029",
+   "type": "single",
+   "question": "【公式压力测试 0029/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-18b2b3ecdda47141de",
+   "number": "P0030",
+   "type": "single",
+   "question": "【公式压力测试 0030/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-b6a9357f670587a035",
+   "number": "P0031",
+   "type": "single",
+   "question": "【公式压力测试 0031/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-1f2d28948f671221f8",
+   "number": "P0032",
+   "type": "single",
+   "question": "【公式压力测试 0032/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-dd005b60d835bfa667",
+   "number": "P0033",
+   "type": "single",
+   "question": "【公式压力测试 0033/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-6710b7a47ea902e343",
+   "number": "P0034",
+   "type": "single",
+   "question": "【公式压力测试 0034/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-ba8725960657e193d8",
+   "number": "P0035",
+   "type": "single",
+   "question": "【公式压力测试 0035/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-a10057fdd009e3ed8c",
+   "number": "P0036",
+   "type": "single",
+   "question": "【公式压力测试 0036/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-6aaf3f40da6e12e19b",
+   "number": "P0037",
+   "type": "single",
+   "question": "【公式压力测试 0037/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-221207c918823025c0",
+   "number": "P0038",
+   "type": "single",
+   "question": "【公式压力测试 0038/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-9ffa26338cb3f8ff31",
+   "number": "P0039",
+   "type": "single",
+   "question": "【公式压力测试 0039/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-27f5865346f0336877",
+   "number": "P0040",
+   "type": "single",
+   "question": "【公式压力测试 0040/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-af3fb408e3765b96de",
+   "number": "P0041",
+   "type": "single",
+   "question": "【公式压力测试 0041/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-1615eb3f731a6106e4",
+   "number": "P0042",
+   "type": "single",
+   "question": "【公式压力测试 0042/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-c350d1ac218bb4b52d",
+   "number": "P0043",
+   "type": "single",
+   "question": "【公式压力测试 0043/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-398014a21447535134",
+   "number": "P0044",
+   "type": "single",
+   "question": "【公式压力测试 0044/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-e99ce42a3cec19a051",
+   "number": "P0045",
+   "type": "single",
+   "question": "【公式压力测试 0045/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-2b30aba2bb0d5cbe68",
+   "number": "P0046",
+   "type": "single",
+   "question": "【公式压力测试 0046/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-d843c73f953657b5a9",
+   "number": "P0047",
+   "type": "single",
+   "question": "【公式压力测试 0047/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-22ac7d8c6d0378c1ed",
+   "number": "P0048",
+   "type": "single",
+   "question": "【公式压力测试 0048/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-72e330d080741d1895",
+   "number": "P0049",
+   "type": "single",
+   "question": "【公式压力测试 0049/1096】下列中文、英文 English 与数学表达式混排。($x^2+1$) ($\\frac{a+b}{c+d}$) ($\\sum_{k=1}^{n}k$) ($\\lim_{x\\to0}\\frac{\\sin x}{x}$) ($\\sqrt{x^2+y^2}$) ($\\int_0^1x^n\\,dx$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$\\alpha+\\beta=\\gamma$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\binom nk$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\mathbb E[X]$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\hat\\theta$；$\\Pr(A\\mid B)$；$\\nabla f$；$e^{i\\pi}+1=0$；$x^2+1$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  },
+  {
+   "id": "latex-cb8d370c08dfd6eb69",
+   "number": "P0050",
+   "type": "single",
+   "question": "【公式压力测试 0050/1096】下列中文、英文 English 与数学表达式混排。($\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$) ($\\binom nk$) ($\\mathbb E[X]$) ($\\hat\\theta$) ($\\Pr(A\\mid B)$) ($\\nabla f$)",
+   "options": [
+    {
+     "key": "A",
+     "text": "候选项 A：$e^{i\\pi}+1=0$"
+    },
+    {
+     "key": "B",
+     "text": "候选项 B：$x^2+1$"
+    },
+    {
+     "key": "C",
+     "text": "候选项 C：$\\frac{a+b}{c+d}$"
+    },
+    {
+     "key": "D",
+     "text": "候选项 D：$\\sum_{k=1}^{n}k$"
+    }
+   ],
+   "answer": [
+    "A"
+   ],
+   "analysis": "解析区域连续混排：$\\lim_{x\\to0}\\frac{\\sin x}{x}$；$\\sqrt{x^2+y^2}$；$\\int_0^1x^n\\,dx$；$\\alpha+\\beta=\\gamma$；$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$。",
+   "category": "压力测试",
+   "subject": "数学公式渲染",
+   "difficulty": "测试用例",
+   "tags": [
+    "压力负载",
+    "渲染压力"
+   ],
+   "source": "Shiroha Quiz LaTeX fixture (original)"
+  }
+ ]
+}
